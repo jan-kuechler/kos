@@ -1,5 +1,6 @@
 #include <string.h>
 #include "console.h"
+#include "idt.h"
 #include "ports.h"
 
 #define SCREEN_WIDTH 80
@@ -10,13 +11,29 @@ static unsigned int cursor_y;
 
 static byte color;
 
+static byte intr_disabled;
+
 static word *vmem = (word*)0xB8000;
+
+#define DISABLE_INTR()   \
+	byte __reenable_intr;  \
+	if (!intr_disabled) {  \
+		disable_intr();      \
+		__reenable_intr = 1; \
+	}                      \
+
+#define ENABLE_INTR()    \
+	if (__reenable_intr) { \
+		enable_intr();       \
+	}                      \
 
 /**
  * Scrolls one line down
  */
 static void scroll_down(void)
 {
+	DISABLE_INTR();
+
 	int i = SCREEN_WIDTH * (SCREEN_HEIGHT-1);
 
 	memmove(vmem, vmem + SCREEN_WIDTH, 2 * SCREEN_WIDTH * (SCREEN_HEIGHT-1));
@@ -26,6 +43,8 @@ static void scroll_down(void)
 	}
 
 	con_set_cursor_pos(cursor_x, cursor_y-1);
+
+	ENABLE_INTR();
 }
 
 /**
@@ -33,12 +52,16 @@ static void scroll_down(void)
  */
 void con_clear_screen(void)
 {
+	DISABLE_INTR();
+
 	int i = 0;
 	for (;i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
 		vmem[i] = color << 8;
 	}
 
 	con_set_cursor_pos(0, 0);
+
+	ENABLE_INTR();
 }
 
 /**
@@ -47,11 +70,15 @@ void con_clear_screen(void)
  */
 unsigned int con_clear_to(unsigned int x)
 {
+	DISABLE_INTR();
+
 	int i = cursor_x;
 	for (; i < x; ++i) {
 		vmem[i + cursor_y * SCREEN_WIDTH] = color << 8;
 	}
 
+
+	ENABLE_INTR();
 	return x;
 }
 
@@ -60,6 +87,8 @@ unsigned int con_clear_to(unsigned int x)
  */
 void con_set_cursor_pos(unsigned int x, unsigned int y)
 {
+	DISABLE_INTR();
+
 	if (x >= SCREEN_WIDTH) {
 		x = SCREEN_WIDTH - 1;
 	}
@@ -70,6 +99,8 @@ void con_set_cursor_pos(unsigned int x, unsigned int y)
 	cursor_y = y;
 
 	con_set_hw_cursor();
+
+	ENABLE_INTR();
 }
 
 /**
@@ -77,12 +108,16 @@ void con_set_cursor_pos(unsigned int x, unsigned int y)
  */
 void con_set_hw_cursor()
 {
+	DISABLE_INTR();
+
 	word pos = cursor_x + cursor_y * SCREEN_WIDTH;
 
 	outb(0x3D4, 15);
 	outb(0x3D5, pos);
 	outb(0x3D4, 14);
 	outb(0x3D5, pos >> 8);
+
+	ENABLE_INTR();
 }
 
 /**
@@ -90,7 +125,9 @@ void con_set_hw_cursor()
  */
 byte con_set_color(byte clr)
 {
+	byte old = color;
 	color = clr;
+	return old;
 }
 
 /**
@@ -98,6 +135,8 @@ byte con_set_color(byte clr)
  */
 void con_putc(const char c)
 {
+	DISABLE_INTR();
+
 	switch (c) {
 	case '\n':
 		con_clear_to(SCREEN_WIDTH);
@@ -129,6 +168,8 @@ void con_putc(const char c)
 	}
 
 	con_set_hw_cursor();
+
+	ENABLE_INTR();
 }
 
 /**
@@ -136,9 +177,13 @@ void con_putc(const char c)
  */
 void con_puts(const char *s)
 {
+	DISABLE_INTR();
+
 	while (*s) {
 		con_putc(*s++);
 	}
+
+	ENABLE_INTR();
 }
 
 static unsigned long long divmod(unsigned long long dividend,
@@ -171,6 +216,8 @@ static unsigned long long divmod(unsigned long long dividend,
  */
 void con_putn(unsigned long long n, int b, int pad, char padc)
 {
+	DISABLE_INTR();
+
 	static char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 	char tmp[65];
@@ -192,6 +239,8 @@ void con_putn(unsigned long long n, int b, int pad, char padc)
 		con_putc(padc);
 	}
 	con_puts(end + 1);
+
+	ENABLE_INTR();
 }
 
 /**
@@ -199,6 +248,8 @@ void con_putn(unsigned long long n, int b, int pad, char padc)
  */
 void con_aprintf(const char *fmt, int **args)
 {
+	DISABLE_INTR();
+
 	long long val = 0;
 	int pad;
 	char padc;
@@ -281,6 +332,8 @@ void con_aprintf(const char *fmt, int **args)
 			con_putc(*fmt++);
 		}
 	}
+
+	ENABLE_INTR();
 }
 
 /**
@@ -288,8 +341,12 @@ void con_aprintf(const char *fmt, int **args)
  */
 void con_printf(const char *fmt, ...)
 {
+	DISABLE_INTR();
+
 	int *args = ((int*)&fmt) + 1;
 	con_aprintf(fmt, &args);
+
+	ENABLE_INTR();
 }
 
 /**
@@ -299,4 +356,6 @@ void init_console(void)
 {
 	color = 0x07;
 	con_clear_screen();
+
+	intr_disabled = 0;
 }

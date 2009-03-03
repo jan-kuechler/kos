@@ -5,15 +5,15 @@
 
 proc_t procs[MAX_PROCS];
 proc_t *cur_proc;
-proc_t *plist_head;
+proc_t *plist_head, *plist_tail;
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
 static void add_proc(proc_t *proc)
 {
-	if (!plist_head)
-		plist_head = proc;
+	if (!plist_tail)
+		plist_tail = proc;
 
 	proc->next = plist_head;
 	plist_head = proc;
@@ -26,6 +26,9 @@ void idle()
 	}
 }
 
+/**
+ *
+ */
 proc_t *pm_create(void (*entry)(), pid_t parent)
 {
 	int i=0;
@@ -44,6 +47,8 @@ proc_t *pm_create(void (*entry)(), pid_t parent)
 
 	procs[id].status = PS_READY;
 	procs[id].parent = parent;
+
+	procs[id].ticks_left = PROC_START_TICKS;
 
 	dword *ustack = user_stacks[id];
 	ustack += USTACK_SIZE;
@@ -84,22 +89,55 @@ proc_t *pm_create(void (*entry)(), pid_t parent)
 	return &procs[id];
 }
 
+/**
+ *
+ */
+void pm_update(dword *esp)
+{
+	if (!cur_proc || cur_proc->status != PS_READY || (--cur_proc->ticks_left) <= 0)
+		pm_schedule(esp);
+}
+
+/**
+ *
+ */
 void pm_schedule(dword *esp)
 {
 	if (cur_proc)
 		cur_proc->esp = (dword)*esp;
 
-	cur_proc = plist_head;
-	while (cur_proc && cur_proc->status != PS_READY) {
-		cur_proc = cur_proc->next;
-	}
+	/*
+	  Give the now-to-be-disabled process new time.
+	  It may have some time from the last schedule,
+	  so just add the new one.
+	*/
+	cur_proc->ticks_left += PROC_START_TICKS;
+	if (cur_proc->ticks_left > PROC_MAX_TICKS)
+		cur_proc->ticks_left = PROC_MAX_TICKS;
 
-	if (!cur_proc)
+	if (cur_proc->status == PS_RUNNING)
+		cur_proc->status = PS_READY;
+
+	/* Very simple round robin */
+	plist_tail->next = plist_head;
+	plist_tail = plist_head;
+	plist_head = plist_head->next;
+	plist_tail->next = 0;
+
+	if (cur_proc) {
+		cur_proc = plist_head;
+		cur_proc->status = PS_RUNNING;
+	}
+	else {
 		cur_proc = &procs[IDLE_PROC];
+	}
 
 	*esp = cur_proc->esp;
 }
 
+/**
+ *
+ */
 void init_pm(void)
 {
 	int i=0;
@@ -109,6 +147,7 @@ void init_pm(void)
 	}
 
 	plist_head = 0;
+	plist_tail = 0;
 
 	cur_proc = 0;
 

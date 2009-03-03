@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-#define TIMER_HZ 60
+#define TIMER_HZ 100
 #define TIMER_DEFAULT 1193180
 
 #define TIMER_DATA 0x43

@@ -2,5 +2,5 @@ default 0
 timeout 10
 
 title kOS
-kernel /kos.bin debug=lMPGIS
+kernel /kos.bin
 root (fd0)

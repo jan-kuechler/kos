@@ -4,8 +4,8 @@ static void wait(void)
 {
 	unsigned int i=0, j=0;
 	for (; i < 0xFFFFFL; ++i) {
-		for(j=0; j < 100; ++j) {
-			/* do nothing */
+		for (j=0; j < 2; ++j) {
+
 		}
 	}
 }
