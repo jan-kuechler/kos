@@ -3,48 +3,75 @@
 #include "idt.h"
 #include "ports.h"
 
-#define SCREEN_WIDTH 80
-#define SCREEN_HEIGHT 25
-
-static unsigned int cursor_x;
-static unsigned int cursor_y;
-
-static byte color;
-
-static byte intr_disabled;
+console_t vc[CON_NUM_VC];
+static console_t *cur_vc;
 
 static word *vmem = (word*)0xB8000;
-
-#define DISABLE_INTR()   \
-	byte __reenable_intr;  \
-	if (!intr_disabled) {  \
-		disable_intr();      \
-		__reenable_intr = 1; \
-	}                      \
-
-#define ENABLE_INTR()    \
-	if (__reenable_intr) { \
-		enable_intr();       \
-	}                      \
 
 /**
  * Scrolls one line down
  */
 static void scroll_down(void)
 {
-	DISABLE_INTR();
+	int i = CON_SCREEN_WIDTH * (CON_SCREEN_HEIGHT-1);
 
-	int i = SCREEN_WIDTH * (SCREEN_HEIGHT-1);
+	memmove(cur_vc->screenbuffer, cur_vc->screenbuffer + CON_SCREEN_WIDTH,
+	        2 * CON_SCREEN_WIDTH * (CON_SCREEN_HEIGHT-1));
 
-	memmove(vmem, vmem + SCREEN_WIDTH, 2 * SCREEN_WIDTH * (SCREEN_HEIGHT-1));
-
-	for (; i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
-		vmem[i] = color << 8;
+	for (; i < CON_SCREEN_WIDTH * CON_SCREEN_HEIGHT; ++i) {
+		cur_vc->screenbuffer[i] = cur_vc->color << 8;
 	}
 
-	con_set_cursor_pos(cursor_x, cursor_y-1);
+	con_set_cursor_pos(cur_vc->x, cur_vc->y-1);
+}
 
-	ENABLE_INTR();
+/**
+ * Clears the screen to the given column.
+ * Returns the column.
+ */
+static unsigned int con_clear_to(unsigned int x)
+{
+	int i = cur_vc->x;
+	for (; i < x; ++i) {
+		cur_vc->screenbuffer[i + cur_vc->y * CON_SCREEN_WIDTH] = cur_vc->color << 8;
+	}
+
+	return x;
+}
+
+static void putc(char c)
+{
+	switch (c) {
+	case '\n':
+		con_clear_to(CON_SCREEN_WIDTH);
+		cur_vc->x = 0;
+		cur_vc->y++;
+		break;
+
+	case '\r':
+		cur_vc->x = 0;
+		break;
+
+	case '\t':
+		cur_vc->x = con_clear_to(cur_vc->x + (CON_TAB_WIDTH - (cur_vc->x % CON_TAB_WIDTH)));
+		break;
+
+	default:
+		cur_vc->screenbuffer[cur_vc->x + cur_vc->y * CON_SCREEN_WIDTH] = c | (cur_vc->color << 8);
+		cur_vc->x++;
+		break;
+	}
+
+	if (cur_vc->x >= CON_SCREEN_WIDTH) {
+		cur_vc->y += cur_vc->x / CON_SCREEN_WIDTH;
+		cur_vc->x %= CON_SCREEN_WIDTH;
+	}
+
+	while (cur_vc->y >= CON_SCREEN_HEIGHT) {
+		scroll_down();
+	}
+
+	con_set_hw_cursor();
 }
 
 /**
@@ -52,34 +79,13 @@ static void scroll_down(void)
  */
 void con_clear_screen(void)
 {
-	DISABLE_INTR();
-
 	int i = 0;
-	for (;i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
-		vmem[i] = color << 8;
+	for (;i < CON_SCREEN_WIDTH * CON_SCREEN_HEIGHT; ++i) {
+		cur_vc->screenbuffer[i] = cur_vc->color << 8;
 	}
 
 	con_set_cursor_pos(0, 0);
-
-	ENABLE_INTR();
-}
-
-/**
- * Clears the screen to the given column.
- * Returns the column.
- */
-unsigned int con_clear_to(unsigned int x)
-{
-	DISABLE_INTR();
-
-	int i = cursor_x;
-	for (; i < x; ++i) {
-		vmem[i + cursor_y * SCREEN_WIDTH] = color << 8;
-	}
-
-
-	ENABLE_INTR();
-	return x;
+	con_flush();
 }
 
 /**
@@ -87,20 +93,16 @@ unsigned int con_clear_to(unsigned int x)
  */
 void con_set_cursor_pos(unsigned int x, unsigned int y)
 {
-	DISABLE_INTR();
-
-	if (x >= SCREEN_WIDTH) {
-		x = SCREEN_WIDTH - 1;
+	if (x >= CON_SCREEN_WIDTH) {
+		x = CON_SCREEN_WIDTH - 1;
 	}
-	if (y >= SCREEN_HEIGHT) {
-		y = SCREEN_HEIGHT - 1;
+	if (y >= CON_SCREEN_HEIGHT) {
+		y = CON_SCREEN_HEIGHT - 1;
 	}
-	cursor_x = x;
-	cursor_y = y;
+	cur_vc->x = x;
+	cur_vc->y = y;
 
 	con_set_hw_cursor();
-
-	ENABLE_INTR();
 }
 
 /**
@@ -108,16 +110,16 @@ void con_set_cursor_pos(unsigned int x, unsigned int y)
  */
 void con_set_hw_cursor()
 {
-	DISABLE_INTR();
+	disable_intr();
 
-	word pos = cursor_x + cursor_y * SCREEN_WIDTH;
+	word pos = cur_vc->x + cur_vc->y * CON_SCREEN_WIDTH;
 
 	outb(0x3D4, 15);
 	outb(0x3D5, pos);
 	outb(0x3D4, 14);
 	outb(0x3D5, pos >> 8);
 
-	ENABLE_INTR();
+	enable_intr();
 }
 
 /**
@@ -125,8 +127,8 @@ void con_set_hw_cursor()
  */
 byte con_set_color(byte clr)
 {
-	byte old = color;
-	color = clr;
+	byte old = cur_vc->color;
+	cur_vc->color = clr;
 	return old;
 }
 
@@ -135,41 +137,8 @@ byte con_set_color(byte clr)
  */
 void con_putc(const char c)
 {
-	DISABLE_INTR();
-
-	switch (c) {
-	case '\n':
-		con_clear_to(SCREEN_WIDTH);
-		cursor_x = 0;
-		cursor_y++;
-		break;
-
-	case '\r':
-		cursor_x = 0;
-		break;
-
-	case '\t':
-		cursor_x = con_clear_to(cursor_x + (CON_TAB_WIDTH - (cursor_x % CON_TAB_WIDTH)));
-		break;
-
-	default:
-		vmem[cursor_x + cursor_y * SCREEN_WIDTH] = c | (color << 8);
-		cursor_x++;
-		break;
-	}
-
-	if (cursor_x >= SCREEN_WIDTH) {
-		cursor_y += cursor_x / SCREEN_WIDTH;
-		cursor_x %= SCREEN_WIDTH;
-	}
-
-	while (cursor_y >= SCREEN_HEIGHT) {
-		scroll_down();
-	}
-
-	con_set_hw_cursor();
-
-	ENABLE_INTR();
+	putc(c);
+	con_flush();
 }
 
 /**
@@ -177,13 +146,10 @@ void con_putc(const char c)
  */
 void con_puts(const char *s)
 {
-	DISABLE_INTR();
-
 	while (*s) {
-		con_putc(*s++);
+		putc(*s++);
 	}
-
-	ENABLE_INTR();
+	con_flush();
 }
 
 static unsigned long long divmod(unsigned long long dividend,
@@ -216,8 +182,6 @@ static unsigned long long divmod(unsigned long long dividend,
  */
 void con_putn(unsigned long long n, int b, int pad, char padc)
 {
-	DISABLE_INTR();
-
 	static char digits[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 	char tmp[65];
@@ -236,11 +200,14 @@ void con_putn(unsigned long long n, int b, int pad, char padc)
 	} while (n > 0);
 
 	while (pad-- > 0) {
-		con_putc(padc);
+		putc(padc);
 	}
-	con_puts(end + 1);
 
-	ENABLE_INTR();
+
+	while (*(++end)) {
+		putc(*end);
+	}
+	con_flush();
 }
 
 /**
@@ -248,8 +215,6 @@ void con_putn(unsigned long long n, int b, int pad, char padc)
  */
 void con_aprintf(const char *fmt, int **args)
 {
-	DISABLE_INTR();
-
 	long long val = 0;
 	int pad;
 	char padc;
@@ -303,8 +268,8 @@ void con_aprintf(const char *fmt, int **args)
 			case 'p':
 			case 'x':
 #ifdef CON_PTRINF_HEX_0X
-				con_putc('0');
-				con_putc('x');
+				putc('0');
+				putc('x');
 				if (pad >= 2)
 					pad -= 2;
 				else
@@ -322,7 +287,7 @@ void con_aprintf(const char *fmt, int **args)
 				break;
 
 			default:
-				con_putc('%');
+				putc('%');
 				con_putc(*fmt);
 				break;
 			}
@@ -332,8 +297,7 @@ void con_aprintf(const char *fmt, int **args)
 			con_putc(*fmt++);
 		}
 	}
-
-	ENABLE_INTR();
+	/* no need for a con_flush(), as only con_* is used here */
 }
 
 /**
@@ -341,12 +305,29 @@ void con_aprintf(const char *fmt, int **args)
  */
 void con_printf(const char *fmt, ...)
 {
-	DISABLE_INTR();
-
 	int *args = ((int*)&fmt) + 1;
 	con_aprintf(fmt, &args);
+}
 
-	ENABLE_INTR();
+void con_flush()
+{
+	int i = 0;
+
+	disable_intr();
+	for (; i < CON_SCREENBUFFER_SIZE; ++i) {
+		vmem[i] = cur_vc->screenbuffer[i];
+	}
+	enable_intr();
+}
+
+void con_select(dword id)
+{
+	if (id < 0 || id >= CON_NUM_VC)
+		panic("Trying to select unexistant console.");
+
+	cur_vc = &vc[id];
+	con_flush();
+	con_set_hw_cursor();
 }
 
 /**
@@ -354,8 +335,17 @@ void con_printf(const char *fmt, ...)
  */
 void init_console(void)
 {
-	color = 0x07;
-	con_clear_screen();
+	int i=0;
+	for (; i < CON_NUM_VC; ++i) {
+		vc[i].id = i;
+		vc[i].in_avail = 0;
+		vc[i].x = 0;
+		vc[i].y = 0;
+		vc[i].color    = 0x07;
 
-	intr_disabled = 0;
+		memset(vc[i].inbuffer, 0, CON_INBUFFER_SIZE);
+
+	}
+	cur_vc = &vc[0];
+	con_clear_screen();
 }

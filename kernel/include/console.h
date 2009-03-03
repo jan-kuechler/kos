@@ -5,10 +5,32 @@
 
 #define CON_PTRINF_HEX_0X
 
+#define CON_SCREEN_WIDTH 80
+#define CON_SCREEN_HEIGHT 25
+
 #define CON_TAB_WIDTH 8
+
+#define CON_INBUFFER_SIZE 512 /* chars */
+#define CON_SCREENBUFFER_SIZE (CON_SCREEN_WIDTH * CON_SCREEN_HEIGHT) /* words */
+
+#define CON_NUM_VC 6
+
+typedef struct console {
+	byte  id;
+
+	char *inbuffer[CON_INBUFFER_SIZE];
+	dword in_avail;
+
+	word  screenbuffer[CON_SCREENBUFFER_SIZE];
+	dword x, y;
+	byte  color;
+} console_t;
 
 void init_console(void);
 
+void con_select(dword id);
+
+void con_flush();
 void con_clear_screen(void);
 void con_set_cursor_pos(unsigned int x, unsigned int y);
 void con_set_hw_cursor(void);
