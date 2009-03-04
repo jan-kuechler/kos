@@ -1,14 +1,23 @@
 #include "gdt.h"
 #include "idt.h"
-#include "multiboot.h"
+#include "mm.h"
+#include <multiboot.h>
 #include "pm.h"
 #include "timer.h"
+
+multiboot_info_t multiboot_info;
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	init_console();
 
+	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
+
 	con_puts("kOS booting...\n");
+
+	con_puts("Setting up mm:");
+	init_mm();
+	con_puts("\t\t\t\tdone!\n");
 
 	con_puts("Setting up gdt:");
 	init_gdt();

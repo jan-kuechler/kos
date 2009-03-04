@@ -15,90 +15,78 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
-/* Macros. */
+#include <types.h>
 
 /* The magic number for the Multiboot header. */
 #define MULTIBOOT_HEADER_MAGIC          0x1BADB002
-
-/* The flags for the Multiboot header. */
-#ifdef __ELF__
-# define MULTIBOOT_HEADER_FLAGS         0x00000003
-#else
-# define MULTIBOOT_HEADER_FLAGS         0x00010003
-#endif
-
-/* The magic number passed by a Multiboot-compliant boot loader. */
-#define MULTIBOOT_BOOTLOADER_MAGIC      0x2BADB002
 
 /* Types. */
 
 /* The Multiboot header. */
 typedef struct multiboot_header
 {
-	unsigned long magic;
-	unsigned long flags;
-	unsigned long checksum;
-	unsigned long header_addr;
-	unsigned long load_addr;
-	unsigned long load_end_addr;
-	unsigned long bss_end_addr;
-	unsigned long entry_addr;
+	dword magic;
+	dword flags;
+	dword checksum;
+	dword header_addr;
+	dword load_addr;
+	dword load_end_addr;
+	dword bss_end_addr;
+	dword entry_addr;
 } multiboot_header_t;
 
 /* The symbol table for a.out. */
 typedef struct aout_symbol_table
 {
-	unsigned long tabsize;
-	unsigned long strsize;
-	unsigned long addr;
-	unsigned long reserved;
+	dword tabsize;
+	dword strsize;
+	dword addr;
+	dword reserved;
 } aout_symbol_table_t;
 
 /* The section header table for ELF. */
 typedef struct elf_section_header_table
 {
-	unsigned long num;
-	unsigned long size;
-	unsigned long addr;
-	unsigned long shndx;
+	dword num;
+	dword size;
+	dword addr;
+	dword shndx;
 } elf_section_header_table_t;
 
 /* The Multiboot information. */
 typedef struct multiboot_info
 {
-	unsigned long flags;
-	unsigned long mem_lower;
-	unsigned long mem_upper;
-	unsigned long boot_device;
-	unsigned long cmdline;
-	unsigned long mods_count;
-	unsigned long mods_addr;
+	dword flags;
+	dword mem_lower;
+	dword mem_upper;
+	dword boot_device;
+	dword cmdline;
+	dword mods_count;
+	dword mods_addr;
 	union
 	{
 		aout_symbol_table_t aout_sym;
 		elf_section_header_table_t elf_sec;
 	} u;
-	unsigned long mmap_length;
-	unsigned long mmap_addr;
+	dword mmap_length;
+	dword mmap_addr;
 } multiboot_info_t;
 
 /* The module structure. */
-typedef struct multiboot_module
+typedef struct multiboot_mod
 {
-	unsigned long mod_start;
-	unsigned long mod_end;
-	unsigned long string;
-	unsigned long reserved;
-} multiboot_module_t;
+	dword mod_start;
+	dword mod_end;
+	dword string;
+	dword reserved;
+} multiboot_mod_t;
 
 /* The memory map. Be careful that the offset 0 is base_addr_low
 	but no size. */
-typedef struct multiboot_memory_map
+typedef struct multiboot_mmap
 {
-	unsigned long size;
-	unsigned long base_addr_low;
-	unsigned long base_addr_high;
-	unsigned long length_low;
-	unsigned long length_high;
-	unsigned long type;
-} multiboot_memory_map_t;
+	dword size;
+	qword base_addr;
+	qword length;
+	dword type;
+} multiboot_mmap_t;
