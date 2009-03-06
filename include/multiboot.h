@@ -15,6 +15,9 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. */
 
+#ifndef MULTIBOOT_H
+#define MULTIBOOT_H
+
 #include <types.h>
 
 /* The magic number for the Multiboot header. */
@@ -90,3 +93,5 @@ typedef struct multiboot_mmap
 	qword length;
 	dword type;
 } multiboot_mmap_t;
+
+#endif /*MULTIBOOT_H*/

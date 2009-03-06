@@ -20,4 +20,17 @@
 
 #define bmask(var,mask) (var & mask)
 
+/* There is no invalid return value to mark an error, so make
+   sure that at least one bit is set, when you call this! */
+static inline unsigned char bscanfwd(unsigned int map)
+{
+	int i = 0;
+	for (; i < (sizeof(map) * 8); ++i) {
+		if (bissetn(map,i))
+			return i;
+	}
+	/* this should never be reached, send a debug interrupt */
+	asm volatile("int $0x03");
+}
+
 #endif /*BITOP_H*/

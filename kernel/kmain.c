@@ -15,16 +15,16 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	con_puts("kOS booting...\n");
 
-	con_puts("Setting up mm:");
-	init_mm();
-	con_puts("\t\t\t\tdone!\n");
-
 	con_puts("Setting up gdt:");
 	init_gdt();
 	con_puts("\t\t\t\tdone!\n");
 
 	con_puts("Setting up idt:");
 	init_idt();
+	con_puts("\t\t\t\tdone!\n");
+
+	con_puts("Setting up mm:");
+	init_mm();
 	con_puts("\t\t\t\tdone!\n");
 
 	con_puts("Setting up pm:");
