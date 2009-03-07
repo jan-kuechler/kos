@@ -4,7 +4,6 @@
 #include "regs.h"
 #include "types.h"
 
-#define MAX_SYSTASKS 16
 #define MAX_PROCS 256
 
 #define KSTACK_SIZE 1024
@@ -42,10 +41,13 @@ typedef struct proc {
 void init_pm(void);
 
 proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent);
-void    pm_update(dword *esp);
-void    pm_schedule(dword *esp);
+void    pm_update();
+void    pm_schedule();
 
 void    pm_activate(proc_t *proc);
 void    pm_deactivate(proc_t *proc);
+
+void    pm_restore(dword *esp);
+void    pm_pick(dword *esp);
 
 #endif /*PM_H*/

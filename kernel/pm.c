@@ -1,25 +1,15 @@
 #include "console.h"
 #include "gdt.h"
+#include "idt.h"
 #include "kernel.h"
 #include "pm.h"
 
-proc_t procs[MAX_SYSTASKS + MAX_PROCS];
+proc_t procs[MAX_PROCS];
 proc_t *cur_proc;
 proc_t *plist_head, *plist_tail;
 
-#define get_proc(n) procs[n - MAX_SYSTASKS];
-
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
-
-/*static void add_proc(proc_t *proc)
-{
-	if (!plist_tail)
-		plist_tail = proc;
-
-	proc->next = plist_head;
-	plist_head = proc;
-}*/
 
 void idle()
 {
@@ -106,10 +96,16 @@ void pm_activate(proc_t *proc)
 {
 	disable_intr();
 
-	if (!plist_head)
+	if (!plist_head) {
 		plist_head = proc;
-	else
+	}
+
+	if (!plist_tail) {
+		plist_tail = proc;
+	}
+	else {
 		plist_tail->next = proc;
+	}
 
 	plist_tail = proc;
 	proc->next = 0;
@@ -134,7 +130,7 @@ void pm_deactivate(proc_t *proc)
 		while (p->next != proc) {
 			p = p->next;
 
-			if (!p)	goto: end; /* interrupts must be reenabled */
+			if (!p)	goto end; /* interrupts must be reenabled */
 		}
 
 		p->next = proc->next;
@@ -145,26 +141,23 @@ end:
 }
 
 /**
- *  pm_update(esp)
+ *  pm_update()
  *
  * Schedules a new process if the current one may not run any longer.
  */
-void pm_update(dword *esp)
+void pm_update()
 {
 	if (!cur_proc || cur_proc->status != PS_READY || (--cur_proc->ticks_left) <= 0)
-		pm_schedule(esp);
+		pm_schedule();
 }
 
 /**
- *  pm_schedule(esp)
+ *  pm_schedule()
  *
  * Schedules a new process or IDLE
  */
-void pm_schedule(dword *esp)
+void pm_schedule()
 {
-	if (cur_proc)
-		cur_proc->esp = (dword)*esp;
-
 	/*
 	  Give the now-to-be-disabled process new time.
 	  It may have some time from the last schedule,
@@ -190,8 +183,27 @@ void pm_schedule(dword *esp)
 	else {
 		cur_proc = &procs[IDLE_PROC];
 	}
+}
 
+/**
+ *  pm_pick(esp)
+ *
+ * Switches the stack to the current process
+ */
+void pm_pick(dword *esp)
+{
 	*esp = cur_proc->esp;
+}
+
+/**
+ *  pm_restore(esp)
+ *
+ * Saves the stack for the current process
+ */
+void pm_restore(dword *esp)
+{
+	if (cur_proc)
+		cur_proc->esp = (dword)*esp;
 }
 
 /**
@@ -209,6 +221,7 @@ void init_pm(void)
 
 	plist_head = 0;
 	plist_tail = 0;
+
 
 	/* create special process 0: idle */
 	proc_t *idle_proc  = pm_create(idle, "idle", 0);

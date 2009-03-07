@@ -101,6 +101,8 @@ static void idt_handle_irq(dword *esp)
 	regs_t *regs = (regs_t*)*esp;
 	dword irq = regs->intr - IRQ_BASE;
 
+	pm_restore(esp);
+
 	/*con_printf("IRQ: %d\n", irq);*/
 
 	if (irq == 7 || irq == 15) {
@@ -113,6 +115,8 @@ static void idt_handle_irq(dword *esp)
 
 	if (irq_handlers[irq])
 		irq_handlers[irq](irq, esp);
+
+	pm_pick(esp);
 
 irq_handeled:
 	if (irq >= 8)

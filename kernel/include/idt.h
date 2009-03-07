@@ -3,9 +3,6 @@
 
 #include "types.h"
 
-#define enable_intr() { asm volatile("sti"); }
-#define disable_intr() { asm volatile("cli"); }
-
 #define IDT_GATE_PRESENT   0x80 /* 1000000b */
 
 #define IDT_INTERRUPT_GATE 0xE /* for 32 bit */
@@ -56,5 +53,17 @@ typedef void (*irq_handler_t)(int, dword*);
 
 byte idt_set_irq_handler(byte irq, irq_handler_t handler);
 byte idt_clr_irq_handler(byte irq);
+
+static inline void enable_intr()
+{
+	extern byte kernel_init_done;
+	if (kernel_init_done)
+		asm volatile("sti");
+}
+
+static inline void disable_intr()
+{
+	asm volatile("cli");
+}
 
 #endif /*IDT_H*/

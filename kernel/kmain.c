@@ -11,8 +11,11 @@ multiboot_info_t multiboot_info;
 
 static void print_info();
 
+byte kernel_init_done;
+
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
+	kernel_init_done = 0;
 	init_console();
 
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
@@ -45,6 +48,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	con_puts("kOS booted.\n\n");
 
 	print_info();
+
+	kernel_init_done = 1;
 
 	enable_intr();
 	/* send fake timer interrupt to start scheduling */

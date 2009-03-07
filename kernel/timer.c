@@ -10,7 +10,7 @@ void timer_irq(int irq, dword *esp)
 {
  	timer_ticks++;
 
-	pm_update(esp);
+	pm_update();
 }
 
 void init_timer(void)

@@ -8,12 +8,6 @@ static console_t *cur_vc;
 
 static word *vmem = (word*)0xB8000;
 
-#undef disable_intr
-#define disable_intr()
-
-#undef enable_intr
-#define enable_intr()
-
 /**
  * Scrolls one line down
  */
