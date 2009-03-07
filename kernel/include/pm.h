@@ -1,6 +1,7 @@
 #ifndef PM_H
 #define PM_H
 
+#include "ipc.h"
 #include "regs.h"
 #include "types.h"
 
@@ -14,6 +15,11 @@
 #define PROC_START_TICKS 50
 #define PROC_MAX_TICKS 100
 
+#define PROC_MSG_BUFFER_SIZE 24 /* messages */
+
+#define PF_RECEIVING 0x01
+#define PF_SENDING   0x02
+
 typedef enum proc_status {
 	PS_SLOT_FREE = 0,
 	PS_READY,
@@ -26,6 +32,7 @@ typedef struct proc {
 	pid_t  parent;
 
 	proc_status_t status;
+	byte   flags;
 
 	dword  kstack;
 	dword  ustack;
@@ -35,12 +42,18 @@ typedef struct proc {
 
 	dword  ticks_left;
 
+	msg_t  msg_buffer[PROC_MSG_BUFFER_SIZE];
+	msg_t  *msg_head, *msg_tail;
+	byte   msg_count;
+
 	struct proc *next;
 } proc_t;
 
 void init_pm(void);
 
 proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent);
+proc_t *pm_get_proc(pid_t pid);
+
 void    pm_update();
 void    pm_schedule();
 

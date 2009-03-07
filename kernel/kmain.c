@@ -84,7 +84,7 @@ static void print_info()
 
 	{ // Memory
 		con_puts("== Memory ==\n");
-		con_printf("Total:       %4d MB\n", mm_total_mem());
+		con_printf("Total:       %4d MB\n", mm_total_mem() / 1024 / 1024);
 		con_printf("Free:        %4d MB\n", (mm_num_free_pages() * 4) / 1024);
 		con_printf("Page size:   %4d  B\n", PAGE_SIZE);
 		con_printf("Kernel size: %4d KB\n", (kernel_end - kernel_start) / 1024);

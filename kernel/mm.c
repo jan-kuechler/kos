@@ -265,7 +265,7 @@ void init_mm(void)
 		blocks[1].start = 0x100000; // 1 MB -> start of upper memory
 		blocks[1].end   = 0x100000 + (1024 * multiboot_info.mem_upper);
 
-		total_mem = blocks[1].end;
+		total_mem = 0x100000 + (1024 * multiboot_info.mem_upper);
 
 		nblocks = 2;
 	/*}*/

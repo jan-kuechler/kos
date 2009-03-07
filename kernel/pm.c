@@ -45,6 +45,10 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
 
 	procs[id].ticks_left = PROC_START_TICKS;
 
+	procs[id].msg_head = procs[id].msg_buffer;
+	procs[id].msg_tail = procs[id].msg_buffer;
+	procs[id].msg_count = 0;
+
 	dword *ustack = user_stacks[id];
 	ustack += USTACK_SIZE;
 
@@ -85,6 +89,16 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
 	pm_activate(&procs[id]);
 
 	return &procs[id];
+}
+
+/**
+ *  pm_get_proc(pid)
+ *
+ * Returns a pointer to the process with the given id.
+ */
+proc_t *pm_get_proc(pid_t pid)
+{
+	return &procs[pid];
 }
 
 /**
