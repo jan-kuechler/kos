@@ -11,11 +11,19 @@
 #define addr_to_idx(a) (((dword)a / PAGE_SIZE) / 32)
 #define idx_to_addr(i) (i * PAGE_SIZE * 32)
 
-#define page_to_pos(p) (((dword)p / PAGE_SIZE) % 32)
+#define page_to_pos(p) (((dword)p / PAGE_SIZE) & 31)
 #define pos_to_offs(p) ((dword)p * PAGE_SIZE)
 
 static dword *mmap;
 static dword mmap_length;
+static dword total_mem;
+
+#if 1
+#include "console.h"
+#define debug con_printf
+#else
+#define debug
+#endif
 
 struct memblock
 {
@@ -36,7 +44,7 @@ static inline void mark_range_free(paddr_t start, dword num)
 {
 	int i=0;
 	for (; i < num; ++i)
-		mark_free(start + (i*PAGE_SIZE));
+		mark_free((paddr_t)((char*)start + (i*PAGE_SIZE)));
 }
 
 static inline void mark_range_used(paddr_t start, dword num)
@@ -135,6 +143,48 @@ void mm_free_range(paddr_t start, dword num)
 	mark_range_free(start, num);
 }
 
+/**
+ *  mm_total_mem()
+ *
+ * Returns the ammount of total memory in the system
+ */
+dword mm_total_mem()
+{
+	return total_mem;
+}
+
+
+/**
+ *  mm_num_pages()
+ *
+ * Returns the number of usable (=> not kernel owned) pages in the system.
+ */
+dword mm_num_pages()
+{
+	return mmap_length * 32; /* 32 pages per mmap entry */
+}
+
+/**
+ *  mm_num_free_pages()
+ *
+ * Returns the number of free pages in the system.
+ */
+dword mm_num_free_pages()
+{
+	dword num = 0;
+	int i=0;
+
+	for(; i < mmap_length; ++i) {
+		int j=0;
+		for (; j < 32; ++j) {
+			if (bissetn(mmap[i], j))
+				++num;
+		}
+	}
+
+	return num;
+}
+
 static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
 {
 	int i = 0;
@@ -188,26 +238,45 @@ void init_mm(void)
 {
 	multiboot_mmap_t *mb_mmap = 0;
 	unsigned int mb_mmap_length = multiboot_info.mmap_length;
-	struct memblock blocks[32] = {0};
+	struct memblock blocks[16] = {0};
 	int nblocks = 0;
 
 	int i = 0;
-	for (mb_mmap = (multiboot_mmap_t*) multiboot_info.mmap_addr;
-			 mb_mmap < (multiboot_mmap_t*) multiboot_info.mmap_addr + mb_mmap_length;
-			 mb_mmap = (multiboot_mmap_t*) ((char*)mb_mmap + mb_mmap->size - 4)) {
+/*	if (0 && bissetn(multiboot_info.flags, 6)) {
+		debug("\nUsing multiboot memory map\n");
 
+		for (mb_mmap = (multiboot_mmap_t*) multiboot_info.mmap_addr;
+				 mb_mmap < (multiboot_mmap_t*) multiboot_info.mmap_addr + mb_mmap_length;
+				 mb_mmap = (multiboot_mmap_t*) ((char*)mb_mmap + mb_mmap->size - 4)) {
 
-		blocks[nblocks].start = PAGE_ALIGN_ROUND_UP(mb_mmap->base_addr);
-		blocks[nblocks].end   = PAGE_ALIGN_ROUND_DOWN(mb_mmap->base_addr + mb_mmap->length);
-		++nblocks;
+			if (mb_mmap->type == 1) {
+				debug("mb_mmap: %010x (%d)\n", mb_mmap->base_addr, mb_mmap->length);
+
+				blocks[nblocks].start = PAGE_ALIGN_ROUND_UP(mb_mmap->base_addr);
+				blocks[nblocks].end   = PAGE_ALIGN_ROUND_DOWN(mb_mmap->base_addr + mb_mmap->length);
+				++nblocks;
+			}
+		}
 	}
+	else {*/
+		blocks[0].start = 0x000000;
+		blocks[0].end   = multiboot_info.mem_lower * 1024; // the mb.mem_* fields are in kilobytes
+
+		blocks[1].start = 0x100000; // 1 MB -> start of upper memory
+		blocks[1].end   = 0x100000 + (1024 * multiboot_info.mem_upper);
+
+		total_mem = blocks[1].end;
+
+		nblocks = 2;
+	/*}*/
 
 	mark(blocks, &nblocks, (dword)kernel_phys_start, (dword)kernel_phys_end);
 
 	for (i=0; i < multiboot_info.mods_count; ++i) {
 		multiboot_mod_t *mod = (multiboot_mod_t*)((char*)multiboot_info.mods_addr + (i * sizeof(multiboot_mod_t)));
 		mark(blocks, &nblocks, mod->mod_start, mod->mod_end);
-		mark(blocks, &nblocks, mod->string, mod->string + strlen((const char*)mod->string) + 1);
+		if (mod->string)
+			mark(blocks, &nblocks, mod->string, mod->string + strlen((const char*)mod->string) + 1);
 	}
 
 	dword upper_end = 0;
@@ -216,7 +285,7 @@ void init_mm(void)
 			upper_end = blocks[i].end;
 	}
 
-	mmap_length = upper_end / PAGE_SIZE / (sizeof(dword) * 8);
+	mmap_length = upper_end / PAGE_SIZE / 32;
 	for (i=0; i < nblocks; ++i) {
 		if (blocks[i].start && ((blocks[i].end - blocks[i].start) >= (mmap_length * 4))) {
 			mmap = (dword*)blocks[i].start;
@@ -225,6 +294,8 @@ void init_mm(void)
 		}
 	}
 
+	/*mark_range_used(0, upper_end / PAGE_SIZE);*/
+	memset(mmap, 0, mmap_length * 4);
 	for (i=0; i < nblocks; ++i) {
 		mark_range_free((paddr_t)blocks[i].start, blocks[i].end - blocks[i].start);
 	}

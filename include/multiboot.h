@@ -60,19 +60,38 @@ typedef struct elf_section_header_table
 typedef struct multiboot_info
 {
 	dword flags;
+
 	dword mem_lower;
 	dword mem_upper;
+
 	dword boot_device;
+
 	dword cmdline;
+
 	dword mods_count;
 	dword mods_addr;
+
 	union
 	{
 		aout_symbol_table_t aout_sym;
 		elf_section_header_table_t elf_sec;
 	} u;
+
 	dword mmap_length;
 	dword mmap_addr;
+
+	dword drives_length;
+	dword drives_addr;
+
+	dword config_table;
+
+	dword boot_loader_name;
+
+	dword apm_table;
+
+	dword vbe_control_info;
+	dword vbe_mode_info;
+	dword vbe_mode;
 } multiboot_info_t;
 
 /* The module structure. */

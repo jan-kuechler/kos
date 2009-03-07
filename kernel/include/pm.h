@@ -4,6 +4,7 @@
 #include "regs.h"
 #include "types.h"
 
+#define MAX_SYSTASKS 16
 #define MAX_PROCS 256
 
 #define KSTACK_SIZE 1024
@@ -31,6 +32,8 @@ typedef struct proc {
 	dword  ustack;
 	dword  esp;
 
+	const char *cmdline;
+
 	dword  ticks_left;
 
 	struct proc *next;
@@ -38,8 +41,11 @@ typedef struct proc {
 
 void init_pm(void);
 
-proc_t *pm_create(void (*entry)(), pid_t parent);
+proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent);
 void    pm_update(dword *esp);
 void    pm_schedule(dword *esp);
+
+void    pm_activate(proc_t *proc);
+void    pm_deactivate(proc_t *proc);
 
 #endif /*PM_H*/

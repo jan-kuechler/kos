@@ -30,7 +30,7 @@ LIB_INC=$(LIB_DIR)/include
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC) -I$(LIB_INC)
-CC_FLAGS=-c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC)
+CC_FLAGS=-O3 -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC)
 
 LD=ld
 LD_FLAGS=-T link.ld 
@@ -93,7 +93,7 @@ floppy:
 	
 .PHONY: run
 run:
-	qemu -L ../tools/qemu -fda img/floppy.img
+	qemu -m 16 -L ../tools/qemu -fda img/floppy.img
 
 dbg:
 	qemu -s -L ../tools/qemu -fda img/floppy.img 

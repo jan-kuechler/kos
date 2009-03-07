@@ -3,33 +3,36 @@
 #include "kernel.h"
 #include "pm.h"
 
-proc_t procs[MAX_PROCS];
+proc_t procs[MAX_SYSTASKS + MAX_PROCS];
 proc_t *cur_proc;
 proc_t *plist_head, *plist_tail;
+
+#define get_proc(n) procs[n - MAX_SYSTASKS];
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
-static void add_proc(proc_t *proc)
+/*static void add_proc(proc_t *proc)
 {
 	if (!plist_tail)
 		plist_tail = proc;
 
 	proc->next = plist_head;
 	plist_head = proc;
-}
+}*/
 
 void idle()
 {
 	for (;;) {
-		asm volatile("int $0x20");
 	}
 }
 
 /**
+ *  pm_create(entry, cmdline, parent)
  *
+ * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), pid_t parent)
+proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -47,6 +50,8 @@ proc_t *pm_create(void (*entry)(), pid_t parent)
 
 	procs[id].status = PS_READY;
 	procs[id].parent = parent;
+
+	procs[id].cmdline = cmdline; // TODO: use malloc and strcpy here!
 
 	procs[id].ticks_left = PROC_START_TICKS;
 
@@ -67,11 +72,13 @@ proc_t *pm_create(void (*entry)(), pid_t parent)
 	*(--kstack) = 0; // errc
 	*(--kstack) = 0; // intr
 
+	// ds-gs
 	*(--kstack) = 0x10;
 	*(--kstack) = 0x10;
 	*(--kstack) = 0x10;
 	*(--kstack) = 0x10;
 
+	// gp registers
 	*(--kstack) = 0;
 	*(--kstack) = 0;
 	*(--kstack) = 0;
@@ -84,13 +91,63 @@ proc_t *pm_create(void (*entry)(), pid_t parent)
 	procs[id].kstack = (dword)kstack;
 	procs[id].esp    = (dword)kstack;
 
-	add_proc(&procs[id]);
+	//add_proc(&procs[id]);
+	pm_activate(&procs[id]);
 
 	return &procs[id];
 }
 
 /**
+ *  pm_activate(proc)
  *
+ * Activates the process proc.
+ */
+void pm_activate(proc_t *proc)
+{
+	disable_intr();
+
+	if (!plist_head)
+		plist_head = proc;
+	else
+		plist_tail->next = proc;
+
+	plist_tail = proc;
+	proc->next = 0;
+
+	enable_intr();
+}
+
+/**
+ *  pm_deactivate(proc)
+ *
+ * Deactivates the process proc.
+ */
+void pm_deactivate(proc_t *proc)
+{
+	disable_intr();
+
+	if (plist_head == proc)
+		plist_head = plist_head->next;
+	else {
+		proc_t *p = plist_head;
+
+		while (p->next != proc) {
+			p = p->next;
+
+			if (!p)	goto: end; /* interrupts must be reenabled */
+		}
+
+		p->next = proc->next;
+	}
+
+end:
+	enable_intr();
+}
+
+/**
+ *  pm_update(esp)
+ *
+ * Schedules a new process if the current one may not run any longer.
  */
 void pm_update(dword *esp)
 {
@@ -99,7 +156,9 @@ void pm_update(dword *esp)
 }
 
 /**
+ *  pm_schedule(esp)
  *
+ * Schedules a new process or IDLE
  */
 void pm_schedule(dword *esp)
 {
@@ -136,7 +195,9 @@ void pm_schedule(dword *esp)
 }
 
 /**
+ *  init_pm
  *
+ * Initializes the process manager.
  */
 void init_pm(void)
 {
@@ -149,11 +210,11 @@ void init_pm(void)
 	plist_head = 0;
 	plist_tail = 0;
 
-	cur_proc = 0;
-
 	/* create special process 0: idle */
-	proc_t *idle_proc = pm_create(idle, 0);
-	idle_proc->status = PS_BLOCKED;
+	proc_t *idle_proc  = pm_create(idle, "idle", 0);
+	idle_proc->status  = PS_BLOCKED;
+
+	cur_proc = idle_proc;
 
 	/* DEBUG */
 	extern void task1(void);
@@ -162,10 +223,10 @@ void init_pm(void)
 	extern void task4(void);
 	extern void task5(void);
 
-	pm_create(task1, 0);
-	pm_create(task2, 0);
-	pm_create(task3, 0);
-	pm_create(task4, 0);
-	pm_create(task5, 0);
+	pm_create(task1, "task1", 0);
+	pm_create(task2, "task2", 0);
+	pm_create(task3, "task3", 0);
+	pm_create(task4, "task4", 0);
+	pm_create(task5, "task5", 0);
 }
 

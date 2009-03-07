@@ -1,11 +1,13 @@
 #include "console.h"
 
+//#define con_puts(a)
+
 static void wait(void)
 {
 	unsigned int i=0, j=0;
 	for (; i < 0xFFFFFL; ++i) {
-		for (j=0; j < 2; ++j) {
-
+		for (j=0; j < 25; ++j) {
+			asm volatile("nop");
 		}
 	}
 }

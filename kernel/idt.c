@@ -229,6 +229,8 @@ void init_idt(void)
 	};
 
 	asm volatile("lidt %0" : : "m"(idt_ptr));
+
+	disable_intr();
 }
 
 void idt_set_gate(int intr, word selector, void *handler,
