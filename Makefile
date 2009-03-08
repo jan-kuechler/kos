@@ -25,11 +25,14 @@ ARCH_INC=$(INC_DIR)/arch/$(ARCH)
 KERNEL_DIR=kernel
 KERNEL_INC=$(KERNEL_DIR)/include
 
-LIB_DIR=lib
-LIB_INC=$(LIB_DIR)/include
+LIBC_DIR=libc
+LIBC_INC=$(LIBC_DIR)/include
+
+LIBK_DIR=libk
+LIBK_INC=$(LIBK_DIR)/include
 
 CC=gcc
-CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC) -I$(LIB_INC)
+CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC) -I$(LIBC_INC) -I$(LIBK_INC)
 CC_FLAGS=-O3 -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC)
 
 LD=ld
@@ -52,29 +55,32 @@ version:
 ## Makefile generation ##
 prepare: targets objlist
 
-targets: ktar ltar
+targets: ktar lctar lktar
 
 ktar:
 	rm -f kernel.target
 	for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	
-ltar:
-	rm -f lib.target
-	for F in $(LIB_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> lib.target && $(CC) $(CC_INC) -MM $$F >> lib.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> lib.target; done
+lctar:
+	rm -f libc.target
+	for F in $(LIBC_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> libc.target && $(CC) $(CC_INC) -MM $$F >> libc.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> libc.target; done
+	
+lktar:
+	rm -f libk.target
+	for F in $(LIBK_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> libk.target && $(CC) $(CC_INC) -MM $$F >> libk.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> libk.target; done
 
 .PHONY: objlist
 objlist:
 	rm -f .objlist
-	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target lib.target
+	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target libc.target libk.target
 	
 # Provides rules to make the kernel
-
-
 -include kernel.target
+
 # Provides rules to make the lib files
+-include libc.target
+-include libk.target
 
-
--include lib.target
 # Provides $(OBJS), which includes all objects from the above files
 -include .objlist
 
@@ -96,7 +102,7 @@ run:
 	qemu -m 16 -L ../tools/qemu -fda img/floppy.img
 
 dbg:
-	qemu -s -L ../tools/qemu -fda img/floppy.img 
+	qemu -m 16 -S -s -L ../tools/qemu -fda img/floppy.img 
 	
 ## Rest ##
 
@@ -119,3 +125,14 @@ $(BIN_DIR)/int.o: $(KERNEL_DIR)/int.s
 
 clean:
 	rm -f $(BIN_DIR)/*.o
+	rm -f link.map
+	rm -f *.target
+	rm -f .objlist
+	
+cleanall: clean
+	rm -f $(BIN_DIR)/kos.bin
+	rm -f img/floppy.img
+
+link_map:
+	$(LD) $(LD_FLAGS) -o $(BIN_DIR)/kos.bin $(ALL_OBJS) -Map link.map
+	

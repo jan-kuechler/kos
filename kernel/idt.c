@@ -1,13 +1,16 @@
-#include "bitop.h"
+#include <bitop.h>
 #include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
-#include "ports.h"
+#include <ports.h>
 #include "regs.h"
+#include "syscall.h"
 
-idt_entry_t idt[IDT_SIZE];
+idt_entry_t   idt[IDT_SIZE];
 irq_handler_t irq_handlers[16] = {0};
+
+byte idt_in_irq_handler;
 
 /* int.s */
 extern void isr_null_handler(void);
@@ -50,6 +53,8 @@ extern void irq_stub_13(void);
 extern void irq_stub_14(void);
 extern void irq_stub_15(void);
 
+extern void syscall_stub(void);
+
 static const char *fault_msg[] = {
 	"Devide by 0",
 	"Debug exception",
@@ -82,14 +87,14 @@ static void idt_handle_exception(dword *esp)
 
 	con_printf("Exception: #%02d (%s) @ %06x:%010x\n",
 	           regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
-	con_printf("ss:esp = %06x:%010x error code: %010x\n",
-	           regs->u_ss, regs->u_esp, regs->errc);
-	con_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
-	           regs->eax, regs->ebx, regs->ecx, regs->edx);
-	con_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
-	           regs->ebp, regs->esp, regs->esi, regs->edi);
-	con_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
-	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
+//	con_printf("ss:esp = %06x:%010x error code: %010x\n",
+//	           regs->u_ss, regs->u_esp, regs->errc);
+//	con_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
+//	           regs->eax, regs->ebx, regs->ecx, regs->edx);
+//	con_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
+//	           regs->ebp, regs->esp, regs->esi, regs->edi);
+//	con_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
+//	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
 
 	con_putc('\n');
 
@@ -101,9 +106,9 @@ static void idt_handle_irq(dword *esp)
 	regs_t *regs = (regs_t*)*esp;
 	dword irq = regs->intr - IRQ_BASE;
 
-	pm_restore(esp);
-
 	/*con_printf("IRQ: %d\n", irq);*/
+
+	//pm_restore(esp);
 
 	if (irq == 7 || irq == 15) {
 		byte pic = (irq < 8) ? PIC1 : PIC2;
@@ -116,7 +121,7 @@ static void idt_handle_irq(dword *esp)
 	if (irq_handlers[irq])
 		irq_handlers[irq](irq, esp);
 
-	pm_pick(esp);
+	//pm_pick(esp);
 
 irq_handeled:
 	if (irq >= 8)
@@ -128,6 +133,11 @@ irq_handeled:
 dword idt_handle_int(dword esp)
 {
 	regs_t *regs = (regs_t*)esp;
+
+	idt_in_irq_handler = 1;
+
+	pm_restore(&esp);
+
 	if (regs->intr < IRQ_BASE) {
 		idt_handle_exception(&esp);
 	}
@@ -135,8 +145,13 @@ dword idt_handle_int(dword esp)
 		idt_handle_irq(&esp);
 	}
 	else {
-		/*idt_handle_syscall(regs);*/
+		syscall(&esp);
 	}
+
+	pm_pick(&esp);
+
+	idt_in_irq_handler = 0;
+
 	return esp;
 }
 
@@ -168,6 +183,8 @@ void init_idt(void)
 	for (; i < IDT_SIZE; ++i) {
 		idt_set_gate(i, GDT_SEL_CODE, isr_null_handler, 0, IDT_INTERRUPT_GATE);
 	}
+
+	idt_in_irq_handler = 0;
 
 	idt_set_gate( 0, GDT_SEL_CODE, isr_stub_0,  0, IDT_INTERRUPT_GATE);
 	idt_set_gate( 1, GDT_SEL_CODE, isr_stub_1,  0, IDT_INTERRUPT_GATE);
@@ -206,6 +223,8 @@ void init_idt(void)
 	idt_set_gate(IRQ_BASE + 13, GDT_SEL_CODE, irq_stub_13, 0, IDT_INTERRUPT_GATE);
 	idt_set_gate(IRQ_BASE + 14, GDT_SEL_CODE, irq_stub_14, 0, IDT_INTERRUPT_GATE);
 	idt_set_gate(IRQ_BASE + 15, GDT_SEL_CODE, irq_stub_15, 0, IDT_INTERRUPT_GATE);
+
+	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_INTERRUPT_GATE);
 
 	/* PIC */
 	/* start initialization */

@@ -1,5 +1,5 @@
 #include <bitop.h>
-#include <error.h>
+#include <kos/error.h>
 #include "ipc.h"
 #include "pm.h"
 #include <string.h>

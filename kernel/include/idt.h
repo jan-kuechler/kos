@@ -58,7 +58,8 @@ static inline void enable_intr()
 {
 	/* only enables interrupts when the kernel initialization is done. */
 	extern byte kernel_init_done;
-	if (kernel_init_done)
+	extern byte idt_in_irq_handler;
+	if (kernel_init_done && !idt_in_irq_handler)
 		asm volatile("sti");
 }
 

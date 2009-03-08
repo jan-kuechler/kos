@@ -100,6 +100,8 @@ static void print_info()
 
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
+	kernel_init_done = 0; // interrupts won't get enabled again
+
 	int *args = ((int*)&fmt) + 1;
 
 	con_set_color(0x4F); /* white on red */

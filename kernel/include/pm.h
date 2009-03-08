@@ -49,9 +49,13 @@ typedef struct proc {
 	struct proc *next;
 } proc_t;
 
+extern proc_t *cur_proc;
+
 void init_pm(void);
 
-proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent);
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent);
+void    pm_destroy(proc_t *proc);
+
 proc_t *pm_get_proc(pid_t pid);
 
 void    pm_update();

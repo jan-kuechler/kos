@@ -3,13 +3,21 @@
 #include "idt.h"
 #include "kernel.h"
 #include "pm.h"
+#include "tss.h"
 
-proc_t procs[MAX_PROCS];
+static proc_t procs[MAX_PROCS];
+static proc_t *plist_head, *plist_tail;
+
 proc_t *cur_proc;
-proc_t *plist_head, *plist_tail;
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
+
+#if 1
+#define debug con_printf
+#else
+static inline void debug(...) {}
+#endif
 
 void idle()
 {
@@ -22,7 +30,7 @@ void idle()
  *
  * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -57,20 +65,23 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
 	dword *kstack = kernel_stacks[id];
 	kstack += KSTACK_SIZE;
 
-	*(--kstack) = 0x10;   // ss
+	dword code_seg = usermode ? GDT_SEL_UCODE : GDT_SEL_CODE;
+	dword data_seg = usermode ? GDT_SEL_UDATA : GDT_SEL_DATA;
+
+	*(--kstack) = data_seg;   // ss
 	*(--kstack) = (dword)ustack; // esp
 	*(--kstack) = 0x0202; // eflags: 0000000100000010b -> IF
-	*(--kstack) = 0x08;   // cs
+	*(--kstack) = code_seg;   // cs
 	*(--kstack) = (dword)entry;  // eip
 
 	*(--kstack) = 0; // errc
 	*(--kstack) = 0; // intr
 
 	// ds-gs
-	*(--kstack) = 0x10;
-	*(--kstack) = 0x10;
-	*(--kstack) = 0x10;
-	*(--kstack) = 0x10;
+	*(--kstack) = data_seg;
+	*(--kstack) = data_seg;
+	*(--kstack) = data_seg;
+	*(--kstack) = data_seg;
 
 	// gp registers
 	*(--kstack) = 0;
@@ -92,6 +103,21 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, pid_t parent)
 }
 
 /**
+ *  pm_destroy(proc)
+ *
+ * Destroys a process
+ */
+void pm_destroy(proc_t *proc)
+{
+//	debug("destroying %d\n", proc->pid);
+
+	pm_deactivate(proc);
+	procs[proc->pid].status = PS_SLOT_FREE;
+
+//	debug("done!\n");
+}
+
+/**
  *  pm_get_proc(pid)
  *
  * Returns a pointer to the process with the given id.
@@ -108,8 +134,6 @@ proc_t *pm_get_proc(pid_t pid)
  */
 void pm_activate(proc_t *proc)
 {
-	disable_intr();
-
 	if (!plist_head) {
 		plist_head = proc;
 	}
@@ -123,8 +147,6 @@ void pm_activate(proc_t *proc)
 
 	plist_tail = proc;
 	proc->next = 0;
-
-	enable_intr();
 }
 
 /**
@@ -134,24 +156,37 @@ void pm_activate(proc_t *proc)
  */
 void pm_deactivate(proc_t *proc)
 {
-	disable_intr();
+//	if (plist_head == proc)
+//		plist_head = plist_head->next;
+//	else {
+//		proc_t *p = plist_head;
+//
+//		while (p->next != proc) {
+//			p = p->next;
+//
+//			if (!p)	goto end; /* interrupts must be reenabled */
+//		}
+//		// p->next == proc
+//
+//		p->next = p->next->next;
+//	}
+	proc_t *prev = 0, *cur = plist_head;
 
-	if (plist_head == proc)
-		plist_head = plist_head->next;
+	while (cur && cur != proc) {
+		prev = cur;
+		cur  = cur->next;
+	}
+
+	if (prev) {
+		prev->next = cur->next;
+	}
 	else {
-		proc_t *p = plist_head;
-
-		while (p->next != proc) {
-			p = p->next;
-
-			if (!p)	goto end; /* interrupts must be reenabled */
-		}
-
-		p->next = proc->next;
+		plist_head = cur->next;
 	}
 
 end:
-	enable_intr();
+	(void)0;
+//	enable_intr();
 }
 
 /**
@@ -216,8 +251,10 @@ void pm_pick(dword *esp)
  */
 void pm_restore(dword *esp)
 {
-	if (cur_proc)
+	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
+		tss.esp0 = cur_proc->kstack;
+	}
 }
 
 /**
@@ -238,7 +275,7 @@ void init_pm(void)
 
 
 	/* create special process 0: idle */
-	proc_t *idle_proc  = pm_create(idle, "idle", 0);
+	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0);
 	idle_proc->status  = PS_BLOCKED;
 
 	cur_proc = idle_proc;
@@ -250,10 +287,10 @@ void init_pm(void)
 	extern void task4(void);
 	extern void task5(void);
 
-	pm_create(task1, "task1", 0);
-	pm_create(task2, "task2", 0);
-	pm_create(task3, "task3", 0);
-	pm_create(task4, "task4", 0);
-	pm_create(task5, "task5", 0);
+	pm_create(task1, "task1", 0, 0);
+	pm_create(task2, "task2", 0, 0);
+	pm_create(task3, "task3", 0, 0);
+	pm_create(task4, "task4", 0, 0);
+	pm_create(task5, "task5", 0, 0);
 }
 

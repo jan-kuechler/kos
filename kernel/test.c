@@ -1,6 +1,11 @@
 #include "console.h"
+#include <kos/syscall.h>
 
-//#define con_puts(a)
+//#define print(a)
+
+//#define print con_puts   /* direct */
+#define print kos_print  /* using syscalls */
+//#define print(x)         /* silent */
 
 static void wait(void)
 {
@@ -14,55 +19,67 @@ static void wait(void)
 
 void task1(void)
 {
-	con_puts("Hello from task 1\n");
+	print("Hello from task 1\n");
+
 	wait();
 
+	int i=0;
+	for (; i < 2 ; ++i) {
+			print("Task 1\n");
+			wait();
+	}
+
+	print("Task1 exiting!\n");
+	kos_exit();
+
+	print("EPIC FAIL!\n");
+
 	for (;;) {
-		con_puts("Task 1\n");
-		wait();
+			print("Task 1\n");
+			wait();
 	}
 }
 
 void task2(void)
 {
-	con_puts("Hello from task 2\n");
+	print("Hello from task 2\n");
 	wait();
 
 	for (;;) {
-		con_puts("Task 2\n");
+		print("Task 2\n");
 		wait();
 	}
 }
 
 void task3(void)
 {
-	con_puts("Hello from task 3\n");
+	print("Hello from task 3\n");
 	wait();
 
 	for (;;) {
-		con_puts("Task 3\n");
+		print("Task 3\n");
 		wait();
 	}
 }
 
 void task4(void)
 {
-	con_puts("Hello from task 4\n");
+	print("Hello from task 4\n");
 	wait();
 
 	for (;;) {
-		con_puts("Task 4\n");
+		print("Task 4\n");
 		wait();
 	}
 }
 
 void task5(void)
 {
-	con_puts("Hello from task 5\n");
+	print("Hello from task 5\n");
 	wait();
 
 	for (;;) {
-		con_puts("Task 5\n");
+		print("Task 5\n");
 		wait();
 	}
 }

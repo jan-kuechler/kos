@@ -36,6 +36,12 @@ isr_null_handler:
 	push dword 0xBEEF
 	jmp  isr_common
 	
+global syscall_stub
+syscall_stub:
+	push dword 0
+	push dword 0x30
+	jmp  isr_common
+	
 isr     0
 isr     1
 isr     2
