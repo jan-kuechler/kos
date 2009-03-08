@@ -5,5 +5,5 @@
 
 void kos_yield(void)
 {
-	do_syscall(SC_YIELD, 0, 0);
+	SYSCALL0(SC_YIELD);
 }

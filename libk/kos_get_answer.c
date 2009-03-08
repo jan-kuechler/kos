@@ -3,7 +3,7 @@
 
 #include "syscall_helper.h"
 
-void kos_exit(void)
+byte kos_get_answer(void)
 {
-	SYSCALL0(SC_EXIT);
+	SYSCALL0(SC_GET_ANSWER);
 }

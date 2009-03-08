@@ -61,6 +61,22 @@ byte ipc_send(pid_t from, pid_t to, msg_t *msg, byte block)
 		bset(proc->flags, PF_SENDING);
 		proc->status = PS_BLOCKED;
 		pm_deactivate(proc);
+		return OK;
+	}
+
+	return status;
+}
+
+byte ipc_receive(pid_t p, msg_t *msg, byte block)
+{
+	byte status = receive(p, msg);
+
+	if (status == E_TRY_AGAIN && block) {
+		proc_t *proc = pm_get_proc(p);
+		bset(proc->flags, PF_RECEIVING);
+		proc->status = PS_BLOCKED;
+		pm_deactivate(proc);
+		return OK;
 	}
 
 	return status;

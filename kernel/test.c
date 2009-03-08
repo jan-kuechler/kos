@@ -1,4 +1,5 @@
 #include "console.h"
+#include <kos/error.h>
 #include <kos/syscall.h>
 
 //#define print(a)
@@ -45,6 +46,13 @@ void task2(void)
 	print("Hello from task 2\n");
 	wait();
 
+	msg_t msg;
+	msg.cmd    = 42;
+	msg.subcmd = 1337;
+	msg.param1 = 0xDEADBEEF;
+	msg.param2 = 0xD00F;
+	kos_send((pid_t)3, &msg, 0);
+
 	for (;;) {
 		print("Task 2\n");
 		wait();
@@ -56,7 +64,24 @@ void task3(void)
 	print("Hello from task 3\n");
 	wait();
 
+	msg_t msg;
+
 	for (;;) {
+		byte status = kos_receive(&msg, 0);
+
+		if (status == OK) {
+			print("GOT A MESSAGE! CHEER!\n");
+
+			if (msg.cmd == kos_get_answer())
+				print("The answer to life, the universe and everything.\n");
+			if (msg.subcmd == 1337)
+				print("LEET!\n");
+			if (msg.param1 == 0xDEADBEEF)
+				print("Armes Rind )-:\n");
+			if (msg.param2 == 0xD00F)
+				print("Selber!\n");
+		}
+
 		print("Task 3\n");
 		wait();
 	}

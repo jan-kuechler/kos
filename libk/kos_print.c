@@ -5,5 +5,5 @@
 
 void kos_print(const char *str)
 {
-	do_syscall(SC_PRINT, (dword)str, 0);
+	SYSCALL1(SC_PRINT,(dword)str);
 }

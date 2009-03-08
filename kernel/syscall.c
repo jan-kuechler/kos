@@ -42,18 +42,51 @@ void do_get_uid(regs_t *regs)
 	sc_return(0);
 }
 
+void do_send(regs_t *regs)
+{
+	pid_t  tar   = arg(0, pid_t);
+	msg_t *msg   = arg(1, msg_t*);
+	byte   block = arg(2, byte);
+
+	byte result = ipc_send(cur_proc->pid, tar, msg, block);
+	sc_return(result);
+}
+
+void do_receive(regs_t *regs)
+{
+	msg_t *msg = arg(0, msg_t*);
+	byte block = arg(1, byte);
+
+	byte status = ipc_receive(cur_proc->pid, msg, block);
+
+	sc_return(status);
+}
+
+void do_get_answer(regs_t *regs)
+{
+	sc_return(42);
+}
+
+#define MAP(calln,func) case calln: func(regs); break;
+
 void syscall(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
 
 	switch (regs->eax) {
-	case SC_PRINT:   do_print(regs);   break;
 
-	case SC_EXIT:    do_exit(regs);    break;
-	case SC_YIELD:   do_yield(regs);   break;
+	MAP(SC_PRINT,      do_print)
 
-	case SC_GET_PID: do_get_pid(regs); break;
-	case SC_GET_UID: do_get_uid(regs); break;
+	MAP(SC_EXIT,       do_exit)
+	MAP(SC_YIELD,      do_yield)
+
+	MAP(SC_GET_PID,    do_get_pid)
+	MAP(SC_GET_UID,    do_get_uid)
+
+	MAP(SC_SEND,       do_send)
+	MAP(SC_RECEIVE,    do_receive)
+
+	MAP(SC_GET_ANSWER, do_get_answer)
 
 	default: panic("Invalid syscall: %d", regs->eax);
 	}
