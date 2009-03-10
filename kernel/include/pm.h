@@ -1,9 +1,10 @@
 #ifndef PM_H
 #define PM_H
 
+#include <types.h>
+
 #include "ipc.h"
 #include "regs.h"
-#include "types.h"
 
 #define MAX_PROCS 256
 
@@ -34,9 +35,11 @@ typedef struct proc {
 	proc_status_t status;
 	byte   flags;
 
-	dword  kstack;
 	dword  ustack;
-	dword  esp;
+	//dword  kstack;
+	//dword  esp;
+	regs_t *kstack;
+	regs_t *esp;
 
 	const char *cmdline;
 

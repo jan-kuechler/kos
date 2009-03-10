@@ -11,7 +11,8 @@ static proc_t *plist_head, *plist_tail;
 proc_t *cur_proc;
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
-dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
+//dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
+regs_t kernel_stacks[MAX_PROCS];
 
 #if 1
 #define debug con_printf
@@ -62,7 +63,35 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 
 	procs[id].ustack = (dword)ustack;
 
-	dword *kstack = kernel_stacks[id];
+	regs_t *kstack = &kernel_stacks[id];
+
+	kstack->u_ss   = GDT_SEL_DATA;
+	kstack->u_esp  = (dword)ustack;
+	kstack->eflags = 0x0202; //0000000100000010b -> IF
+	kstack->cs     = GDT_SEL_CODE;
+	kstack->eip    = (dword)entry;
+
+	kstack->intr   = 0;
+	kstack->errc   = 0;
+
+	kstack->gs = 0;
+	kstack->fs = 0;
+	kstack->es = 0;
+	kstack->ds = 0;
+
+	kstack->eax = 0;
+	kstack->ecx = 0;
+	kstack->edx = 0;
+	kstack->ebx = 0;
+	kstack->esp = 0;
+	kstack->ebp = 0;
+	kstack->esi = 0;
+	kstack->edi = 0;
+
+	procs[id].kstack = kstack;
+	procs[id].esp    = kstack;
+
+	/*dword *kstack = kernel_stacks[id];
 	kstack += KSTACK_SIZE;
 
 	dword code_seg = usermode ? GDT_SEL_UCODE : GDT_SEL_CODE;
@@ -94,7 +123,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	*(--kstack) = 0;
 
 	procs[id].kstack = (dword)kstack;
-	procs[id].esp    = (dword)kstack;
+	procs[id].esp    = (dword)kstack;*/
 
 	//add_proc(&procs[id]);
 	pm_activate(&procs[id]);
@@ -241,7 +270,7 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
-	*esp = cur_proc->esp;
+	*esp = (dword)cur_proc->esp;
 }
 
 /**
@@ -252,8 +281,8 @@ void pm_pick(dword *esp)
 void pm_restore(dword *esp)
 {
 	if (cur_proc) {
-		cur_proc->esp = (dword)*esp;
-		tss.esp0 = cur_proc->kstack;
+		cur_proc->esp = (regs_t*)*esp;
+		tss.esp0 = (dword)cur_proc->kstack;
 	}
 }
 
