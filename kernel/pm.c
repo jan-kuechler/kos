@@ -5,7 +5,7 @@
 #include "pm.h"
 #include "tss.h"
 
-static proc_t procs[MAX_PROCS];
+proc_t procs[MAX_PROCS];
 static proc_t *plist_head, *plist_tail;
 
 proc_t *cur_proc;
@@ -47,6 +47,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	}
 
 	procs[id].status = PS_READY;
+	procs[id].block  = BR_NOT_BLOCKED;
 	procs[id].parent = parent;
 
 	procs[id].cmdline = cmdline; // TODO: use malloc and strcpy here!
@@ -56,6 +57,9 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].msg_head = procs[id].msg_buffer;
 	procs[id].msg_tail = procs[id].msg_buffer;
 	procs[id].msg_count = 0;
+
+	procs[id].wakeup = 0;
+	procs[id].msg_wait_buffer = (void*)0;
 
 	dword *ustack = user_stacks[id];
 	ustack += USTACK_SIZE;
@@ -134,6 +138,8 @@ proc_t *pm_get_proc(pid_t pid)
  */
 void pm_activate(proc_t *proc)
 {
+	disable_intr();
+
 	if (!plist_head) {
 		plist_head = proc;
 	}
@@ -147,6 +153,8 @@ void pm_activate(proc_t *proc)
 
 	plist_tail = proc;
 	proc->next = 0;
+
+	enable_intr();
 }
 
 /**
@@ -156,20 +164,7 @@ void pm_activate(proc_t *proc)
  */
 void pm_deactivate(proc_t *proc)
 {
-//	if (plist_head == proc)
-//		plist_head = plist_head->next;
-//	else {
-//		proc_t *p = plist_head;
-//
-//		while (p->next != proc) {
-//			p = p->next;
-//
-//			if (!p)	goto end; /* interrupts must be reenabled */
-//		}
-//		// p->next == proc
-//
-//		p->next = p->next->next;
-//	}
+	disable_intr();
 	proc_t *prev = 0, *cur = plist_head;
 
 	while (cur && cur != proc) {
@@ -184,9 +179,10 @@ void pm_deactivate(proc_t *proc)
 		plist_head = cur->next;
 	}
 
-end:
-	(void)0;
-//	enable_intr();
+	if (proc == cur_proc)
+		pm_schedule();
+
+	enable_intr();
 }
 
 /**
@@ -255,6 +251,38 @@ void pm_restore(dword *esp)
 		cur_proc->esp = (dword)*esp;
 		tss.esp0 = cur_proc->kstack;
 	}
+}
+
+/**
+ *  pm_block(proc, reason)
+ *
+ * Blocks the process for the given reason.
+ * Returns 1 on success, 0 otherwise.
+ */
+byte pm_block(proc_t *proc, block_reason_t reason)
+{
+	if (proc->status == PS_BLOCKED)
+		return 0;
+
+	proc->status = PS_BLOCKED;
+	proc->block = reason;
+
+	pm_deactivate(proc);
+
+	return 1;
+}
+
+/**
+ *  pm_unblock(esp)
+ *
+ * Unblocks the process.
+ */
+void pm_unblock(proc_t *proc)
+{
+	proc->status = PS_READY;
+	proc->block  = BR_NOT_BLOCKED;
+
+	pm_activate(proc);
 }
 
 /**

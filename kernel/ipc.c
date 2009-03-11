@@ -4,10 +4,9 @@
 #include "pm.h"
 #include <string.h>
 
-static byte send(pid_t p, msg_t *msg)
+static byte send(proc_t *proc, msg_t *msg)
 {
-	proc_t *proc = pm_get_proc(p);
-
+	/* check args */
 	if (proc->status == PS_SLOT_FREE)
 		return E_INVALID_ARG;
 
@@ -18,6 +17,7 @@ static byte send(pid_t p, msg_t *msg)
 		return E_TRY_AGAIN;
 	}
 
+	/* copy the message to the targets buffer */
 	memcpy(proc->msg_head, msg, sizeof(msg_t));
 	proc->msg_head++;
 	proc->msg_count++;
@@ -28,10 +28,9 @@ static byte send(pid_t p, msg_t *msg)
 	return OK;
 }
 
-static byte receive(pid_t p, msg_t *msg)
+static byte receive(proc_t *proc, msg_t *msg)
 {
-	proc_t *proc = pm_get_proc(p);
-
+	/* check args */
 	if (proc->status == PS_SLOT_FREE)
 		return E_INVALID_ARG;
 
@@ -41,6 +40,7 @@ static byte receive(pid_t p, msg_t *msg)
 	if (proc->msg_count == 0)
 		return E_TRY_AGAIN;
 
+	/* copy the message from the procbuffer to the user */
 	memcpy(msg, proc->msg_tail, sizeof(msg_t));
 	proc->msg_tail++;
 	proc->msg_count--;
@@ -51,31 +51,30 @@ static byte receive(pid_t p, msg_t *msg)
 	return OK;
 }
 
-byte ipc_send(pid_t from, pid_t to, msg_t *msg, byte block)
+byte ipc_send(proc_t *from, proc_t *to, msg_t *msg)
 {
-	msg->sender = from;
+	msg->sender = from->pid;
 	byte status = send(to, msg);
 
-	if (status == E_TRY_AGAIN && block) {
-		proc_t *proc = pm_get_proc(from);
-		bset(proc->flags, PF_SENDING);
-		proc->status = PS_BLOCKED;
-		pm_deactivate(proc);
-		return OK;
+	/* if the target was blocked by waiting for a message wake it up */
+	if (pm_is_blocked_for(to, BR_RECEIVING)) {
+		receive(to, *to->msg_wait_buffer);
+		to->msg_wait_buffer = (void*)0;
+		pm_unblock(to);
 	}
 
 	return status;
 }
 
-byte ipc_receive(pid_t p, msg_t *msg, byte block)
+byte ipc_receive(proc_t *proc, msg_t *msg, byte block)
 {
-	byte status = receive(p, msg);
+	byte status = receive(proc, msg);
 
+	/* if there's no message to receive and we
+	   should block there disable the process */
 	if (status == E_TRY_AGAIN && block) {
-		proc_t *proc = pm_get_proc(p);
-		bset(proc->flags, PF_RECEIVING);
-		proc->status = PS_BLOCKED;
-		pm_deactivate(proc);
+		proc->msg_wait_buffer = &msg;
+		pm_block(proc, BR_RECEIVING);
 		return OK;
 	}
 

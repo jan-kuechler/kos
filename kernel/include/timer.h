@@ -1,7 +1,9 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include "types.h"
+#include <types.h>
+
+#include "pm.h"
 
 #define TIMER_HZ 100
 #define TIMER_DEFAULT 1193180
@@ -12,5 +14,7 @@
 extern dword timer_ticks;
 
 void init_timer(void);
+
+void timer_sleep(proc_t *proc, dword msec);
 
 #endif /*TIMER_H*/

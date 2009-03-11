@@ -46,12 +46,15 @@ void task2(void)
 	print("Hello from task 2\n");
 	wait();
 
+	wait();
+	wait();
+
 	msg_t msg;
 	msg.cmd    = 42;
 	msg.subcmd = 1337;
 	msg.param1 = 0xDEADBEEF;
 	msg.param2 = 0xD00F;
-	kos_send((pid_t)3, &msg, 0);
+	kos_send((pid_t)3, &msg);
 
 	for (;;) {
 		print("Task 2\n");
@@ -66,22 +69,23 @@ void task3(void)
 
 	msg_t msg;
 
+	print("Task 3 waiting for a message...\n");
+	byte status = kos_receive(&msg, 1);
+
+	if (status == OK) {
+		print("GOT A MESSAGE! CHEER!\n");
+
+		if (msg.cmd == kos_get_answer())
+			print("The answer to life, the universe and everything.\n");
+		if (msg.subcmd == 1337)
+			print("LEET!\n");
+		if (msg.param1 == 0xDEADBEEF)
+			print("Armes Rind )-:\n");
+		if (msg.param2 == 0xD00F)
+			print("Selber!\n");
+	}
+
 	for (;;) {
-		byte status = kos_receive(&msg, 0);
-
-		if (status == OK) {
-			print("GOT A MESSAGE! CHEER!\n");
-
-			if (msg.cmd == kos_get_answer())
-				print("The answer to life, the universe and everything.\n");
-			if (msg.subcmd == 1337)
-				print("LEET!\n");
-			if (msg.param1 == 0xDEADBEEF)
-				print("Armes Rind )-:\n");
-			if (msg.param2 == 0xD00F)
-				print("Selber!\n");
-		}
-
 		print("Task 3\n");
 		wait();
 	}
@@ -102,6 +106,9 @@ void task5(void)
 {
 	print("Hello from task 5\n");
 	wait();
+
+	print("Sleeping for 5 secs.\n");
+	kos_sleep(5000);
 
 	for (;;) {
 		print("Task 5\n");

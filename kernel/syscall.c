@@ -31,6 +31,14 @@ void do_yield(regs_t *regs)
 	sc_return(0)
 }
 
+void do_sleep(regs_t *regs)
+{
+	dword msec = arg(0, dword);
+
+	timer_sleep(cur_proc, msec);
+	sc_return(0);
+}
+
 void do_get_pid(regs_t *regs)
 {
 	sc_return(cur_proc->pid);
@@ -46,9 +54,8 @@ void do_send(regs_t *regs)
 {
 	pid_t  tar   = arg(0, pid_t);
 	msg_t *msg   = arg(1, msg_t*);
-	byte   block = arg(2, byte);
 
-	byte result = ipc_send(cur_proc->pid, tar, msg, block);
+	byte result = ipc_send(cur_proc, pm_get_proc(tar), msg);
 	sc_return(result);
 }
 
@@ -57,8 +64,10 @@ void do_receive(regs_t *regs)
 	msg_t *msg = arg(0, msg_t*);
 	byte block = arg(1, byte);
 
-	byte status = ipc_receive(cur_proc->pid, msg, block);
+	byte status = ipc_receive(cur_proc, msg, block);
 
+	// This may not return immediately to the calling process
+  // sc_return just sets the return value.
 	sc_return(status);
 }
 
@@ -79,6 +88,7 @@ void syscall(dword *esp)
 
 	MAP(SC_EXIT,       do_exit)
 	MAP(SC_YIELD,      do_yield)
+	MAP(SC_SLEEP,      do_sleep)
 
 	MAP(SC_GET_PID,    do_get_pid)
 	MAP(SC_GET_UID,    do_get_uid)
