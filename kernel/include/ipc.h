@@ -10,7 +10,7 @@
 #define INVALID_PROC 1
 #define INVALID_MSG  2
 
-byte ipc_send(proc_t *from, proc_t *to, msg_t *msg);
-byte ipc_receive(proc_t *p, msg_t *msg, byte block);
+int ipc_send(proc_t *from, proc_t *to, msg_t *msg);
+int ipc_receive(proc_t *p, msg_t *msg, byte block);
 
 #endif /*IPC_H*/

@@ -25,6 +25,9 @@ ARCH_INC=$(INC_DIR)/arch/$(ARCH)
 KERNEL_DIR=kernel
 KERNEL_INC=$(KERNEL_DIR)/include
 
+FS_DIR=$(KERNEL_DIR)/fs
+MM_DIR=$(KERNEL_DIR)/mm
+
 LIBC_DIR=libc
 LIBC_INC=$(LIBC_DIR)/include
 
@@ -60,6 +63,8 @@ targets: ktar lctar lktar
 ktar:
 	rm -f kernel.target
 	for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+	for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+	for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	
 lctar:
 	rm -f libc.target

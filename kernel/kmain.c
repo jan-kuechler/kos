@@ -1,11 +1,12 @@
+#include <multiboot.h>
+#include <page.h>
+
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
-#include "mm.h"
-#include <multiboot.h>
-#include <page.h>
 #include "pm.h"
 #include "timer.h"
+#include "mm/mm.h"
 
 multiboot_info_t multiboot_info;
 

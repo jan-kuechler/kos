@@ -1,10 +1,10 @@
 #include <bitop.h>
+#include <string.h>
 #include <kos/error.h>
 #include "ipc.h"
 #include "pm.h"
-#include <string.h>
 
-static byte send(proc_t *proc, msg_t *msg)
+static int send(proc_t *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
@@ -28,7 +28,7 @@ static byte send(proc_t *proc, msg_t *msg)
 	return OK;
 }
 
-static byte receive(proc_t *proc, msg_t *msg)
+static int receive(proc_t *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
@@ -51,7 +51,7 @@ static byte receive(proc_t *proc, msg_t *msg)
 	return OK;
 }
 
-byte ipc_send(proc_t *from, proc_t *to, msg_t *msg)
+int ipc_send(proc_t *from, proc_t *to, msg_t *msg)
 {
 	msg->sender = from->pid;
 	byte status = send(to, msg);
@@ -66,9 +66,9 @@ byte ipc_send(proc_t *from, proc_t *to, msg_t *msg)
 	return status;
 }
 
-byte ipc_receive(proc_t *proc, msg_t *msg, byte block)
+int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 {
-	byte status = receive(proc, msg);
+	int status = receive(proc, msg);
 
 	/* if there's no message to receive and we
 	   should block there disable the process */

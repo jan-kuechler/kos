@@ -1,10 +1,11 @@
-#include "bitop.h"
-#include "kernel.h"
+#include <bitop.h>
 #include <multiboot.h>
-#include "mm.h"
 #include <page.h>
 #include <string.h>
 #include <types.h>
+
+#include "kernel.h"
+#include "mm/mm.h"
 
 #define NO_PAGE ((paddr_t)1) /* 1 is not a valid addr for a page, as they must be 4k-aligned */
 

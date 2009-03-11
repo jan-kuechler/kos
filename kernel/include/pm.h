@@ -31,6 +31,7 @@ typedef enum block_reason
 	BR_NOT_BLOCKED = 0,
 	BR_RECEIVING,
 	BR_SLEEPING,
+	BR_WAIT_FS,
 } block_reason_t;
 
 typedef struct proc {

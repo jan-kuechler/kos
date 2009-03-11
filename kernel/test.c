@@ -107,8 +107,9 @@ void task5(void)
 	print("Hello from task 5\n");
 	wait();
 
-	print("Sleeping for 5 secs.\n");
-	kos_sleep(5000);
+	print("5: Sleeping for 10 secs.\n");
+	kos_sleep(10000);
+	print("5: ZzzZzzzZzz... Huh?\n");
 
 	for (;;) {
 		print("Task 5\n");
