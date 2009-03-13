@@ -9,7 +9,7 @@
 #define KEYC_ALTGR          100
 
 #define KEYC_INSERT         110
-#define KEYC_DELETE         111
+#define KEYC_DEL            111
 #define KEYC_PAGE_UP        104
 #define KEYC_PAGE_DOWN      109
 #define KEYC_HOME           102

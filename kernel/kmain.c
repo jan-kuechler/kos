@@ -1,6 +1,7 @@
 #include <multiboot.h>
 #include <page.h>
-
+#include <kos/syscall.h>
+#include "acpi.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -13,11 +14,30 @@
 #include "fs/fs.h"
 #include "fs/devfs.h"
 
+
 multiboot_info_t multiboot_info;
 
 static void print_info();
 
 byte kernel_init_done;
+
+void kinit()
+{
+	con_puts("Initializing ACPI:");
+	if (init_acpi() == 0)
+		con_puts("\tdone!\n");
+	else
+		con_puts("\tfailed!\n");
+
+	con_puts("Initializing FS:");
+	init_fs();
+	init_devfs();
+	init_tty();
+	tty_register_keymap("de", keymap_de);
+	con_puts("\tdone!\n");
+
+	kos_exit();
+}
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
@@ -53,15 +73,11 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	con_puts("kOS booted.\n");
 
-	con_puts("Initializing FS:\n");
-	init_fs();
-	init_devfs();
-	init_tty();
-	tty_register_keymap("de", keymap_de);
-
 	con_putc('\n');
 
 	print_info();
+
+	pm_create(kinit, "kinit", 0, 0);
 
 	kernel_init_done = 1;
 

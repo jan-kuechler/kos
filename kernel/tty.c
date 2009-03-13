@@ -144,6 +144,25 @@ static void putc(tty_t *tty, char c)
 	update_cursor(tty);
 }
 
+static void puts(tty_t *tty, const char *str)
+{
+	while (*str)
+		putc(tty, *str++);
+}
+
+static byte can_answer_rq(tty_t *tty)
+{
+	if (!tty->rqcount)
+		return 0;
+
+	if (tty->flags & TTY_RAW) {
+		return (tty->incount >= tty->rqs[0]->buflen);
+	}
+	else {
+		return (tty->eotcount > 0);
+	}
+}
+
 static void answer_rq(tty_t *tty, fs_request_t *rq)
 {
 	// Note: This function does not check anything.
@@ -156,13 +175,23 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 		remove_rq = 1;
 	}
 
+	byte len = 0, offs = 0;
 	/* copy the data to the buffer */
-	memcpy(rq->buf, tty->inbuf, rq->buflen);
+	if (tty->flags & TTY_RAW) {
+		memcpy(rq->buf, tty->inbuf, rq->buflen);
+		len  = rq->buflen;
+		offs = rq->buflen;
+	}
+	else {
+		len  = strlen(tty->inbuf); // eot is marked by a \0
+		strcpy(rq->buf, tty->inbuf);
+		offs = len + 1;
+	}
 	/* update the inbuffer */
-	memmove(tty->inbuf, tty->inbuf + rq->buflen, tty->incount - rq->buflen);
+	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
 	tty->incount -= rq->buflen;
 	/* and finish the rq */
-	rq->result = rq->buflen;
+	rq->result = len;
 	fs_finish_rq(rq);
 
 	if (remove_rq) {
@@ -262,19 +291,19 @@ static int query(fs_devfile_t *file, fs_request_t *rq)
 	return OK;
 }
 
-static void puts(tty_t *tty, const char *str)
-{
-	while (*str)
-		putc(tty, *str++);
-}
-
 static void tty_dbg_info(tty_t *tty)
 {
 	putc(tty, '\n');
 	puts(tty, "== TTY Debug Info ==\n");
-	puts(tty, "   Id: ");
+	puts(tty, "   Id:        ");
 	putc(tty, '0' + tty->id);
 	putc(tty, '\n');
+
+	puts(tty, "   Mode:      ");
+	if (tty->flags & TTY_RAW)
+		puts(tty, "raw\n");
+	else
+		puts(tty, "cbreak\n");
 
 	puts(tty, "   Modifiers: ");
 	if (modifiers.shift)
@@ -362,6 +391,17 @@ static inline byte handle_modifiers(byte code, byte brk)
 static inline byte handle_raw(byte code)
 {
 	if (modifiers.ctrl) {
+		if (modifiers.shift)
+			if (code == KEYC_DEL) {
+				kbc_reset_cpu();
+			}
+			else if (code == KEYC_END) {
+				// weniger steuern, mehr alten und komplett entfernen!
+				acpi_poweroff();
+				puts(cur_tty, "\nCould not shutdown. Sorry.\n");
+			}
+
+
 		switch (code) {
 		case KEYC_F1: tty_set_cur_term(0); return 1;
 		case KEYC_F2: tty_set_cur_term(1); return 1;
@@ -372,6 +412,7 @@ static inline byte handle_raw(byte code)
 		case KEYC_F7: tty_set_cur_term(6); return 1;
 		case KEYC_F8: tty_set_cur_term(7); return 1;
 		}
+
 	}
 
 	if (code == KEYC_F12) {
@@ -387,11 +428,13 @@ static void handle_input(byte code)
 	if (!cur_map)
 		return;
 
-	char c = 0;
+	byte c = 0;
 	if (modifiers.shift)
 		c = cur_map[code].shift;
 	else if (modifiers.altgr)
 		c = cur_map[code].altgr;
+	else if (modifiers.ctrl)
+		c = cur_map[code].ctrl;
 	else
 		c = cur_map[code].normal;
 
@@ -401,7 +444,16 @@ static void handle_input(byte code)
 	if (cur_tty->incount == TTY_INBUF_SIZE)
 		return;
 
-	cur_tty->inbuf[cur_tty->incount++] = c;
+	if (cur_tty->flags & TTY_RAW) {
+		if (c == EOT) return;
+		cur_tty->inbuf[cur_tty->incount++] = c;
+	}
+	else {
+		if (c == EOT) c = 0;
+		cur_tty->inbuf[cur_tty->incount++] = c;
+		if (c == '\n')
+			cur_tty->inbuf[cur_tty->incount++] = 0;
+	}
 
 	while (cur_tty->rqcount && (cur_tty->incount >= cur_tty->rqs[0]->buflen))
 		answer_rq(cur_tty, 0);
@@ -437,6 +489,7 @@ void tty_set_cur_term(byte n)
 	if (n < NUM_TTYS) {
 		cur_tty = &ttys[n];
 		flush(cur_tty);
+		update_cursor(cur_tty);
 	}
 }
 

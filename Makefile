@@ -95,16 +95,29 @@ objlist:
 floppy: 
 	rm -rf tmp
 	mkdir tmp
-	cp menu.lst.floppy tmp/menu.lst
+	cp menu-floppy.lst tmp/menu.lst
 	cp ../tools/grub/grldr tmp
 	cp $(BIN_DIR)/kos.bin tmp
 	bfi -t=144 -f=img/floppy.img tmp -b=../tools/grub/grldr.mbr
 	cmd "/C makeboot.bat img\floppy.img "
 	rm -rf tmp
 	
+.PHONY: iso
+iso:
+	rm -rf tmp
+	mkdir tmp
+	cp menu-iso.lst tmp/menu.lst
+	cp $(BIN_DIR)/kos.bin tmp
+	cp ../tools/grub/grldr tmp
+	mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
+	rm -rf tmp
+	
 .PHONY: run
 run:
 	qemu -m 16 -L ../tools/qemu -fda img/floppy.img
+	
+run-iso:
+	qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
 
 dbg:
 	qemu -m 16 -S -s -L ../tools/qemu -fda img/floppy.img 
