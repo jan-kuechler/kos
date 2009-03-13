@@ -315,10 +315,10 @@ void init_pm(void)
 	extern void task4(void);
 	extern void task5(void);
 
-	pm_create(task1, "task1", 0, 0);
-	pm_create(task2, "task2", 0, 0);
-	pm_create(task3, "task3", 0, 0);
-	pm_create(task4, "task4", 0, 0);
-	pm_create(task5, "task5", 0, 0);
+	//pm_create(task1, "task1", 0, 0);
+	//pm_create(task2, "task2", 0, 0);
+	//pm_create(task3, "task3", 0, 0);
+	//pm_create(task4, "task4", 0, 0);
+	//pm_create(task5, "task5", 0, 0);
 }
 

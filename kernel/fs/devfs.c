@@ -97,7 +97,7 @@ static int query(fs_filesystem_t *fs, fs_request_t *rq)
 		}
 	}
 
-	return E_NOT_IMPLEMENTED;
+	return E_UNKNOWN;
 }
 
 int fs_create_dev(fs_devfile_t *file)

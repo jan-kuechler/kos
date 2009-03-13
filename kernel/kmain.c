@@ -4,9 +4,14 @@
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
+#include "keymap.h"
 #include "pm.h"
 #include "timer.h"
+#include "tty.h"
+#include "keymap/de.h"
 #include "mm/mm.h"
+#include "fs/fs.h"
+#include "fs/devfs.h"
 
 multiboot_info_t multiboot_info;
 
@@ -46,7 +51,15 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_timer();
 	con_puts("\t\t\tdone!\n");
 
-	con_puts("kOS booted.\n\n");
+	con_puts("kOS booted.\n");
+
+	con_puts("Initializing FS:\n");
+	init_fs();
+	init_devfs();
+	init_tty();
+	tty_register_keymap("de", keymap_de);
+
+	con_putc('\n');
 
 	print_info();
 
