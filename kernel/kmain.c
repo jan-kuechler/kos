@@ -32,11 +32,25 @@ void kinit()
 	con_puts("Initializing FS:");
 	init_fs();
 	init_devfs();
+	fs_mount(fs_get_driver("devfs"), "/dev/", 0, 0);
 	init_tty();
 	tty_register_keymap("de", keymap_de);
 	con_puts("\tdone!\n");
 
-	kos_exit();
+	int stdout = kos_open("/dev/tty0", 0, 0);
+	if (stdout == -1) {
+		con_puts("Error opening tty0");
+	}
+
+	tty_set_cur_term(0);
+
+	kos_write(stdout, "This is /dev/tty0", 17);
+
+	extern void ksh(void);
+
+	pm_create(ksh, "ksh", 0, 1, 1);
+
+	kos_exit(0);
 }
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)
@@ -77,7 +91,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	print_info();
 
-	pm_create(kinit, "kinit", 0, 0);
+	pm_create(kinit, "kinit", 0, 0, 1);
 
 	kernel_init_done = 1;
 

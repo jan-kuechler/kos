@@ -8,8 +8,8 @@
 
 #define MAX_PROCS 256
 
-#define KSTACK_SIZE 512
-#define USTACK_SIZE 1024
+#define KSTACK_SIZE 4096
+#define USTACK_SIZE 4096
 
 #define IDLE_PROC 0
 
@@ -17,6 +17,10 @@
 #define PROC_MAX_TICKS 100
 
 #define PROC_MSG_BUFFER_SIZE 24 /* messages */
+
+#define PROC_NUM_FDS 32
+
+struct fs_handle;
 
 typedef enum proc_status
 {
@@ -47,7 +51,14 @@ typedef struct proc {
 	dword  ustack;
 	dword  esp;
 
+	regs_t *sc_regs;
+
+	struct fs_handle *fds[PROC_NUM_FDS];
+	dword  numfds;
+
 	const char *cmdline;
+
+	const char *cwd;
 
 	dword  ticks_left;
 
@@ -62,7 +73,7 @@ extern proc_t *cur_proc;
 
 void init_pm(void);
 
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent);
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, byte running);
 void    pm_destroy(proc_t *proc);
 
 proc_t *pm_get_proc(pid_t pid);

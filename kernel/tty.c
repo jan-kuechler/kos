@@ -9,6 +9,8 @@
 #include "keymap.h"
 #include "tty.h"
 
+#include "console.h"
+
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
 static char *names[NUM_TTYS] = {
@@ -51,14 +53,15 @@ static void scroll(tty_t *tty, int lines)
 	dword offs = lines * TTY_SCREEN_X * 2;
 	dword count = (TTY_SCREEN_Y - lines) * TTY_SCREEN_X * 2;
 	dword ncount = lines * TTY_SCREEN_X * 2;
+	int i;
 
 	if (tty == cur_tty) {
-		memmove(vmem, vmem + offs, count);
-		memset(vmem + count, 0, ncount);
+		memmove(((byte*)vmem), ((byte*)vmem) + offs, count);
+		memset(((byte*)vmem) + count, 0, ncount);
 	}
 
-	memmove(tty->outbuf, tty->outbuf + offs, count);
-	memset(tty->outbuf + count, 0, ncount);
+	memmove(((byte*)tty->outbuf), ((byte*)tty->outbuf) + offs, count);
+	memset(((byte*)tty->outbuf) + count, 0, ncount);
 	tty->y -= lines;
 }
 
@@ -89,9 +92,10 @@ static inline void update_cursor(tty_t *tty)
 		word pos = CPOS(tty);
 
 		outb(0x3D4, 15);
-		outb(0x3D4, bmask(pos, BMASK_BYTE));
+		outb(0x3D5, pos);
 		outb(0x3D4, 14);
-		outb(0x3D4, bmask(pos >> 8, BMASK_BYTE));
+		outb(0x3D5, pos >> 8);
+
 	}
 }
 
@@ -137,8 +141,8 @@ static void putc(tty_t *tty, char c)
 		tty->x = 0;
 	}
 
-	if (tty->y >= TTY_SCREEN_Y) {
-		scroll(tty, tty->y - TTY_SCREEN_Y + 1);
+	while (tty->y >= TTY_SCREEN_Y) {
+		scroll(tty, 1);
 	}
 
 	update_cursor(tty);
@@ -150,9 +154,9 @@ static void puts(tty_t *tty, const char *str)
 		putc(tty, *str++);
 }
 
-static byte can_answer_rq(tty_t *tty)
+static byte can_answer_rq(tty_t *tty, int gotrq)
 {
-	if (!tty->rqcount)
+	if (!gotrq && !tty->rqcount)
 		return 0;
 
 	if (tty->flags & TTY_RAW) {
@@ -187,11 +191,13 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 		strcpy(rq->buf, tty->inbuf);
 		offs = len + 1;
 	}
+
 	/* update the inbuffer */
 	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
 	tty->incount -= rq->buflen;
 	/* and finish the rq */
 	rq->result = len;
+
 	fs_finish_rq(rq);
 
 	if (remove_rq) {
@@ -199,6 +205,9 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 		tty->rqcount--;
 		tty->rqs = realloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
 	}
+
+	if (!(tty->flags & TTY_RAW))
+		tty->eotcount--;
 }
 
 
@@ -235,12 +244,12 @@ static void close(tty_t *tty, fs_request_t *rq)
  */
 static void read(tty_t *tty, fs_request_t *rq)
 {
-	if ((!tty->rqcount) && (rq->buflen <= tty->incount)) { /* fullfill request */
+	if (can_answer_rq(tty, 1)) { /* fullfill request */
 		answer_rq(tty, rq);
 	}
 	else { /* store request */
 		tty->rqs = realloc(tty->rqs, sizeof(fs_request_t*) * (++tty->rqcount));
-		tty->rqs[tty->rqcount-1] == rq;
+		tty->rqs[tty->rqcount-1] = rq;
 	}
 }
 
@@ -316,6 +325,15 @@ static void tty_dbg_info(tty_t *tty)
 		puts(tty, "ctrl ");
 	putc(tty, '\n');
 
+	puts(tty, "   RQs:       ");
+	putc(tty, tty->rqcount + '0');
+	putc(tty, '\n');
+
+
+	puts(tty, "   EOTs:      ");
+	putc(tty, tty->eotcount + '0');
+	putc(tty, '\n');
+
 }
 
 /** following code handles the keyboard irq **/
@@ -360,6 +378,8 @@ static inline byte get_keycode(byte *brk)
 	else {
 		return kbc_scan_to_keycode(KBC_NORMAL, data);
 	}
+
+	return 0;
 }
 
 static inline byte handle_modifiers(byte code, byte brk)
@@ -423,10 +443,30 @@ static inline byte handle_raw(byte code)
 	return 0;
 }
 
+static inline byte handle_cbreak_input(char c)
+{
+	switch (c) {
+	case EOT:
+	case '\n':
+		cur_tty->eotcount++;
+		cur_tty->inbuf[cur_tty->incount++] = 0;
+		return 1;
+
+	case '\b':
+		if (cur_tty->inbuf[cur_tty->incount-1] == 0)
+			cur_tty->eotcount--;
+		cur_tty->incount--;
+		return 1;
+	}
+
+	return 0;
+}
+
 static void handle_input(byte code)
 {
-	if (!cur_map)
+	if (!cur_map) {
 		return;
+	}
 
 	byte c = 0;
 	if (modifiers.shift)
@@ -438,28 +478,41 @@ static void handle_input(byte code)
 	else
 		c = cur_map[code].normal;
 
-	if (c == 0)
+	if (c == 0) {
 		return;
+	}
 
 	if (cur_tty->incount == TTY_INBUF_SIZE)
 		return;
+
+	if ((cur_tty->flags & TTY_ECHO) && c != EOT)
+		putc(cur_tty, c);
+
+	if (!(cur_tty->flags & TTY_RAW)) {
+		if (handle_cbreak_input(code)
+			return;
+	}
+	else if (c == EOT) {
+		return;
+	}
 
 	if (cur_tty->flags & TTY_RAW) {
 		if (c == EOT) return;
 		cur_tty->inbuf[cur_tty->incount++] = c;
 	}
 	else {
-		if (c == EOT) c = 0;
+		if (c == EOT || c == '\n') {
+			c = 0;
+			cur_tty->eotcount++;
+		}
 		cur_tty->inbuf[cur_tty->incount++] = c;
-		if (c == '\n')
-			cur_tty->inbuf[cur_tty->incount++] = 0;
 	}
 
-	while (cur_tty->rqcount && (cur_tty->incount >= cur_tty->rqs[0]->buflen))
+	while (can_answer_rq(cur_tty, 0)) {
 		answer_rq(cur_tty, 0);
+	}
 
-	if (cur_tty->flags & TTY_ECHO)
-		putc(cur_tty, c);
+
 }
 
 static void tty_irq_handler(int irq, dword *esp)
@@ -467,14 +520,20 @@ static void tty_irq_handler(int irq, dword *esp)
 	byte brk = 0;
 	byte keyc = get_keycode(&brk);
 
-	if (handle_modifiers(keyc, brk))
+	if (!keyc)
 		return;
 
-	if (brk)
+	if (handle_modifiers(keyc, brk)) {
+		return;
+	}
+
+	if (brk) {
 		return; // no need for keydowns anymore
+	}
 
-	if (handle_raw(keyc))
+	if (handle_raw(keyc)) {
 		return;
+	}
 
 	handle_input(keyc);
 }
@@ -545,6 +604,8 @@ void init_tty(void)
 		tty->incount = 0;
 		tty->status  = 0x07;
 		tty->flags   = TTY_ECHO;
+
+		tty->rqcount = 0;
 
 		clear(tty);
 

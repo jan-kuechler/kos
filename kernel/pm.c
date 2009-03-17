@@ -13,10 +13,10 @@ proc_t *cur_proc;
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
-#if 1
+#if 0
 #define debug con_printf
 #else
-static inline void debug(...) {}
+static inline void debug(const char *fmt, ...) {}
 #endif
 
 void idle()
@@ -30,7 +30,7 @@ void idle()
  *
  * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent)
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, byte running)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -57,6 +57,10 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].msg_head = procs[id].msg_buffer;
 	procs[id].msg_tail = procs[id].msg_buffer;
 	procs[id].msg_count = 0;
+
+	procs[id].cwd = "/";
+
+	procs[id].numfds   = 0;
 
 	procs[id].wakeup = 0;
 	procs[id].msg_wait_buffer = (void*)0;
@@ -100,8 +104,8 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].kstack = (dword)kstack;
 	procs[id].esp    = (dword)kstack;
 
-	//add_proc(&procs[id]);
-	pm_activate(&procs[id]);
+	if (running)
+		pm_activate(&procs[id]);
 
 	return &procs[id];
 }
@@ -303,8 +307,8 @@ void init_pm(void)
 
 
 	/* create special process 0: idle */
-	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0);
-	idle_proc->status  = PS_BLOCKED;
+	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, 1);
+	idle_proc->status = PS_BLOCKED;
 
 	cur_proc = idle_proc;
 
@@ -315,10 +319,10 @@ void init_pm(void)
 	extern void task4(void);
 	extern void task5(void);
 
-	//pm_create(task1, "task1", 0, 0);
-	//pm_create(task2, "task2", 0, 0);
-	//pm_create(task3, "task3", 0, 0);
-	//pm_create(task4, "task4", 0, 0);
-	//pm_create(task5, "task5", 0, 0);
+	//pm_create(task1, "task1", 0, 0, 1);
+	//pm_create(task2, "task2", 0, 0, 1);
+	//pm_create(task3, "task3", 0, 0, 1);
+	//pm_create(task4, "task4", 0, 0, 1);
+	//pm_create(task5, "task5", 0, 0, 1);
 }
 

@@ -32,7 +32,7 @@ int fs_query_rq(fs_request_t *rq, int wait, proc_t *proc)
  */
 int fs_wait_rq(fs_request_t *rq)
 {
-	if (rq->finished) return 0;
+	if (rq->finished) return OK;
 
 	rq->wait_proc = cur_proc;
 	pm_block(rq->wait_proc, BR_WAIT_FS);
@@ -48,8 +48,11 @@ int fs_wait_rq(fs_request_t *rq)
 int fs_finish_rq(fs_request_t *rq)
 {
 	rq->finished = 1;
-	if (rq->wait_proc)
+	if (rq->wait_proc) {
+		rq->wait_proc->sc_regs->eax = rq->result;
+
 		pm_unblock(rq->wait_proc);
+	}
 
 	return OK;
 }

@@ -76,8 +76,7 @@ static inline void send_data(byte data)
  */
 byte kbc_getkey(void)
 {
-	byte key = inb(KBC_DATA);
-	return key;
+	return inb(KBC_DATA);
 }
 
 /**

@@ -87,14 +87,14 @@ static void idt_handle_exception(dword *esp)
 
 	con_printf("Exception: #%02d (%s) @ %06x:%010x\n",
 	           regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
-//	con_printf("ss:esp = %06x:%010x error code: %010x\n",
-//	           regs->u_ss, regs->u_esp, regs->errc);
-//	con_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
-//	           regs->eax, regs->ebx, regs->ecx, regs->edx);
-//	con_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
-//	           regs->ebp, regs->esp, regs->esi, regs->edi);
-//	con_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
-//	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
+	con_printf("ss:esp = %06x:%010x error code: %010x\n",
+	           regs->u_ss, regs->u_esp, regs->errc);
+	con_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
+	           regs->eax, regs->ebx, regs->ecx, regs->edx);
+	con_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
+	           regs->ebp, regs->esp, regs->esi, regs->edi);
+	con_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
+	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
 
 	con_putc('\n');
 
@@ -106,10 +106,6 @@ static void idt_handle_irq(dword *esp)
 	regs_t *regs = (regs_t*)*esp;
 	dword irq = regs->intr - IRQ_BASE;
 
-	/*con_printf("IRQ: %d\n", irq);*/
-
-	//pm_restore(esp);
-
 	if (irq == 7 || irq == 15) {
 		byte pic = (irq < 8) ? PIC1 : PIC2;
 		outb(pic + 3, 0x03);
@@ -118,10 +114,9 @@ static void idt_handle_irq(dword *esp)
 		}
 	}
 
-	if (irq_handlers[irq])
+	if (irq_handlers[irq]) {
 		irq_handlers[irq](irq, esp);
-
-	//pm_pick(esp);
+	}
 
 irq_handeled:
 	if (irq >= 8)

@@ -45,8 +45,9 @@ static fs_file_t *open(fs_filesystem_t *fs, const char *path)
 			break;
 		}
 	}
-	if (index == -1)
+	if (index == -1) {
 		return NULL;
+	}
 
 	if (files[index])
 		return files[index];

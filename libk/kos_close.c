@@ -3,7 +3,7 @@
 
 #include "syscall_helper.h"
 
-void kos_exit(int status)
+int kos_close(int fd)
 {
-	SYSCALL1(SC_EXIT, status);
+	return SYSCALL1(SC_CLOSE, fd);
 }

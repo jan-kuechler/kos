@@ -1,8 +1,12 @@
+#include <stdlib.h>
+#include <kos/error.h>
+#include <kos/syscalln.h>
 #include "console.h"
 #include "idt.h"
 #include "pm.h"
 #include "regs.h"
-#include <kos/syscalln.h>
+#include "fs/fs.h"
+
 
 #define arg(n,type) (*((type*)((char*)&regs->u_esp + ((n)*4))))
 
@@ -71,6 +75,77 @@ void do_receive(regs_t *regs)
 	sc_return(status);
 }
 
+void do_open(regs_t *regs)
+{
+	const char *fname = arg(0, const char *);
+	dword flags       = arg(1, dword);
+	dword mode        = arg(2, dword);
+
+	const char *file = fname;
+	if (fname[0] != '/') { // relative path, prepend the cur working dir
+		char *tmp = malloc(strlen(fname) + strlen(cur_proc->cwd) + 1);
+		strcpy(tmp, cur_proc->cwd);
+		strcpy(tmp + strlen(cur_proc->cwd), fname); //strcat(tmp, fname);
+		file = tmp;
+	}
+
+	fs_handle_t *handle = fs_open(file, flags);
+
+	if (!handle) {
+		sc_return(-1);
+	}
+
+	int fd=-1;
+	int i=0;
+	for (; i< PROC_NUM_FDS; ++i) {
+		if (cur_proc->fds[i] == 0) {
+			fd = i;
+			break;
+		}
+	}
+
+	if (fd == -1) {
+		fs_close(handle);
+		sc_return(-1);
+	}
+
+	cur_proc->fds[fd] = handle;
+
+	sc_return(fd);
+}
+
+void do_close(regs_t *regs)
+{
+	int fd = arg(0, int);
+
+	if (fd < 0 || fd > PROC_NUM_FDS)
+		sc_return(E_INVALID_ARG);
+
+	fs_handle_t *file = cur_proc->fds[fd];
+	int res = fs_close(file);
+
+	if (res == OK)
+		cur_proc->fds[fd] = 0;
+
+	sc_return(res);
+}
+
+void do_readwrite(regs_t *regs)
+{
+	int fd    = arg(0, int);
+	char *buf = arg(1, char*);
+	dword len = arg(2, dword);
+
+	if (fd < 0 || fd > PROC_NUM_FDS)
+		sc_return(E_INVALID_ARG);
+
+	fs_handle_t *handle = cur_proc->fds[fd];
+
+	int status = fs_readwrite(handle, buf, len, regs->eax == SC_READ ? FS_READ : FS_WRITE);
+
+	sc_return(status);
+}
+
 void do_get_answer(regs_t *regs)
 {
 	sc_return(42);
@@ -81,6 +156,8 @@ void do_get_answer(regs_t *regs)
 void syscall(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
+
+	cur_proc->sc_regs = regs;
 
 	switch (regs->eax) {
 
@@ -95,6 +172,11 @@ void syscall(dword *esp)
 
 	MAP(SC_SEND,       do_send)
 	MAP(SC_RECEIVE,    do_receive)
+
+	MAP(SC_OPEN,       do_open)
+	MAP(SC_CLOSE,      do_close)
+	MAP(SC_READ,       do_readwrite)
+	MAP(SC_WRITE,      do_readwrite)
 
 	MAP(SC_GET_ANSWER, do_get_answer)
 

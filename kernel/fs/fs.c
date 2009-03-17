@@ -33,6 +33,7 @@ static fs_filesystem_t *filesys_from_path(const char *path, dword *match)
 			continue;
 
 		if (strncmp(tmp->path, path, len) == 0) {
+			matched = len;
 			fs = tmp;
 		}
 	}
@@ -148,7 +149,7 @@ fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc)
 	int status = fs_query_rq(&rq, 1, proc);
 	if (status != OK) return NULL;
 
-	if (rq.status || rq.result) return NULL;
+	if (rq.status != OK || rq.result != OK) return NULL;
 
 	fs_handle_t *fh = malloc(sizeof(fs_handle_t));
 	fh->file  = rq.file;
@@ -156,6 +157,40 @@ fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc)
 	fh->flags = mode;
 
 	return fh;
+}
+
+/**
+ *  fs_close(handle)
+ */
+int fs_close(fs_handle_t *handle)
+{
+	return E_NOT_IMPLEMENTED;
+}
+
+/**
+ *
+ */
+int fs_readwrite(fs_handle_t *handle, char *buf, int size, int mode)
+{
+	if (!handle)
+		return E_INVALID_ARG;
+
+	fs_request_t rq;
+	memset(&rq, 0, sizeof(fs_request_t));
+	rq.type = mode == FS_READ ? RQ_READ : RQ_WRITE;
+	rq.fs   = handle->file->fs;
+	rq.file = handle->file;
+	rq.buflen = size;
+	rq.buf  = buf;
+	rq.offs = handle->pos;
+
+	int status = fs_query_rq(&rq, 1, cur_proc);
+
+	if (status != OK) return -1;
+	if (rq.status != OK) return -1;
+
+	handle->pos += rq.result;
+	return rq.result;
 }
 
 

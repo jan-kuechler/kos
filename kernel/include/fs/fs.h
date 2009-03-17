@@ -45,6 +45,9 @@ typedef struct fs_handle
 #define FS_DRV_NOMOUNT 0x2 /* Cannot be mounted manually */
 #define FS_DRV_NODATA  0x4 /* Does not need any data source */
 
+#define FS_READ 0
+#define FS_WRITE 1
+
 void init_fs(void);
 
 int fs_register_driver(fs_driver_t *driver, const char *name);
@@ -61,8 +64,7 @@ fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc);
 int fs_close(fs_handle_t *file);
 int fs_mknod(const char *name, dword mode);
 
-int fs_write(fs_handle_t *file, char *buf, int size);
-int fs_read(fs_handle_t *file, char *buf, int size);
+int fs_readwrite(fs_handle_t *file, char *buf, int size, int mode);
 
 int fs_seek(fs_handle_t *file, dword offs, int orig);
 

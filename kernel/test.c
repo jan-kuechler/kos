@@ -31,7 +31,7 @@ void task1(void)
 	}
 
 	print("Task1 exiting!\n");
-	kos_exit();
+	kos_exit(0);
 
 	print("EPIC FAIL!\n");
 
