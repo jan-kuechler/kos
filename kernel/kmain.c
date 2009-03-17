@@ -1,7 +1,9 @@
 #include <multiboot.h>
 #include <page.h>
+#include <string.h>
 #include <kos/syscall.h>
 #include "acpi.h"
+#include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -116,7 +118,7 @@ static void print_info()
 
 		dword signature = 0;
 		cpuid(1, signature, unused, unused, unused);
-		byte model, family, type, brand, stepping;
+		byte model, family, type, stepping;
 		stepping = signature        & 0xF;
 		model    = (signature >> 4) & 0xF;
 		family   = (signature >> 8) & 0xF;

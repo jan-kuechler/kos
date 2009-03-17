@@ -322,9 +322,6 @@ void con_flush()
 
 void con_select(dword id)
 {
-	if (id < 0 || id >= CON_NUM_VC)
-		panic("Trying to select unexistant console.");
-
 	cur_vc = &vc[id];
 	con_flush();
 	con_set_hw_cursor();

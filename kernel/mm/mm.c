@@ -198,7 +198,7 @@ static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
 			if (blocks[i].end == end) {  // it's a whole block
 				int j=i;
 
-				*nblocks--;
+				(void)*nblocks--;
 				for (; j < *nblocks; ++j) {
 					blocks[j].start = blocks[j+1].start;
 					blocks[j].end   = blocks[j+1].end;
@@ -222,7 +222,7 @@ static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
 
 				blocks[i].end = start;
 
-				*nblocks++;
+				(void)*nblocks++;
 
 				break;
 			}
@@ -237,39 +237,19 @@ static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
  */
 void init_mm(void)
 {
-	multiboot_mmap_t *mb_mmap = 0;
-	unsigned int mb_mmap_length = multiboot_info.mmap_length;
 	struct memblock blocks[16] = {0};
 	int nblocks = 0;
 
 	int i = 0;
-/*	if (0 && bissetn(multiboot_info.flags, 6)) {
-		debug("\nUsing multiboot memory map\n");
+	blocks[0].start = 0x000000;
+	blocks[0].end   = multiboot_info.mem_lower * 1024; // the mb.mem_* fields are in kilobytes
 
-		for (mb_mmap = (multiboot_mmap_t*) multiboot_info.mmap_addr;
-				 mb_mmap < (multiboot_mmap_t*) multiboot_info.mmap_addr + mb_mmap_length;
-				 mb_mmap = (multiboot_mmap_t*) ((char*)mb_mmap + mb_mmap->size - 4)) {
+	blocks[1].start = 0x100000; // 1 MB -> start of upper memory
+	blocks[1].end   = 0x100000 + (1024 * multiboot_info.mem_upper);
 
-			if (mb_mmap->type == 1) {
-				debug("mb_mmap: %010x (%d)\n", mb_mmap->base_addr, mb_mmap->length);
+	total_mem = 0x100000 + (1024 * multiboot_info.mem_upper);
 
-				blocks[nblocks].start = PAGE_ALIGN_ROUND_UP(mb_mmap->base_addr);
-				blocks[nblocks].end   = PAGE_ALIGN_ROUND_DOWN(mb_mmap->base_addr + mb_mmap->length);
-				++nblocks;
-			}
-		}
-	}
-	else {*/
-		blocks[0].start = 0x000000;
-		blocks[0].end   = multiboot_info.mem_lower * 1024; // the mb.mem_* fields are in kilobytes
-
-		blocks[1].start = 0x100000; // 1 MB -> start of upper memory
-		blocks[1].end   = 0x100000 + (1024 * multiboot_info.mem_upper);
-
-		total_mem = 0x100000 + (1024 * multiboot_info.mem_upper);
-
-		nblocks = 2;
-	/*}*/
+	nblocks = 2;
 
 	mark(blocks, &nblocks, (dword)kernel_phys_start, (dword)kernel_phys_end);
 

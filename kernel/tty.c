@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <kos/error.h>
 
+#include "acpi.h"
 #include "idt.h"
 #include "kbc.h"
 #include "keycode.h"
@@ -29,13 +30,6 @@ static keymap_holder_t *keymaps;
 static int              nummaps;
 static keymap_t         cur_map;
 
-static byte lshift;
-static byte rshift;
-static byte lalt;
-static byte ralt;
-static byte capslock;
-static byte numlock;
-
 static word *vmem = (word*)0xB8000;
 
 static struct {
@@ -43,6 +37,8 @@ static struct {
 	byte ctrl;
 	byte alt;
 	byte altgr;
+	byte capslock;
+	byte numlock;
 } modifiers;
 
 /**
@@ -53,7 +49,6 @@ static void scroll(tty_t *tty, int lines)
 	dword offs = lines * TTY_SCREEN_X * 2;
 	dword count = (TTY_SCREEN_Y - lines) * TTY_SCREEN_X * 2;
 	dword ncount = lines * TTY_SCREEN_X * 2;
-	int i;
 
 	if (tty == cur_tty) {
 		memmove(((byte*)vmem), ((byte*)vmem) + offs, count);
@@ -411,7 +406,7 @@ static inline byte handle_modifiers(byte code, byte brk)
 static inline byte handle_raw(byte code)
 {
 	if (modifiers.ctrl) {
-		if (modifiers.shift)
+		if (modifiers.shift) {
 			if (code == KEYC_DEL) {
 				kbc_reset_cpu();
 			}
@@ -420,6 +415,7 @@ static inline byte handle_raw(byte code)
 				acpi_poweroff();
 				puts(cur_tty, "\nCould not shutdown. Sorry.\n");
 			}
+		}
 
 
 		switch (code) {
@@ -443,7 +439,7 @@ static inline byte handle_raw(byte code)
 	return 0;
 }
 
-static inline byte handle_cbreak_input(char c)
+static inline byte handle_cbreak_input(byte c)
 {
 	switch (c) {
 	case EOT:
@@ -489,25 +485,16 @@ static void handle_input(byte code)
 		putc(cur_tty, c);
 
 	if (!(cur_tty->flags & TTY_RAW)) {
-		if (handle_cbreak_input(code)
-			return;
+		if (handle_cbreak_input(code))
+			goto input_end;
 	}
 	else if (c == EOT) {
 		return;
 	}
 
-	if (cur_tty->flags & TTY_RAW) {
-		if (c == EOT) return;
-		cur_tty->inbuf[cur_tty->incount++] = c;
-	}
-	else {
-		if (c == EOT || c == '\n') {
-			c = 0;
-			cur_tty->eotcount++;
-		}
-		cur_tty->inbuf[cur_tty->incount++] = c;
-	}
+	cur_tty->inbuf[cur_tty->incount++] = c;
 
+input_end:
 	while (can_answer_rq(cur_tty, 0)) {
 		answer_rq(cur_tty, 0);
 	}

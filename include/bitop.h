@@ -31,6 +31,8 @@ static inline unsigned char bscanfwd(unsigned int map)
 	}
 	/* this should never be reached, send a debug interrupt */
 	asm volatile("int $0x03");
+	/* but stop warnings about missing return values */
+	return 0;
 }
 
 #endif /*BITOP_H*/

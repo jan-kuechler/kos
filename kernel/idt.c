@@ -1,9 +1,11 @@
 #include <bitop.h>
+#include <ports.h>
+
 #include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
-#include <ports.h>
+#include "pm.h"
 #include "regs.h"
 #include "syscall.h"
 

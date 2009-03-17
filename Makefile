@@ -36,7 +36,7 @@ LIBK_INC=$(LIBK_DIR)/include
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC) -I$(LIBC_INC) -I$(LIBK_INC)
-CC_FLAGS=-O3 -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC)
+CC_FLAGS=-O3 -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
 
 LD=ld
 LD_FLAGS=-T link.ld 
@@ -48,7 +48,7 @@ ASM_FLAGS=-felf
 # Targets #
 ###########
 
-all: kernel
+all: kernel link_map
 
 version:
 	$(ASM) -v
@@ -144,12 +144,12 @@ $(BIN_DIR)/int.o: $(KERNEL_DIR)/int.s
 clean:
 	rm -f $(BIN_DIR)/*.o
 	rm -f link.map
-	rm -f *.target
-	rm -f .objlist
 	
 cleanall: clean
 	rm -f $(BIN_DIR)/kos.bin
 	rm -f img/floppy.img
+	rm -f *.target
+	rm -f .objlist
 
 link_map:
 	$(LD) $(LD_FLAGS) -o $(BIN_DIR)/kos.bin $(ALL_OBJS) -Map link.map

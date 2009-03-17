@@ -3,8 +3,11 @@
 #include <kos/syscalln.h>
 #include "console.h"
 #include "idt.h"
+#include "ipc.h"
+#include "kernel.h"
 #include "pm.h"
 #include "regs.h"
+#include "timer.h"
 #include "fs/fs.h"
 
 

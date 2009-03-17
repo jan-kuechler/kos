@@ -5,5 +5,5 @@
 
 byte kos_get_answer(void)
 {
-	SYSCALL0(SC_GET_ANSWER);
+	return SYSCALL0(SC_GET_ANSWER);
 }
