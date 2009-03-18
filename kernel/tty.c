@@ -175,24 +175,19 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 		remove_rq = 1;
 	}
 
-	puts(tty, "<answer_rq:");
-
 	byte len = 0, offs = 0;
 	/* copy the data to the buffer */
 	if (tty->flags & TTY_RAW) {
-		puts(tty, "raw_mode:");
 		memcpy(rq->buf, tty->inbuf, rq->buflen);
 		len  = rq->buflen;
 		offs = rq->buflen;
 	}
 	else {
-		puts(tty, "cbreak_mode:");
 		len  = strlen(tty->inbuf); // eot is marked by a \0
 		strcpy(rq->buf, tty->inbuf);
 		offs = len + 1;
 	}
 
-	puts(tty, "update_inbuffer:");
 	/* update the inbuffer */
 	//int num = tty->incount - offs;
 	//if (num > 0) {
@@ -203,21 +198,17 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 	/* and finish the rq */
 	rq->result = len;
 
-	puts(tty, "finish_rq:");
 	fs_finish_rq(rq);
 
 	if (remove_rq) {
-		puts(tty, "remove_rq:");
 		memmove(tty->rqs, tty->rqs + 1, (tty->rqcount - 1) * sizeof(fs_request_t*));
 		tty->rqcount--;
 		tty->rqs = realloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
 	}
 
 	if (!(tty->flags & TTY_RAW)) {
-		puts(tty, "update_eot:");
 		tty->eotcount--;
 	}
-	puts(tty, "done>");
 }
 
 

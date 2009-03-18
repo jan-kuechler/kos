@@ -9,7 +9,8 @@
 // Generic syscall, send anything you want
 dword  kos_syscall(int calln, dword arg1, dword arg2, dword arg3);
 
-void   kos_print(const char *str);
+void   kos_puts(const char *str);
+void   kos_putn(int num, int base);
 
 void   kos_exit(int status);
 void   kos_yield(void);

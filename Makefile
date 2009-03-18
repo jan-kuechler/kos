@@ -36,10 +36,10 @@ LIBK_INC=$(LIBK_DIR)/include
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC) -I$(LIBC_INC) -I$(LIBK_INC)
-CC_FLAGS=-O3 -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
+CC_FLAGS=-O3 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -Lbin -lk $(CC_INC) -Wall
 
 LD=ld
-LD_FLAGS=-T link.ld 
+LD_FLAGS=-Lbin -static -Tlink.ld
 
 ASM=nasm
 ASM_FLAGS=-felf
@@ -58,7 +58,7 @@ version:
 ## Makefile generation ##
 prepare: targets objlist
 
-targets: ktar lctar lktar
+targets: ktar lctar
 
 ktar:
 	rm -f kernel.target
@@ -70,14 +70,14 @@ lctar:
 	rm -f libc.target
 	for F in $(LIBC_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> libc.target && $(CC) $(CC_INC) -MM $$F >> libc.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> libc.target; done
 	
-lktar:
-	rm -f libk.target
-	for F in $(LIBK_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> libk.target && $(CC) $(CC_INC) -MM $$F >> libk.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> libk.target; done
+#lktar:
+#	rm -f libk.target
+#	for F in $(LIBK_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> libk.target && $(CC) $(CC_INC) -MM $$F >> libk.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> libk.target; done
 
 .PHONY: objlist
 objlist:
 	rm -f .objlist
-	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target libc.target libk.target
+	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target libc.target
 	
 # Provides rules to make the kernel
 -include kernel.target
@@ -131,7 +131,10 @@ ALL_OBJS = $(ASM_OBJS) $(OBJS)
 kernel: link
 
 link: $(ALL_OBJS)
-	$(LD) $(LD_FLAGS) -o $(BIN_DIR)/kos.bin $(ALL_OBJS)
+	$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) -lk
+
+#	$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) bin/libk_etc.o bin/libk_io.o bin/libk_file.o bin/libk_ipc.o bin/libk_syscall_helper.o
+
 	
 $(BIN_DIR)/kstart.o: $(KERNEL_DIR)/kstart.s
 	$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/kstart.o $(KERNEL_DIR)/kstart.s
@@ -152,5 +155,5 @@ cleanall: clean
 	rm -f .objlist
 
 link_map:
-	$(LD) $(LD_FLAGS) -o $(BIN_DIR)/kos.bin $(ALL_OBJS) -Map link.map
+	$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) -lk -Map link.map
 	

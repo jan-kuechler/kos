@@ -13,3 +13,18 @@ int kos_open(const char *file, dword flags, ...)
 
 	return SYSCALL3(SC_OPEN, (dword)file, flags, mode);
 }
+
+int kos_close(int fd)
+{
+	return SYSCALL1(SC_CLOSE, fd);
+}
+
+int kos_read(int fd, char *buf, dword size)
+{
+	return SYSCALL3(SC_READ, fd, (dword)buf, size);
+}
+
+int kos_write(int fd, const char *buf, dword size)
+{
+	return SYSCALL3(SC_WRITE, fd, (dword)buf, size);
+}

@@ -1,5 +1,4 @@
 #include <types.h>
-#include "console.h"
 
 dword do_syscall(dword calln, dword arg1, dword arg2, dword arg3)
 {

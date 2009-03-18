@@ -5,7 +5,7 @@
 //#define print(a)
 
 //#define print con_puts   /* direct */
-#define print kos_print  /* using syscalls */
+#define print kos_puts  /* using syscalls */
 //#define print(x)         /* silent */
 
 static void wait(void)

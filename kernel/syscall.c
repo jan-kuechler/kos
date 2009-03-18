@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include <kos/error.h>
 #include <kos/syscalln.h>
-#include "console.h"
 #include "idt.h"
 #include "ipc.h"
 #include "kernel.h"
 #include "pm.h"
 #include "regs.h"
 #include "timer.h"
+#include "tty.h"
 #include "fs/fs.h"
 
 
@@ -15,11 +15,21 @@
 
 #define sc_return(v) {regs->eax = v; return;}
 
-void do_print(regs_t *regs)
+void do_puts(regs_t *regs)
 {
 	const char *str = arg(0, const char *);
 
-	con_puts(str);
+	tty_puts(str);
+
+	sc_return(0);
+}
+
+void do_putn(regs_t *regs)
+{
+	int num  = arg(0, int);
+	int base = arg(1, int);
+
+	tty_putn(num, base);
 
 	sc_return(0);
 }
@@ -164,7 +174,8 @@ void syscall(dword *esp)
 
 	switch (regs->eax) {
 
-	MAP(SC_PRINT,      do_print)
+	MAP(SC_PUTS,       do_puts)
+	MAP(SC_PUTN,       do_putn)
 
 	MAP(SC_EXIT,       do_exit)
 	MAP(SC_YIELD,      do_yield)
