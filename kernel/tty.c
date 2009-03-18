@@ -151,8 +151,9 @@ static void puts(tty_t *tty, const char *str)
 
 static byte can_answer_rq(tty_t *tty, int gotrq)
 {
-	if (!gotrq && !tty->rqcount)
+	if (!gotrq && !tty->rqcount) {
 		return 0;
+	}
 
 	if (tty->flags & TTY_RAW) {
 		return (tty->incount >= tty->rqs[0]->buflen);
@@ -174,35 +175,49 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 		remove_rq = 1;
 	}
 
+	puts(tty, "<answer_rq:");
+
 	byte len = 0, offs = 0;
 	/* copy the data to the buffer */
 	if (tty->flags & TTY_RAW) {
+		puts(tty, "raw_mode:");
 		memcpy(rq->buf, tty->inbuf, rq->buflen);
 		len  = rq->buflen;
 		offs = rq->buflen;
 	}
 	else {
+		puts(tty, "cbreak_mode:");
 		len  = strlen(tty->inbuf); // eot is marked by a \0
 		strcpy(rq->buf, tty->inbuf);
 		offs = len + 1;
 	}
 
+	puts(tty, "update_inbuffer:");
 	/* update the inbuffer */
-	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
-	tty->incount -= rq->buflen;
+	//int num = tty->incount - offs;
+	//if (num > 0) {
+	//	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
+	//}
+	memmove(tty->inbuf, tty->inbuf + offs, TTY_INBUF_SIZE - len);
+	tty->incount -= offs;
 	/* and finish the rq */
 	rq->result = len;
 
+	puts(tty, "finish_rq:");
 	fs_finish_rq(rq);
 
 	if (remove_rq) {
+		puts(tty, "remove_rq:");
 		memmove(tty->rqs, tty->rqs + 1, (tty->rqcount - 1) * sizeof(fs_request_t*));
 		tty->rqcount--;
 		tty->rqs = realloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
 	}
 
-	if (!(tty->flags & TTY_RAW))
+	if (!(tty->flags & TTY_RAW)) {
+		puts(tty, "update_eot:");
 		tty->eotcount--;
+	}
+	puts(tty, "done>");
 }
 
 
@@ -320,10 +335,13 @@ static void tty_dbg_info(tty_t *tty)
 		puts(tty, "ctrl ");
 	putc(tty, '\n');
 
+	puts(tty, "   Incount:   ");
+	putc(tty, tty->incount + '0');
+	putc(tty, '\n');
+
 	puts(tty, "   RQs:       ");
 	putc(tty, tty->rqcount + '0');
 	putc(tty, '\n');
-
 
 	puts(tty, "   EOTs:      ");
 	putc(tty, tty->eotcount + '0');
@@ -465,7 +483,7 @@ static void handle_input(byte code)
 	}
 
 	byte c = 0;
-	if (modifiers.shift)
+	if (modifiers.shift || modifiers.capslock)
 		c = cur_map[code].shift;
 	else if (modifiers.altgr)
 		c = cur_map[code].altgr;
@@ -485,7 +503,7 @@ static void handle_input(byte code)
 		putc(cur_tty, c);
 
 	if (!(cur_tty->flags & TTY_RAW)) {
-		if (handle_cbreak_input(code))
+		if (handle_cbreak_input(c))
 			goto input_end;
 	}
 	else if (c == EOT) {
@@ -498,7 +516,6 @@ input_end:
 	while (can_answer_rq(cur_tty, 0)) {
 		answer_rq(cur_tty, 0);
 	}
-
 
 }
 
@@ -573,6 +590,35 @@ int tty_select_keymap(const char *name)
 		}
 	}
 	return E_NOT_FOUND;
+}
+
+void tty_puts(const char *str)
+{
+	puts(cur_tty, str);
+}
+
+void tty_putn(int num, int base)
+{
+	static char digits[] = "0123456789ABCDEFGHIJKLMOPQRSTUVWXYZ";
+
+	char tmp[65];
+	char *end = tmp + 64;
+	int rem;
+
+	if (base < 2 || base > 36)
+		return;
+
+	*end-- = 0;
+
+	do {
+		rem = num % base;
+		num = num / base;
+		*end-- = digits[rem];
+	} while (num > 0);
+
+	while (*(++end)) {
+		putc(cur_tty, *end);
+	}
 }
 
 /**
