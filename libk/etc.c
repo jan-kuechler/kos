@@ -3,7 +3,7 @@
 
 #include "syscall_helper.h"
 
-dword syscall(int calln, dword arg1, dword arg2, dword arg3)
+dword generic_syscall(int calln, dword arg1, dword arg2, dword arg3)
 {
 	return SYSCALL3(calln, arg1, arg2, arg3);
 }

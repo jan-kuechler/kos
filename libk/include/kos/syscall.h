@@ -7,7 +7,7 @@
 #define O_CREAT 0x02
 
 // Generic syscall, send anything you want
-dword  syscall(int calln, dword arg1, dword arg2, dword arg3);
+dword  generic_syscall(int calln, dword arg1, dword arg2, dword arg3);
 
 void   puts(const char *str);
 void   putn(int num, int base);
@@ -29,7 +29,7 @@ int    write(int fd, const char *buf, dword size);
 
 byte   get_answer();
 
-#define kos_syscall syscall
+#define kos_syscall generic_syscall
 #define kos_puts    puts
 #define kos_putn    putn
 #define kos_exit    exit

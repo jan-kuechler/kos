@@ -1,6 +1,6 @@
-## Makefile for libk.a ##
+## Makefile for libc.a ##
 
-NAME=libk
+NAME=libc
 
 CC=gcc
 CC_INCL=-I../include -I../include/arch/i386 -I../kernel/include -Iinclude
