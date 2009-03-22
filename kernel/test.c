@@ -1,4 +1,3 @@
-#include "console.h"
 #include <kos/error.h>
 #include <kos/syscall.h>
 

@@ -1,4 +1,3 @@
-#include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"

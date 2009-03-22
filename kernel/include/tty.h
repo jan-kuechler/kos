@@ -42,6 +42,16 @@ typedef struct tty
 	proc_t *owner;
 } tty_t;
 
+#define kout_id (NUM_TTYS-1)
+
+void init_kout(void);
+void kout_puts(const char *str);
+void kout_putn(int num, int base);
+void kout_aprintf(const char *fmt, int **args);
+void kout_printf(const char *fmt, ...);
+byte kout_set_status(byte status);
+void kout_select(void);
+
 void init_tty(void);
 
 void tty_set_cur_term(byte n);

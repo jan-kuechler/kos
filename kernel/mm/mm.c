@@ -19,13 +19,6 @@ static dword *mmap;
 static dword mmap_length;
 static dword total_mem;
 
-#if 1
-#include "console.h"
-#define debug con_printf
-#else
-#define debug
-#endif
-
 struct memblock
 {
 	dword start, end;

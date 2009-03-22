@@ -14,5 +14,5 @@ char *strstr(const char *s1, const char *s2)
         ++s1;
         p1 = s1;
     }
-    return NULL;
+    return (char*)0;
 }

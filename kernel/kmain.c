@@ -3,7 +3,6 @@
 #include <string.h>
 #include <kos/syscall.h>
 #include "acpi.h"
-#include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -25,23 +24,23 @@ byte kernel_init_done;
 
 void kinit()
 {
-	con_puts("Initializing ACPI:");
+	kout_puts("Initializing ACPI:");
 	if (init_acpi() == 0)
-		con_puts("\tdone!\n");
+		kout_puts("\tdone!\n");
 	else
-		con_puts("\tfailed!\n");
+		kout_puts("\tfailed!\n");
 
-	con_puts("Initializing FS:");
+	kout_puts("Initializing FS:");
 	init_fs();
 	init_devfs();
 	fs_mount(fs_get_driver("devfs"), "/dev/", 0, 0);
 	init_tty();
 	tty_register_keymap("de", keymap_de);
-	con_puts("\tdone!\n");
+	kout_puts("\tdone!\n");
 
 	int stdout = kos_open("/dev/tty0", 0, 0);
 	if (stdout == -1) {
-		con_puts("Error opening tty0");
+		kout_puts("Error opening tty0");
 	}
 
 	tty_set_cur_term(0);
@@ -58,38 +57,39 @@ void kinit()
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	kernel_init_done = 0;
-	init_console();
+	//init_console();
+	init_kout();
 
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 
-	byte oc = con_set_color(0x04);
-	con_puts("\t\t\t\t       kOS\n");
-	con_set_color(oc);
-	con_puts("kOS booting...\n");
+	byte oc = kout_set_status(0x04);
+	kout_puts("\t\t\t\t       kOS\n");
+	kout_set_status(oc);
+	kout_puts("kOS booting...\n");
 
-	con_puts("Setting up gdt:");
+	kout_puts("Setting up gdt:");
 	init_gdt();
-	con_puts("\t\t\t\tdone!\n");
+	kout_puts("\t\t\t\tdone!\n");
 
-	con_puts("Setting up idt:");
+	kout_puts("Setting up idt:");
 	init_idt();
-	con_puts("\t\t\t\tdone!\n");
+	kout_puts("\t\t\t\tdone!\n");
 
-	con_puts("Setting up mm:");
+	kout_puts("Setting up mm:");
 	init_mm();
-	con_puts("\t\t\t\tdone!\n");
+	kout_puts("\t\t\t\tdone!\n");
 
-	con_puts("Setting up pm:");
+	kout_puts("Setting up pm:");
 	init_pm();
-	con_puts("\t\t\t\tdone!\n");
+	kout_puts("\t\t\t\tdone!\n");
 
-	con_puts("Setting up timer:");
+	kout_puts("Setting up timer:");
 	init_timer();
-	con_puts("\t\t\tdone!\n");
+	kout_puts("\t\t\t\tdone!\n");
 
-	con_puts("kOS booted.\n");
+	kout_puts("kOS booted.\n");
 
-	con_putc('\n');
+	kout_puts("\n");
 
 	print_info();
 
@@ -109,7 +109,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 static void print_info()
 {
-	con_puts("System information:\n");
+	kout_puts("System information:\n");
 
 	{ // CPU
 		dword unused;
@@ -119,29 +119,29 @@ static void print_info()
 		dword signature = 0;
 		cpuid(1, signature, unused, unused, unused);
 		byte model, family, type, stepping;
-		stepping = signature        & 0xF;
-		model    = (signature >> 4) & 0xF;
-		family   = (signature >> 8) & 0xF;
+		stepping = signature         & 0xF;
+		model    = (signature >> 4)  & 0xF;
+		family   = (signature >> 8)  & 0xF;
 		type     = (signature >> 12) & 0x3;
 
-		con_puts("== CPU ==\n");
-		con_printf("%s Family %d Model %d Stepping %d Type %d\n", vendor, family, model, stepping, type);
+		kout_puts("== CPU ==\n");
+		kout_printf("%s Family %d Model %d Stepping %d Type %d\n", vendor, family, model, stepping, type);
 	}
 
 	{ // Memory
-		con_puts("== Memory ==\n");
-		con_printf("Total:       %4d MB\n", mm_total_mem() / 1024 / 1024);
-		con_printf("Free:        %4d MB\n", (mm_num_free_pages() * 4) / 1024);
-		con_printf("Page size:   %4d  B\n", PAGE_SIZE);
-		con_printf("Kernel size: %4d KB\n", (kernel_end - kernel_start) / 1024);
+		kout_puts("== Memory ==\n");
+		kout_printf("Total:       %4d MB\n", mm_total_mem() / 1024 / 1024);
+		kout_printf("Free:        %4d MB\n", (mm_num_free_pages() * 4) / 1024);
+		kout_printf("Page size:   %4d  B\n", PAGE_SIZE);
+		kout_printf("Kernel size: %4d KB\n", (kernel_end - kernel_start) / 1024);
 	}
 
 	if (multiboot_info.flags & 9) { // Bootloader
-		con_printf("== Bootloader ==\n");
-		con_printf("%s\n", multiboot_info.boot_loader_name);
+		kout_printf("== Bootloader ==\n");
+		kout_printf("%s\n", multiboot_info.boot_loader_name);
 	}
 
-	con_printf("\n");
+	kout_printf("\n");
 }
 
 __attribute__((noreturn)) void panic(const char *fmt, ...)
@@ -150,10 +150,12 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 
 	int *args = ((int*)&fmt) + 1;
 
-	con_set_color(0x4F); /* white on red */
-	con_puts("Panic: ");
-	con_aprintf(fmt, &args);
-	con_putc('\n');
+	kout_select();
+
+	kout_set_status(0x04); /* white on red */
+	kout_puts("Panic: ");
+	kout_aprintf(fmt, &args);
+	kout_puts("\n");
 	while (1) {
 		asm volatile("hlt");
 	}

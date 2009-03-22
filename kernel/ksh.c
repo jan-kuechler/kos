@@ -8,7 +8,8 @@
 typedef struct
 {
 	const char *cmd;
-	int (*func)();
+	const char *desc;
+	void (*func)();
 } cmd_t;
 
 static int stdin;
@@ -20,32 +21,56 @@ static void print(int fd, const char *str)
 	kos_write(fd, str, strlen(str));
 }
 
-static int shutdown()
+/***************************/
+static void shutdown();
+static void restart();
+static void help();
+static void int3();
+
+static cmd_t cmds[] = {
+	{"shutdown", "Turns the computer off.", shutdown},
+	{"restart",  "Restarts the computer.", restart},
+	{"int3", "Generates a debug interrupt.", int3},
+	{"help", "Prints this list.", help},
+};
+static int num_cmds = sizeof(cmds) / sizeof(cmd_t);
+
+static void shutdown()
 {
 	acpi_poweroff();
 
 	print(stderr, "Shutdown failed. Sorry.\n");
-	return 1;
 }
 
-static int restart()
+static void restart()
 {
 	kbc_reset_cpu();
 
 	print(stderr, "Restart failed. Sorry.\n");
-	return 1;
 }
 
-#define NUM_CMDS 2
-static cmd_t cmds[NUM_CMDS] = {
-	{"shutdown", shutdown},
-	{"restart",  restart},
-};
+static void int3()
+{
+	asm volatile("int $0x03");
+}
+
+static void help()
+{
+	int i=0;
+	for (; i < num_cmds; ++i) {
+		print(stdout, cmds[i].cmd);
+		print(stdout, " - ");
+		print(stdout, cmds[i].desc);
+		print(stdout, "\n");
+	}
+}
+
+/***************************/
 
 static void run_cmd(const char *cmd)
 {
 	int i=0;
-	for (; i < NUM_CMDS; ++i) {
+	for (; i < num_cmds; ++i) {
 		if (strcmp(cmd, cmds[i].cmd) == 0) {
 			cmds[i].func();
 			return;

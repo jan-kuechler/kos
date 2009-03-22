@@ -12,17 +12,17 @@ struct mem_node
 	struct mem_node *next;
 };
 
-struct mem_node *used_nodes; /* a list of all nodes that point to used memory */
-struct mem_node *free_nodes; /* a list of all nodes that point to free memory */
-struct mem_node *unused_nodes; /* a list of nodes, that do not yet point to any memory */
+static struct mem_node *used_nodes; /* a list of all nodes that point to used memory */
+static struct mem_node *free_nodes; /* a list of all nodes that point to free memory */
+static struct mem_node *unused_nodes; /* a list of nodes, that do not yet point to any memory */
 
-void append_node(struct mem_node **list, struct mem_node *node)
+static void append_node(struct mem_node **list, struct mem_node *node)
 {
 	node->next = *list;
 	*list = node;
 }
 
-struct mem_node* create_unused_nodes(void)
+static struct mem_node* create_unused_nodes(void)
 {
 	int i = 0;
 	struct mem_node *nodes = mm_alloc_page();
@@ -35,7 +35,7 @@ struct mem_node* create_unused_nodes(void)
 	return nodes;
 }
 
-struct mem_node *create_node(size_t size, void *ptr, byte is_free)
+static struct mem_node *create_node(size_t size, void *ptr, byte is_free)
 {
 	struct mem_node *node = free_nodes;
 

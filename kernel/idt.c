@@ -1,13 +1,13 @@
 #include <bitop.h>
 #include <ports.h>
 
-#include "console.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
 #include "pm.h"
 #include "regs.h"
 #include "syscall.h"
+#include "tty.h"
 
 idt_entry_t   idt[IDT_SIZE];
 irq_handler_t irq_handlers[16] = {0};
@@ -84,21 +84,23 @@ static const char *fault_msg[] = {
 static void idt_handle_exception(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
-	con_set_color(0x4F);
-	con_printf("kOS triggered an exception.\n");
 
-	con_printf("Exception: #%02d (%s) @ %06x:%010x\n",
-	           regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
-	con_printf("ss:esp = %06x:%010x error code: %010x\n",
-	           regs->u_ss, regs->u_esp, regs->errc);
-	con_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
-	           regs->eax, regs->ebx, regs->ecx, regs->edx);
-	con_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
-	           regs->ebp, regs->esp, regs->esi, regs->edi);
-	con_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
+	kout_select();
+	kout_set_status(0x04);
+	kout_printf("kOS triggered an exception.\n");
+
+	kout_printf("Exception: #%02d (%s) @ %06x:%010x\n",
+	            regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
+	kout_printf("ss:esp = %06x:%010x error code: %010x\n",
+	            regs->u_ss, regs->u_esp, regs->errc);
+	kout_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
+	            regs->eax, regs->ebx, regs->ecx, regs->edx);
+	kout_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
+	            regs->ebp, regs->esp, regs->esi, regs->edi);
+	kout_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
 	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
 
-	con_putc('\n');
+	kout_puts("\n");
 
 	panic("Kernel Exception\n");
 }

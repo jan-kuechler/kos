@@ -10,8 +10,6 @@
 #include "keymap.h"
 #include "tty.h"
 
-#include "console.h"
-
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
 static char *names[NUM_TTYS] = {
@@ -20,6 +18,8 @@ static char *names[NUM_TTYS] = {
 };
 static tty_t ttys[NUM_TTYS];
 static tty_t *cur_tty;
+
+static tty_t *kout_tty;
 
 typedef struct
 {
@@ -90,7 +90,6 @@ static inline void update_cursor(tty_t *tty)
 		outb(0x3D5, pos);
 		outb(0x3D4, 14);
 		outb(0x3D5, pos >> 8);
-
 	}
 }
 
@@ -143,12 +142,52 @@ static void putc(tty_t *tty, char c)
 	update_cursor(tty);
 }
 
+/**
+ *  puts(tty, str)
+ */
 static void puts(tty_t *tty, const char *str)
 {
 	while (*str)
 		putc(tty, *str++);
 }
 
+/**
+ *  putn(tty, num, base)
+ */
+static void putn(tty_t *tty, int num, int base, int pad, char pc)
+{
+	static char digits[] = "0123456789ABCDEFGHIJKLMOPQRSTUVWXYZ";
+
+	char tmp[65];
+	char *end = tmp + 64;
+	int rem;
+
+	if (base < 2 || base > 36)
+		return;
+
+	*end-- = 0;
+
+	do {
+		rem = num % base;
+		num = num / base;
+		*end-- = digits[rem];
+		pad--;
+	} while (num > 0);
+
+	while (pad-- > 0) {
+		putc(tty, pc);
+	}
+
+	while (*(++end)) {
+		putc(tty, *end);
+	}
+}
+
+/**
+ *  can_answer_rq(tty, gotrq)
+ *
+ * Returns 1 if there is a request that can be answered
+ */
 static byte can_answer_rq(tty_t *tty, int gotrq)
 {
 	if (!gotrq && !tty->rqcount) {
@@ -163,11 +202,16 @@ static byte can_answer_rq(tty_t *tty, int gotrq)
 	}
 }
 
+/**
+ *  answer_rq(tty, rq)
+ *
+ * Answers the given request or the first request in the tty's queue.
+ *
+ * Note: This function does not check anything.
+ *       Be sure you know what you're doing!
+ */
 static void answer_rq(tty_t *tty, fs_request_t *rq)
 {
-	// Note: This function does not check anything.
-	//       Be sure you know what you're doing!
-
 	byte remove_rq = 0;
 
 	if (!rq) {
@@ -301,6 +345,9 @@ static int query(fs_devfile_t *file, fs_request_t *rq)
 	return OK;
 }
 
+/**
+ *  tty_dbg_info(tty)
+ */
 static void tty_dbg_info(tty_t *tty)
 {
 	putc(tty, '\n');
@@ -426,18 +473,10 @@ static inline byte handle_raw(byte code)
 			}
 		}
 
-
-		switch (code) {
-		case KEYC_F1: tty_set_cur_term(0); return 1;
-		case KEYC_F2: tty_set_cur_term(1); return 1;
-		case KEYC_F3: tty_set_cur_term(2); return 1;
-		case KEYC_F4: tty_set_cur_term(3); return 1;
-		case KEYC_F5: tty_set_cur_term(4); return 1;
-		case KEYC_F6: tty_set_cur_term(5); return 1;
-		case KEYC_F7: tty_set_cur_term(6); return 1;
-		case KEYC_F8: tty_set_cur_term(7); return 1;
+		if (code >= KEYC_F1 && code <= KEYC_F8) {
+			tty_set_cur_term(code - KEYC_F1);
+			return 1;
 		}
-
 	}
 
 	if (code == KEYC_F12) {
@@ -510,6 +549,9 @@ input_end:
 
 }
 
+/**
+ *  tty_irq_handler(irq, esp)
+ */
 static void tty_irq_handler(int irq, dword *esp)
 {
 	byte brk = 0;
@@ -583,33 +625,24 @@ int tty_select_keymap(const char *name)
 	return E_NOT_FOUND;
 }
 
+/**
+ *  tty_puts(str)
+ *
+ * Prints the given string on the current terminal
+ */
 void tty_puts(const char *str)
 {
 	puts(cur_tty, str);
 }
 
+/**
+ *  tty_putn(num, base)
+ *
+ * Prints the given number on the current terminal
+ */
 void tty_putn(int num, int base)
 {
-	static char digits[] = "0123456789ABCDEFGHIJKLMOPQRSTUVWXYZ";
-
-	char tmp[65];
-	char *end = tmp + 64;
-	int rem;
-
-	if (base < 2 || base > 36)
-		return;
-
-	*end-- = 0;
-
-	do {
-		rem = num % base;
-		num = num / base;
-		*end-- = digits[rem];
-	} while (num > 0);
-
-	while (*(++end)) {
-		putc(cur_tty, *end);
-	}
+	putn(cur_tty, num, base, 0, ' ');
 }
 
 /**
@@ -618,7 +651,7 @@ void tty_putn(int num, int base)
 void init_tty(void)
 {
 	int i=0;
-	for (; i < NUM_TTYS; ++i) {
+	for (; i < NUM_TTYS - 1; ++i) { // spare the kout_tty
 		tty_t *tty = &ttys[i];
 
 		tty->id = i;
@@ -636,6 +669,9 @@ void init_tty(void)
 		fs_create_dev(&tty->file);
 	}
 
+	// anything else for tty7 is done in init_kout
+	fs_create_dev(&kout_tty->file);
+
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;
 	modifiers.alt   = 0;
@@ -646,6 +682,132 @@ void init_tty(void)
 
 	idt_set_irq_handler(1, tty_irq_handler);
 
-	cur_tty = &ttys[0];
-	flush(cur_tty);
+	tty_set_cur_term(0);
+}
+
+/** kout **/
+
+void init_kout(void)
+{
+	kout_tty = &ttys[kout_id];
+
+	kout_tty->id = kout_id;
+	kout_tty->file.path  = names[kout_id];
+	kout_tty->file.query = query;
+
+	kout_tty->incount = 0;
+	kout_tty->status  = 0x07;
+	kout_tty->flags   = TTY_ECHO;
+
+	kout_tty->rqcount = 0;
+
+	clear(kout_tty);
+
+	cur_tty = kout_tty;
+}
+
+void kout_puts(const char *str)
+{
+	puts(kout_tty, str);
+}
+
+void kout_putn(int num, int base)
+{
+	putn(kout_tty, num, base, 0, ' ');
+}
+
+void kout_aprintf(const char *fmt, int **args)
+{
+	long long val = 0;
+	int pad;
+	char padc;
+
+	while (*fmt) {
+		if (*fmt == '%') {
+			fmt++;
+
+			pad = 0;
+			if (*fmt == '0') {
+				padc = '0';
+				fmt++;
+			}
+			else {
+				padc = ' ';
+			}
+
+			while (*fmt >= '0' && *fmt <= '9') {
+				pad = pad * 10 + *fmt++ - '0';
+			}
+
+			if (*fmt == 'd' || *fmt == 'u') {
+				val = *(*args)++;
+				if (val < 0) {
+					putc(kout_tty, '-');
+					pad--;
+					val = -val;
+				}
+			}
+			else if (*fmt == 'i' || *fmt == 'o' || *fmt == 'p' || *fmt == 'x') {
+				val = *(*args)++;
+				val = val  & 0xffffffff;
+			}
+
+
+			switch (*fmt) {
+			case 'c':
+				putc(kout_tty, *(*args)++);
+				break;
+
+			case 'd':
+			case 'i':
+			case 'u':
+				putn(kout_tty, val, 10, pad, padc);
+				break;
+
+			case 'o':
+				putn(kout_tty, val, 8, pad, padc);
+				break;
+
+			case 'p':
+			case 'x':
+				putn(kout_tty, val, 16, pad, padc);
+				break;
+
+			case 's':
+				puts(kout_tty, (char*)*(*args)++);
+				break;
+
+			case '%':
+				putc(kout_tty, '%');
+				break;
+
+			default:
+				putc(kout_tty, '%');
+				putc(kout_tty, *fmt);
+				break;
+			}
+			fmt++;
+		}
+		else {
+			putc(kout_tty, *fmt++);
+		}
+	}
+}
+
+void kout_printf(const char *fmt, ...)
+{
+	int *args = ((int*)&fmt) + 1;
+	kout_aprintf(fmt, &args);
+}
+
+byte kout_set_status(byte status)
+{
+	byte old = kout_tty->status;
+	kout_tty->status = status;
+	return old;
+}
+
+void kout_select(void)
+{
+	tty_set_cur_term(kout_id);
 }
