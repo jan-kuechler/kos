@@ -3,4 +3,5 @@ timeout 2
 
 title kOS
 kernel /kos.bin
+module /test.mod
 root (fd0)

@@ -145,7 +145,7 @@ static void putc(tty_t *tty, char c)
 /**
  *  puts(tty, str)
  */
-static void puts(tty_t *tty, const char *str)
+static inline void puts(tty_t *tty, const char *str)
 {
 	while (*str)
 		putc(tty, *str++);
@@ -506,7 +506,7 @@ static inline byte handle_cbreak_input(byte c)
 	return 0;
 }
 
-static void handle_input(byte code)
+static inline void handle_input(byte code)
 {
 	if (!cur_map) {
 		return;
@@ -747,7 +747,10 @@ void kout_aprintf(const char *fmt, int **args)
 					val = -val;
 				}
 			}
-			else if (*fmt == 'i' || *fmt == 'o' || *fmt == 'p' || *fmt == 'x') {
+			else if (*fmt == 'i' || *fmt == 'o' ||
+			         *fmt == 'p' || *fmt == 'x' ||
+			         *fmt == 'b')
+			{
 				val = *(*args)++;
 				val = val  & 0xffffffff;
 			}
@@ -756,6 +759,10 @@ void kout_aprintf(const char *fmt, int **args)
 			switch (*fmt) {
 			case 'c':
 				putc(kout_tty, *(*args)++);
+				break;
+
+			case 'b':
+				putn(kout_tty, val, 2, pad, padc);
 				break;
 
 			case 'd':

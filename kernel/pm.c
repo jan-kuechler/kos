@@ -12,12 +12,6 @@ proc_t *cur_proc;
 dword user_stacks[MAX_PROCS][USTACK_SIZE];
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
-#if 0
-#define debug con_printf
-#else
-static inline void debug(const char *fmt, ...) {}
-#endif
-
 void idle()
 {
 	for (;;) {
@@ -72,8 +66,8 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	dword *kstack = kernel_stacks[id];
 	kstack += KSTACK_SIZE;
 
-	dword code_seg = usermode ? GDT_SEL_UCODE : GDT_SEL_CODE;
-	dword data_seg = usermode ? GDT_SEL_UDATA : GDT_SEL_DATA;
+	dword code_seg = usermode ? 0x1B : GDT_SEL_CODE;
+	dword data_seg = usermode ? 0x23 : GDT_SEL_DATA;
 
 	*(--kstack) = data_seg;   // ss
 	*(--kstack) = (dword)ustack; // esp

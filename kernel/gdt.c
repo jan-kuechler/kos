@@ -22,12 +22,12 @@ void init_gdt(void)
                GDT_PRESENT | GDT_SEGMENT | GDT_DATA, 3, 0);
 
 	/* TSS segment */
-	/*
 	gdt_set_desc(5, sizeof(tss_t)-1, (dword)&tss,
-	             GDT_PRESENT | GDT_TSS, 3);
-	*/
+	             GDT_PRESENT | GDT_TSS, 3, 1);
 
-	struct {
+
+	struct
+	{
 		word  size;
 		dword base;
 	} __attribute__((packed)) gdt_ptr = {
@@ -49,9 +49,7 @@ void init_gdt(void)
 		"mov   %%eax, %%ss  \n\t"
 		: : "m"(gdt_ptr) : "eax");
 
-	/*
-	asm volatile("ltr %%ax \n\t" : : "a"(GDT_TSS_SEL));
-	*/
+	asm volatile("ltr %%ax \n\t" : : "a"(GDT_SEL_TSS));
 }
 
 void gdt_set_desc(int segment, dword size, dword base, byte access,

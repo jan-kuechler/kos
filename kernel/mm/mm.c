@@ -179,6 +179,23 @@ dword mm_num_free_pages()
 	return num;
 }
 
+/**
+ *  mm_get_mmap();
+ *
+ * Returns a pointer to the memory map.
+ * This should only be used by mm/virt.c and is
+ * not exported in mm/mm.h.
+ */
+dword *mm_get_mmap(void)
+{
+	return mmap;
+}
+
+dword mm_get_mmap_size(void)
+{
+	return (mmap_length * sizeof(dword));
+}
+
 static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
 {
 	int i = 0;

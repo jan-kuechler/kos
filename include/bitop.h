@@ -7,8 +7,11 @@
 #define bsetn(map,n)  (map |= (1<<n))
 #define bclrn(map,n)  (map &= ~(1<<n))
 
-#define bisset(map,bit) ((map & bit) == bit)
-#define bissetn(map,n)  ((map & (1<<n)) == (1<<n))
+#define bisset(map,bit) (map & bit)
+#define bissetn(map,n)  (map & (1<<n))
+
+#define bnotset(map,bit) (bisset(map,bit) == 0)
+#define bnotsetn(map,n)  (bissetn(map,n) == 0)
 
 #define BMASK_1BIT         0x1
 #define BMASK_2BIT         0x3

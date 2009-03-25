@@ -1,3 +1,4 @@
+#include <elf.h>
 #include <multiboot.h>
 #include <page.h>
 #include <string.h>
@@ -22,6 +23,10 @@ static void print_info();
 
 byte kernel_init_done;
 
+extern byte elf_check(vaddr_t);
+extern byte elf_check_type(vaddr_t,Elf32_Half);
+extern proc_t *elf_execute(vaddr_t,const char*,byte,pid_t,byte);
+
 void kinit()
 {
 	kout_puts("Initializing ACPI:");
@@ -43,12 +48,9 @@ void kinit()
 		kout_puts("Error opening tty0");
 	}
 
-	tty_set_cur_term(0);
-
-	kos_write(stdout, "This is /dev/tty0", 17);
+	write(stdout, "This is /dev/tty0\n", 18);
 
 	extern void ksh(void);
-
 	pm_create(ksh, "ksh", 0, 1, 1);
 
 	kos_exit(0);

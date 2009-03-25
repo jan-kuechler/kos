@@ -40,26 +40,13 @@
 #define PAGE_SIZE (1 << PAGE_SHIFT)
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 
-#define PAGE_DIRECTORY_LENGTH 1024
-#define PAGE_TABLE_LENGTH 1024
+#define PE_ADDR_SHIFT 22
 
-#define PGDIR_SHIFT 22
+#define PDIR_LEN 1024
+#define PTABLE_LEN 1024
 
-
-// TODO: Muss das Kernelzeug wirklich hier sein? :/
-// Die Adresse, an der der Kernel-Adressraum beginnt
-#define KERNEL_MEM_START    0x00000000
-#define KERNEL_MEM_END      0x40000000
-
-#define PAGETABLES_MEM_START 0x3fc00000
-#define PAGETABLES_MEM_END   0x40000000
-
-#define USER_MEM_START 0x40000000
-#define USER_MEM_END   0xffffffff
-
-#define USER_STACK_START 0
-#define USER_STACK_SIZE 0x1000
-
+#define BMASK_4K_ALIGN (0xFFF)
+#define BMASK_PE_ADDR (~BMASK_4K_ALIGN)
 
 // Die Anzahl der Pages, die von n Bytes belegt werden.
 #define NUM_PAGES(n) ((((n) + ~PAGE_MASK) & PAGE_MASK) / PAGE_SIZE)

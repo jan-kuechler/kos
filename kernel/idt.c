@@ -86,8 +86,16 @@ static void idt_handle_exception(dword *esp)
 	regs_t *regs = (regs_t*)*esp;
 
 	kout_select();
-	kout_set_status(0x04);
-	kout_printf("kOS triggered an exception.\n");
+	byte oc = kout_set_status(0x04);
+
+	byte user = (regs->ds == GDT_SEL_UDATA);
+
+	if (user) {
+		kout_printf("%s triggered an exception.\n", cur_proc->cmdline);
+	}
+	else {
+		kout_printf("kOS triggered an exception.\n");
+	}
 
 	kout_printf("Exception: #%02d (%s) @ %06x:%010x\n",
 	            regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
@@ -102,7 +110,14 @@ static void idt_handle_exception(dword *esp)
 
 	kout_puts("\n");
 
-	panic("Kernel Exception\n");
+	if (user) {
+		kout_printf("Abortin process %d.\n", cur_proc->pid);
+		pm_destroy(cur_proc);
+		kout_set_status(oc);
+	}
+	else {
+		panic("Kernel Exception\n");
+	}
 }
 
 static void idt_handle_irq(dword *esp)
