@@ -13,6 +13,7 @@
 #include "tty.h"
 #include "keymap/de.h"
 #include "mm/mm.h"
+#include "mm/virt.h"
 #include "fs/fs.h"
 #include "fs/devfs.h"
 
@@ -80,6 +81,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	kout_puts("Setting up mm:");
 	init_mm();
 	kout_puts("\t\t\t\tdone!\n");
+
+	init_paging();
 
 	kout_puts("Setting up pm:");
 	init_pm();

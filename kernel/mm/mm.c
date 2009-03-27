@@ -290,4 +290,5 @@ void init_mm(void)
 	for (i=0; i < nblocks; ++i) {
 		mark_range_free((paddr_t)blocks[i].start, blocks[i].end - blocks[i].start);
 	}
+	mark_used((void*)0); // don't use the NULL page
 }
