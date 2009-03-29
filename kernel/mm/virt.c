@@ -22,6 +22,14 @@ static inline paddr_t getaddr(pany_entry_t entry)
 	return (paddr_t)bmask((dword)entry, BMASK_PE_ADDR);
 }
 
+static inline void check_align(void *addr, const char *func, const char *var)
+{
+	if (bmask((dword)addr,BMASK_4K_ALIGN)) {
+		panic("%s: %s is not 4k aligned.", func, var);
+	}
+}
+#define CHECK_ALIGN(var) check_align(var, __func__, #var)
+
 #define page2addr(page) ((paddr_t)(page * PAGE_SIZE))
 #define addr2page(addr) ((dword)addr / PAGE_SIZE)
 
@@ -100,16 +108,14 @@ void init_paging(void)
  * Maps a virtual addr to a physical addr in the given page
  * directory with the given flags.
  */
-void vm_map_page(pdir_t pdir, paddr_t paddr, vaddr_t vaddr, dword flags)
+void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags)
 {
+	CHECK_ALIGN(vaddr);
+	CHECK_ALIGN(paddr);
+
 	/* parameter validation */
 	if (vaddr == NULL) {
 		panic("map_page: vaddr is NULL.");
-	}
-
-	if (bmask((dword)vaddr,BMASK_4K_ALIGN) || bmask((dword)paddr,BMASK_4K_ALIGN)) {
-		/* epic fail! */
-		panic("map_page: paddr or vaddr is not 4k aligned.");
 	}
 
 	/* get page directory entry for the virt. address */
@@ -151,8 +157,9 @@ void vm_map_page(pdir_t pdir, paddr_t paddr, vaddr_t vaddr, dword flags)
  *
  * Unmaps a virtual addr from a page directory
  */
-void vm_unmap_page(pdir_t pdir, vaddr_t vaddr)
+void vm_unmap_page(pdir_t pdir, _aligned_ vaddr_t vaddr)
 {
+	CHECK_ALIGN(vaddr);
 	vm_map_page(pdir, NULL, vaddr, 0);
 }
 
@@ -161,8 +168,11 @@ void vm_unmap_page(pdir_t pdir, vaddr_t vaddr)
  *
  * Maps num contiguous pages beginning at pstart to vstart in a page directory
  */
-void vm_map_range(pdir_t pdir, paddr_t pstart, vaddr_t vstart, dword flags, int num)
+void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstart, dword flags, int num)
 {
+	CHECK_ALIGN(pstart);
+	CHECK_ALIGN(vstart);
+
 	int i=0;
 
 	for (; i < num; ++i) {
@@ -273,7 +283,7 @@ vaddr_t vm_find_range(pdir_t pdir, int num)
  * and returns their virtual address.
  * pstart does not need to be 4k aligned
  */
-vaddr_t vm_map_anywhere(pdir_t pdir, paddr_t pstart, dword flags, size_t size)
+vaddr_t vm_map_anywhere(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size)
 {
 	paddr_t aligned_pstart = align_addr(pstart);
 	size_t  aligned_size   = align_size(pstart, size);
@@ -293,12 +303,62 @@ vaddr_t vm_map_anywhere(pdir_t pdir, paddr_t pstart, dword flags, size_t size)
  *
  * Identity maps size bytes from pstart in a page directory
  */
-void vm_identity_map(pdir_t pdir, paddr_t pstart, dword flags, size_t size)
+void vm_identity_map(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size)
 {
 	paddr_t aligned_pstart = align_addr(pstart);
 	size_t  aligned_size   = align_size(pstart, size);
 
 	vm_map_range(pdir, aligned_pstart, aligned_pstart, flags, NUM_PAGES(aligned_size));
+}
+
+/**
+ *  vm_alloc_page(pdir, user)
+ *
+ * Allocates a page mapped to the page directory
+ * optionally accessible by usermode.
+ */
+vaddr_t vm_alloc_page(pdir_t pdir, int user)
+{
+	paddr_t page = mm_alloc_page();
+
+	if (page == NO_PAGE)
+		panic("vm_alloc_page: mm_alloc_page failed");
+
+	dword flags = PE_PRESENT | PE_READWRITE;
+	if (user)
+		flags |= PE_USERMODE;
+
+	return vm_map_anywhere(pdir, page, flags, PAGE_SIZE);
+}
+
+/**
+ *  vm_alloc_page(pdir, user, num)
+ *
+ * Allocates a page range mapped to the page directory
+ * optionally accessible by usermode.
+ */
+vaddr_t vm_alloc_range(pdir_t pdir, int user, int num)
+{
+	paddr_t pstart = mm_alloc_range(num);
+
+	if (pstart == NO_PAGE)
+		panic("vm_alloc_range: mm_alloc_range failed");
+
+	dword flags = PE_PRESENT | PE_READWRITE;
+	if (user)
+		flags |= PE_USERMODE;
+
+	return vm_map_anywhere(pdir, pstart, flags, num * PAGE_SIZE);
+
+}
+
+void vm_free_page(pdir_t pdir, vaddr_t page)
+{
+
+}
+
+void vm_free_range(pdir_t pdir, vaddr_t start, int num)
+{
 }
 
 /*static ptab_entry_t get_ptab_entry(pdir_t pdir, vaddr_t vaddr)

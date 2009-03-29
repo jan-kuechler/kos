@@ -15,6 +15,9 @@
 
 #define VM_COMMON_FLAGS (PE_PRESENT | PE_READWRITE)
 
+#define _aligned_
+#define _unaligned_
+
 typedef dword pany_entry_t;
 typedef dword pdir_entry_t;
 typedef dword ptab_entry_t;
@@ -27,16 +30,22 @@ extern pdir_t kernel_pdir;
 
 void init_paging(void);
 
-void vm_map_page(pdir_t pdir, paddr_t paddr, vaddr_t vaddr, dword flags);
-void vm_unmap_page(pdir_t pdir, vaddr_t vaddr);
+void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags);
+void vm_unmap_page(pdir_t pdir, _aligned_ vaddr_t vaddr);
 
-void vm_map_range(pdir_t pdir, paddr_t pstart, vaddr_t vstart, dword flags, int num);
+void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstart, dword flags, int num);
 
 vaddr_t vm_find_addr(pdir_t pdir);
 vaddr_t vm_find_range(pdir_t pdir, int num);
 
-vaddr_t vm_map_anywhere(pdir_t pdir, paddr_t pstart, dword flags, size_t size);
-void    vm_identity_map(pdir_t pdir, paddr_t pstart, dword flags, size_t size);
+vaddr_t vm_map_anywhere(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size);
+void    vm_identity_map(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size);
+
+vaddr_t vm_alloc_page(pdir_t pdir, int user);
+vaddr_t vm_alloc_range(pdir_t pdir, int user, int num);
+
+void    vm_free_page(pdir_t pdir, _aligned_ vaddr_t page);
+void    vm_free_range(pdir_t pdir, _aligned_ vaddr_t start, int num);
 
 /* define km_* as an abbreviation for vm_*(kernel_pdir, ...) */
 #define km_map_page(paddr,vaddr,flags)        vm_map_page(kernel_pdir, paddr, vaddr, flags)
@@ -48,5 +57,10 @@ void    vm_identity_map(pdir_t pdir, paddr_t pstart, dword flags, size_t size);
 
 #define km_map_anywhere(paddr,flags,size)     vm_map_anywhere(kernel_pdir, paddr, flags, size)
 #define km_identity_map(paddr,flags,size)     vm_identity_map(kernel_pdir, paddr, flags, size)
+
+#define km_alloc_page()                       vm_alloc_page(kernel_pdir, 0)
+#define km_alloc_range(num)                   vm_alloc_range(kernel_pdir, 0, num)
+#define km_free_page(page)                    vm_free_page(kernel_pdir, page)
+#define km_free_range(start, num)             vm_free_range(kernel_pdir, start, num)
 
 #endif /*MM_VIRT_H*/

@@ -9,10 +9,10 @@
 
 __BEGIN_DECLS
 
-void *calloc(size_t nmemb, size_t size) __THROW __attribute_malloc__;
-void *malloc(size_t size)  __THROW __attribute_malloc__;
-void free(void *ptr) __THROW;
-void *realloc(void *ptr, size_t size) __THROW __attribute_malloc__;
+void *calloc(size_t nmemb, size_t size) __THROW __attribute_malloc__ __attribute__((deprecated));
+void *malloc(size_t size)  __THROW __attribute_malloc__ __attribute__((deprecated));
+void free(void *ptr) __THROW __attribute__((deprecated));
+void *realloc(void *ptr, size_t size) __THROW __attribute_malloc__ __attribute__((deprecated));
 
 char *getenv(const char *name) __THROW __pure;
 int putenv(const char *string) __THROW;

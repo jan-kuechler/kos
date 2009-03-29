@@ -1,9 +1,6 @@
-#ifndef DE_KEYMAP_H
-#define DE_KEYMAP_H
-
 #include "keymap.h"
 
-static keymap_entry_t keymap_de[] = {
+keymap_entry_t keymap_de[] = {
 	// normal,   shift,  altgr, ctrl
     { 0,        0,      0,      0 },        // 0
     { '\033', '\033', '\033', '\033' },
@@ -134,5 +131,3 @@ static keymap_entry_t keymap_de[] = {
     { 0,        0,      0,      0 },
     { 0,        0,      0,      0 },
 };
-
-#endif /*DE_KEYMAP_H*/

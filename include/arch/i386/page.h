@@ -59,6 +59,4 @@
 // Rundet eine Adresse auf das grï¿œte Vielfache von PAGE_SIZE < n ab
 #define PAGE_ALIGN_ROUND_DOWN(n) ((n) & PAGE_MASK)
 
-
-
 #endif

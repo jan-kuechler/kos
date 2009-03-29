@@ -10,6 +10,7 @@
 #include "timer.h"
 #include "tty.h"
 #include "fs/fs.h"
+#include "mm/kmalloc.h"
 
 
 #define arg(n,type) (*((type*)((char*)&regs->u_esp + ((n)*4))))
@@ -97,7 +98,7 @@ void do_open(regs_t *regs)
 
 	const char *file = fname;
 	if (fname[0] != '/') { // relative path, prepend the cur working dir
-		char *tmp = malloc(strlen(fname) + strlen(cur_proc->cwd) + 1);
+		char *tmp = kmalloc(strlen(fname) + strlen(cur_proc->cwd) + 1);
 		strcpy(tmp, cur_proc->cwd);
 		strcpy(tmp + strlen(cur_proc->cwd), fname); //strcat(tmp, fname);
 		file = tmp;

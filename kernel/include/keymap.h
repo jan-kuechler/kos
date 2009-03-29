@@ -15,4 +15,6 @@ typedef struct keymap_entry
 
 typedef keymap_entry_t *keymap_t;
 
+extern keymap_entry_t keymap_de[];
+
 #endif /*KEYMAP_H*/

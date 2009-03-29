@@ -11,7 +11,6 @@
 #include "pm.h"
 #include "timer.h"
 #include "tty.h"
-#include "keymap/de.h"
 #include "mm/mm.h"
 #include "mm/virt.h"
 #include "fs/fs.h"
@@ -151,6 +150,16 @@ static void print_info()
 	kout_printf("\n");
 }
 
+__attribute__((noreturn)) void shutdown()
+{
+	disable_intr();
+	kout_select();
+	kout_clear();
+	while (1) {
+		asm volatile("hlt");
+	}
+}
+
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
 	kernel_init_done = 0; // interrupts won't get enabled again
@@ -163,7 +172,5 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_puts("Panic: ");
 	kout_aprintf(fmt, &args);
 	kout_puts("\n");
-	while (1) {
-		asm volatile("hlt");
-	}
+	shutdown();
 }

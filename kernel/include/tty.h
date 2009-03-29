@@ -51,6 +51,7 @@ void kout_aprintf(const char *fmt, int **args);
 void kout_printf(const char *fmt, ...)  __attribute__((format(printf, 1, 2)));
 byte kout_set_status(byte status);
 void kout_select(void);
+void kout_clear(void);
 
 void init_tty(void);
 

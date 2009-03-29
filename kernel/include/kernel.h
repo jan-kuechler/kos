@@ -13,6 +13,7 @@ extern void kernel_start(void);
 extern void kernel_end(void);
 extern void kernel_size();
 
+void shutdown();
 void panic(const char *fmt, ...);
 
 #endif /*KERNEL_H*/

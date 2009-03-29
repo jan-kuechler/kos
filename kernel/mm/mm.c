@@ -2,12 +2,9 @@
 #include <multiboot.h>
 #include <page.h>
 #include <string.h>
-#include <types.h>
 
 #include "kernel.h"
 #include "mm/mm.h"
-
-#define NO_PAGE ((paddr_t)1) /* 1 is not a valid addr for a page, as they must be 4k-aligned */
 
 #define addr_to_idx(a) (((dword)a / PAGE_SIZE) / 32)
 #define idx_to_addr(i) (i * PAGE_SIZE * 32)

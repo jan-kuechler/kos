@@ -7,9 +7,12 @@
 #include "acpi.h"
 #include "idt.h"
 #include "kbc.h"
+#include "kernel.h"
 #include "keycode.h"
 #include "keymap.h"
 #include "tty.h"
+#include "mm/kmalloc.h"
+
 
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
@@ -248,7 +251,7 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 	if (remove_rq) {
 		memmove(tty->rqs, tty->rqs + 1, (tty->rqcount - 1) * sizeof(fs_request_t*));
 		tty->rqcount--;
-		tty->rqs = realloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
+		tty->rqs = krealloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
 	}
 
 	if (!(tty->flags & TTY_RAW)) {
@@ -294,7 +297,7 @@ static void read(tty_t *tty, fs_request_t *rq)
 		answer_rq(tty, rq);
 	}
 	else { /* store request */
-		tty->rqs = realloc(tty->rqs, sizeof(fs_request_t*) * (++tty->rqcount));
+		tty->rqs = krealloc(tty->rqs, sizeof(fs_request_t*) * (++tty->rqcount));
 		tty->rqs[tty->rqcount-1] = rq;
 	}
 }
@@ -469,7 +472,7 @@ static inline byte handle_raw(byte code)
 			}
 			else if (code == KEYC_END) {
 				// weniger steuern, mehr alten und komplett entfernen!
-				acpi_poweroff();
+				shutdown();
 				puts(cur_tty, "\nCould not shutdown. Sorry.\n");
 			}
 		}
@@ -603,7 +606,7 @@ byte tty_get_cur_term()
  */
 void tty_register_keymap(const char *name, keymap_t map)
 {
-	keymaps = realloc(keymaps, (++nummaps) * sizeof(keymap_holder_t));
+	keymaps = krealloc(keymaps, (++nummaps) * sizeof(keymap_holder_t));
 	keymaps[nummaps-1].name = name;
 	keymaps[nummaps-1].map  = map;
 
@@ -818,4 +821,10 @@ byte kout_set_status(byte status)
 void kout_select(void)
 {
 	tty_set_cur_term(kout_id);
+}
+
+void kout_clear()
+{
+	clear(kout_tty);
+	flush(kout_tty);
 }

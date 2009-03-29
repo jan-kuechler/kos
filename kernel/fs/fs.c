@@ -4,6 +4,10 @@
 #include "pm.h"
 #include "fs/fs.h"
 #include "fs/request.h"
+#include "mm/kmalloc.h"
+
+#include "tty.h"
+
 
 typedef struct fs_driver_entry
 {
@@ -50,7 +54,7 @@ static fs_filesystem_t *filesys_from_path(const char *path, dword *match)
  */
 int fs_register_driver(fs_driver_t *driver,  const char *name)
 {
-	drivers = realloc(drivers, ++num_drivers * sizeof(fs_driver_t));
+	drivers = krealloc(drivers, ++num_drivers * sizeof(fs_driver_t));
 	drivers[num_drivers-1].driver = driver;
 	drivers[num_drivers-1].name   = name;
 	drivers[num_drivers-1].active = 1;
@@ -104,7 +108,7 @@ int fs_mount(fs_driver_t *driver, const char *path, const char *dev, dword flags
 	fs_filesystem_t *fs = driver->mount(driver, path, dev, flags);
 	if (!fs) return E_UNKNOWN;
 
-	filesystems = realloc(filesystems, ++num_filesystems * sizeof(fs_filesystem_t));
+	filesystems = krealloc(filesystems, ++num_filesystems * sizeof(fs_filesystem_t));
 	filesystems[num_filesystems-1] = fs;
 
 	return OK;
@@ -151,7 +155,7 @@ fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc)
 
 	if (rq.status != OK || rq.result != OK) return NULL;
 
-	fs_handle_t *fh = malloc(sizeof(fs_handle_t));
+	fs_handle_t *fh = kmalloc(sizeof(fs_handle_t));
 	fh->file  = rq.file;
 	fh->pos   = 0;
 	fh->flags = mode;

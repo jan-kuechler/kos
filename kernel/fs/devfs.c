@@ -3,6 +3,7 @@
 #include "fs/devfs.h"
 #include "fs/fs.h"
 #include "fs/request.h"
+#include "mm/kmalloc.h"
 
 typedef struct
 {
@@ -24,13 +25,15 @@ static fs_filesystem_t *mount(fs_driver_t *driver, const char *path, const char 
 	if (fs.path)
 		return NULL;
 
-	fs.path = strdup(path);
+	char *copy = kmalloc(strlen(path) + 1);
+	strcpy(copy, path);
+	fs.path = copy;
 	return &fs;
 }
 
 static int umount(fs_filesystem_t *fs)
 {
-	free(fs->path);
+	kfree(fs->path);
 	fs->path = 0;
 	return OK;
 }
@@ -52,7 +55,7 @@ static fs_file_t *open(fs_filesystem_t *fs, const char *path)
 	if (files[index])
 		return files[index];
 
-	devfs_file_holder_t *file = malloc(sizeof(devfs_file_holder_t));
+	devfs_file_holder_t *file = kmalloc(sizeof(devfs_file_holder_t));
 	files[index] = &file->file;
 
 	memset(&file->file, 0, sizeof(fs_file_t));
@@ -101,21 +104,34 @@ static int query(fs_filesystem_t *fs, fs_request_t *rq)
 	return E_UNKNOWN;
 }
 
+/**
+ *  fs_create_dev(file)
+ *
+ * Creates a device file
+ */
 int fs_create_dev(fs_devfile_t *file)
 {
-	devfiles = realloc(devfiles, ++numfiles * sizeof(fs_devfile_t*));
-	files    = realloc(files, numfiles * sizeof(fs_file_t*));
+	devfiles = krealloc(devfiles, ++numfiles * sizeof(fs_devfile_t*));
+	files    = krealloc(files, numfiles * sizeof(fs_file_t*));
 	devfiles[numfiles-1] = file;
 	files[numfiles-1]    = 0;
 
 	return OK;
 }
 
+/**
+ *  fs_destroy_dev(file)
+ *
+ * Destroys a device file
+ */
 int fs_destroy_dev(fs_devfile_t *file)
 {
 	return E_NOT_IMPLEMENTED;
 }
 
+/**
+ *  init_devfs()
+ */
 void init_devfs(void)
 {
 	memset(&fs, 0, sizeof(fs));
