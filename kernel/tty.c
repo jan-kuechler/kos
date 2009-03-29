@@ -1,5 +1,6 @@
 #include <bitop.h>
 #include <ports.h>
+#include <string.h>
 #include <stdlib.h>
 #include <kos/error.h>
 

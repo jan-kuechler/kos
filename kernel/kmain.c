@@ -30,11 +30,11 @@ extern proc_t *elf_execute(vaddr_t,const char*,byte,pid_t,byte);
 
 void kinit()
 {
-	kout_puts("Initializing ACPI:");
-	if (init_acpi() == 0)
-		kout_puts("\tdone!\n");
-	else
-		kout_puts("\tfailed!\n");
+	//kout_puts("Initializing ACPI:");
+	//if (init_acpi() == 0)
+	//	kout_puts("\tdone!\n");
+	//else
+	//	kout_puts("\tfailed!\n");
 
 	kout_puts("Initializing FS:");
 	init_fs();
@@ -130,7 +130,7 @@ static void print_info()
 		type     = (signature >> 12) & 0x3;
 
 		kout_puts("== CPU ==\n");
-		kout_printf("%s Family %d Model %d Stepping %d Type %d\n", vendor, family, model, stepping, type);
+		kout_printf("%s Family %d Model %d Stepping %d Type %d\n", (char*)vendor, family, model, stepping, type);
 	}
 
 	{ // Memory
@@ -138,12 +138,14 @@ static void print_info()
 		kout_printf("Total:       %4d MB\n", mm_total_mem() / 1024 / 1024);
 		kout_printf("Free:        %4d MB\n", (mm_num_free_pages() * 4) / 1024);
 		kout_printf("Page size:   %4d  B\n", PAGE_SIZE);
-		kout_printf("Kernel size: %4d KB\n", (kernel_end - kernel_start) / 1024);
+		kout_printf("Kernel size: %4d KB\n", (int)(kernel_end - kernel_start) / 1024);
 	}
 
 	if (multiboot_info.flags & 9) { // Bootloader
+		km_identity_map((char*)multiboot_info.boot_loader_name, VM_COMMON_FLAGS, 1024);
+		// hopefully the cmdline isn't larger than 1024 bytes...
 		kout_printf("== Bootloader ==\n");
-		kout_printf("%s\n", multiboot_info.boot_loader_name);
+		kout_printf("%s\n", (char*)multiboot_info.boot_loader_name);
 	}
 
 	kout_printf("\n");

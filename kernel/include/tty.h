@@ -48,7 +48,7 @@ void init_kout(void);
 void kout_puts(const char *str);
 void kout_putn(int num, int base);
 void kout_aprintf(const char *fmt, int **args);
-void kout_printf(const char *fmt, ...);
+void kout_printf(const char *fmt, ...)  __attribute__((format(printf, 1, 2)));
 byte kout_set_status(byte status);
 void kout_select(void);
 

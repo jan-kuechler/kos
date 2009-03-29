@@ -8,8 +8,6 @@
 
 #include <kos/syscall.h>
 
-#define sleep kos_sleep
-
 static dword *SMI_CMD;
 static byte ACPI_ENABLE;
 static byte ACPI_DISABLE;

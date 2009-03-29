@@ -43,13 +43,15 @@
 #define PE_ADDR_SHIFT 22
 
 #define PDIR_LEN 1024
-#define PTABLE_LEN 1024
+#define PTAB_LEN 1024
 
 #define BMASK_4K_ALIGN (0xFFF)
 #define BMASK_PE_ADDR (~BMASK_4K_ALIGN)
 
 // Die Anzahl der Pages, die von n Bytes belegt werden.
 #define NUM_PAGES(n) ((((n) + ~PAGE_MASK) & PAGE_MASK) / PAGE_SIZE)
+
+#define PAGE_OFFSET(addr) ((dword)addr % PAGE_SIZE)
 
 // Rundet eine Adresse auf das kleinste Vielfache von PAGE_SIZE > n auf
 #define PAGE_ALIGN_ROUND_UP(n) (((n) + ~PAGE_MASK) & PAGE_MASK)
