@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <ports.h>
 
+#include "debug.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -241,6 +242,7 @@ void init_idt(void)
 	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_INTERRUPT_GATE);
 
 	/* PIC */
+	dbg_printf(DBG_IDT, "Initializing PIC\n");
 	/* start initialization */
 	outb_wait(PIC1_CMD, ICW1_INIT + ICW1_ICW4);
 	outb_wait(PIC2_CMD, ICW1_INIT + ICW1_ICW4);
@@ -265,6 +267,7 @@ void init_idt(void)
 		.base = (dword)idt,
 	};
 
+	dbg_printf(DBG_IDT, "Loading IDT\n");
 	asm volatile("lidt %0" : : "m"(idt_ptr));
 
 	disable_intr();
@@ -273,6 +276,8 @@ void init_idt(void)
 void idt_set_gate(int intr, word selector, void *handler,
                   byte dpl, byte type)
 {
+	dbg_vprintf(DBG_IDT, "New IDT Entry: #%d Selector: 0x%x Handler: 0x%p\n", intr, selector, handler);
+
 	idt[intr].base_low  = bmask((dword)handler, BMASK_WORD);
 	idt[intr].selector  = selector;
 	idt[intr].zero      = 0x00;

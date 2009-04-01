@@ -1,4 +1,6 @@
-#include "bitop.h"
+#include <bitop.h>
+
+#include "debug.h"
 #include "gdt.h"
 #include "tss.h"
 
@@ -35,6 +37,7 @@ void init_gdt(void)
 			.base = (dword)gdt,
 	};
 
+	dbg_printf(DBG_GDT, "Loading GDT\n");
 	asm volatile(
 		"lgdtl %0           \n\t"	/* load the gdt */
 		"ljmpl $0x08, $1f   \n\t" /* jump to new code segment (loads cs)
@@ -49,12 +52,15 @@ void init_gdt(void)
 		"mov   %%eax, %%ss  \n\t"
 		: : "m"(gdt_ptr) : "eax");
 
+	dbg_printf(DBG_GDT, "Loading TSS\n");
 	asm volatile("ltr %%ax \n\t" : : "a"(GDT_SEL_TSS));
 }
 
 void gdt_set_desc(int segment, dword size, dword base, byte access,
                   byte dpl, byte byte_gran)
 {
+	dbg_vprintf(DBG_GDT, "Setting GDT Entry: #%d Base: 0x%x Size: 0x%x CPL: %d\n", segment, base, size, (dword)dpl);
+
 	gdt[segment].size      = bmask(size, BMASK_WORD);
 	gdt[segment].base_low  = bmask(base, BMASK_WORD);
 	gdt[segment].base_mid  = bmask(base >> 16, BMASK_BYTE);

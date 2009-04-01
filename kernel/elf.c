@@ -1,10 +1,19 @@
 #include <elf.h>
+#include <page.h>
 #include <types.h>
+#include "config.h"
+#include "debug.h"
+#include "kernel.h"
 #include "pm.h"
 
-byte elf_check(vaddr_t start)
+/**
+ *  elf_check(obj)
+ *
+ * Checks the ELF magic of the object
+ */
+byte elf_check(vaddr_t obj)
 {
-	Elf32_Ehdr *header = (Elf32_Ehdr*)start;
+	Elf32_Ehdr *header = (Elf32_Ehdr*)obj;
 	if (header->e_ident[EI_MAG0] != ELFMAG0 ||
 	    header->e_ident[EI_MAG1] != ELFMAG1 ||
 	    header->e_ident[EI_MAG2] != ELFMAG2 ||
@@ -15,15 +24,74 @@ byte elf_check(vaddr_t start)
 	return 1;
 }
 
-byte elf_check_type(vaddr_t start, Elf32_Half type)
+/**
+ *  elf_check_type(obj, type)
+ *
+ * Checks the given ELF object for a specific type
+ */
+byte elf_check_type(vaddr_t obj, Elf32_Half type)
 {
-	Elf32_Ehdr *header = (Elf32_Ehdr*)start;
+	Elf32_Ehdr *header = (Elf32_Ehdr*)obj;
 	return (header->e_type == type);
 }
 
-proc_t *elf_execute(vaddr_t start, const char *cmdline, byte user, pid_t parent, byte running)
+static inline int has_entry(Elf32_Phdr *phdr, Elf32_Ehdr *header)
 {
-	Elf32_Ehdr *header = (Elf32_Ehdr*)start;
+	return header->e_entry >= phdr->p_vaddr &&
+	       header->e_entry < phdr->p_vaddr + phdr->p_memsz;
+}
 
-	return pm_create((void*)header->e_entry, cmdline, user, parent, running);
+static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr)
+{
+	if (!phdr->p_memsz) {
+		/* nothing todo */
+		return;
+	}
+
+	int pages = NUM_PAGES(phdr->p_memsz);
+	vaddr_t base = PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
+
+	if (base < CONF_PROG_BASE_MIN)
+		base = CONF_PROG_BASE_MIN;
+
+	int i=0;
+	for (; i < pages; ++i) {
+		paddr_t page = mm_alloc_page();
+		vm_map_page(pdir, page, (vaddr_t)(base + i * PAGE_SIZE), VM_USER_FLAGS);
+	}
+}
+
+/**
+ *  elf_load(obj, cmdline)
+ *
+ * Loads an ELF executable
+ */
+void elf_load(vaddr_t obj, const char *cmdline)
+{
+	Elf32_Ehdr *header = (Elf32_Ehdr*)obj;
+
+	/* input validation */
+	if (!elf_check(obj)) {
+		panic("elf_load: no valid ELF program (%s)", cmdline ? cmdline : "<NULL>");
+	}
+	if (!elf_check_type(obj, ET_EXEC)) {
+		panic("elf_load: ELF program is no executable (%s)", cmdline ? cmdline : "<NULL>");
+	}
+
+	Elf32_Phdr *phdr = (Elf32_Phdr*)((dword)header + header->e_phoff);
+	proc_t *proc = NULL;
+
+	int i=0;
+	for (; i < header->e_phnum; ++i, ++phdr) {
+		if (phdr->p_type == PT_LOAD) {
+
+			/* the first proghdr containa the entry point */
+			if (has_entry(phdr, header)) {
+				proc = pm_create(header->e_entry, cmdline, 1, 0, PS_BLOCKED);
+			}
+			kassert(proc);
+
+			map_segment_mem(proc->pagedir, phdr);
+		}
+	}
 }

@@ -263,8 +263,8 @@ void init_mm(void)
 	for (i=0; i < multiboot_info.mods_count; ++i) {
 		multiboot_mod_t *mod = (multiboot_mod_t*)((char*)multiboot_info.mods_addr + (i * sizeof(multiboot_mod_t)));
 		mark(blocks, &nblocks, mod->mod_start, mod->mod_end);
-		if (mod->string)
-			mark(blocks, &nblocks, mod->string, mod->string + strlen((const char*)mod->string) + 1);
+		if (mod->cmdline)
+			mark(blocks, &nblocks, mod->cmdline, mod->cmdline + strlen((const char*)mod->cmdline) + 1);
 	}
 
 	dword upper_end = 0;

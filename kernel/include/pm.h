@@ -1,10 +1,11 @@
 #ifndef PM_H
 #define PM_H
 
+#include <types.h>
 #include <kos/msg.h>
 
 #include "regs.h"
-#include "types.h"
+#include "mm/virt.h"
 
 #define MAX_PROCS 256
 
@@ -36,6 +37,7 @@ typedef enum block_reason
 	BR_RECEIVING,
 	BR_SLEEPING,
 	BR_WAIT_FS,
+	BR_INIT,
 } block_reason_t;
 
 typedef struct proc {
@@ -50,6 +52,8 @@ typedef struct proc {
 	dword  kstack;
 	dword  ustack;
 	dword  esp;
+
+	pdir_t pagedir;
 
 	regs_t *sc_regs;
 
@@ -73,7 +77,7 @@ extern proc_t *cur_proc;
 
 void init_pm(void);
 
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, byte running);
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, proc_status_t status);
 void    pm_destroy(proc_t *proc);
 
 proc_t *pm_get_proc(pid_t pid);

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <kos/error.h>
 #include <kos/syscalln.h>
+#include "debug.h"
 #include "idt.h"
 #include "ipc.h"
 #include "kernel.h"
@@ -12,10 +13,11 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 
-
 #define arg(n,type) (*((type*)((char*)&regs->u_esp + ((n)*4))))
 
 #define sc_return(v) {regs->eax = v; return;}
+
+syscall_t syscalls[SYSCALL_MAX] = {0};
 
 void do_puts(regs_t *regs)
 {
@@ -198,4 +200,23 @@ void syscall(dword *esp)
 
 	default: panic("Invalid syscall: %d", regs->eax);
 	}
+
+#if 0
+	if (regs->eax >= SYSCALL_MAX)
+		panic("Invalid syscall: %d", regs->eax);
+
+	syscall_t call = syscalls[regs->eax];
+	if (!call)
+		panic("Syscall %d is not defined", regs->eax);
+
+	call(regs);
+#endif
+}
+
+void syscall_register(dword calln, syscall_t call);
+{
+	kassert(calln < SYSCALL_MAX);
+	kassert(!syscalls[calln]);
+
+	syscalls[calln] = call;
 }

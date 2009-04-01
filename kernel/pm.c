@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -14,8 +15,7 @@ dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
 void idle()
 {
-	for (;;) {
-	}
+	for (;;) { }
 }
 
 /**
@@ -23,7 +23,7 @@ void idle()
  *
  * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, byte running)
+proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, proc_status_t status)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -39,11 +39,15 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 		panic("No free slot to create another process.\n");
 	}
 
-	procs[id].status = PS_READY;
-	procs[id].block  = BR_NOT_BLOCKED;
+	procs[id].status = status;
+	if (status != PS_BLOCKED)
+		procs[id].block = BR_NOT_BLOCKED;
+	else
+		procs[id].block = BR_INIT;
 	procs[id].parent = parent;
 
-	procs[id].cmdline = cmdline; // TODO: use malloc and strcpy here!
+	procs[id].cmdline = kmalloc(strlen(cmdline) + 1);
+	strcpy(procs[id].cmdline, cmdline);
 
 	procs[id].ticks_left = PROC_START_TICKS;
 
@@ -52,11 +56,12 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].msg_count = 0;
 
 	procs[id].cwd = "/";
-
-	procs[id].numfds   = 0;
+	procs[id].numfds = 0;
 
 	procs[id].wakeup = 0;
 	procs[id].msg_wait_buffer = (void*)0;
+
+	procs[id].pagedir = mm_create_pagedir();
 
 	dword *ustack = user_stacks[id];
 	ustack += USTACK_SIZE;
@@ -66,13 +71,13 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	dword *kstack = kernel_stacks[id];
 	kstack += KSTACK_SIZE;
 
-	dword code_seg = usermode ? 0x1B : GDT_SEL_CODE;
-	dword data_seg = usermode ? 0x23 : GDT_SEL_DATA;
+	dword code_seg = usermode ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
+	dword data_seg = usermode ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
 
-	*(--kstack) = data_seg;   // ss
+	*(--kstack) = data_seg;      // ss
 	*(--kstack) = (dword)ustack; // esp
-	*(--kstack) = 0x0202; // eflags: 0000000100000010b -> IF
-	*(--kstack) = code_seg;   // cs
+	*(--kstack) = 0x0202;        // eflags: 0000000100000010b -> IF
+	*(--kstack) = code_seg;      // cs
 	*(--kstack) = (dword)entry;  // eip
 
 	*(--kstack) = 0; // errc
@@ -97,7 +102,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].kstack = (dword)kstack;
 	procs[id].esp    = (dword)kstack;
 
-	if (running)
+	if (status == PS_READY)
 		pm_activate(&procs[id]);
 
 	return &procs[id];
@@ -300,22 +305,24 @@ void init_pm(void)
 
 
 	/* create special process 0: idle */
-	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, 1);
-	idle_proc->status = PS_BLOCKED;
+	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
+	pm_activate(idle_proc); // Note: Does not unblock idle
 
 	cur_proc = idle_proc;
 
 	/* DEBUG */
-	extern void task1(void);
-	extern void task2(void);
-	extern void task3(void);
-	extern void task4(void);
-	extern void task5(void);
+	if (dbg_check(DBG_TESTTASKS)) {
+		extern void task1(void);
+		extern void task2(void);
+		extern void task3(void);
+		extern void task4(void);
+		extern void task5(void);
 
-	//pm_create(task1, "task1", 0, 0, 1);
-	//pm_create(task2, "task2", 0, 0, 1);
-	//pm_create(task3, "task3", 0, 0, 1);
-	//pm_create(task4, "task4", 0, 0, 1);
-	//pm_create(task5, "task5", 0, 0, 1);
+		pm_create(task1, "task1", 0, 0, 1);
+		pm_create(task2, "task2", 0, 0, 1);
+		pm_create(task3, "task3", 0, 0, 1);
+		pm_create(task4, "task4", 0, 0, 1);
+		pm_create(task5, "task5", 0, 0, 1);
+	}
 }
 

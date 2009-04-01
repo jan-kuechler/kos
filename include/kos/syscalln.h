@@ -22,4 +22,6 @@
 
 #define SC_GET_ANSWER   42
 
+#define SYSCALL_MAX     50
+
 #endif /*SYSCALLN_H*/

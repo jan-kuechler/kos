@@ -99,7 +99,7 @@ typedef struct multiboot_mod
 {
 	dword mod_start;
 	dword mod_end;
-	dword string;
+	dword cmdline;
 	dword reserved;
 } multiboot_mod_t;
 

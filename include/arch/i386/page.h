@@ -48,6 +48,8 @@
 #define BMASK_4K_ALIGN (0xFFF)
 #define BMASK_PE_ADDR (~BMASK_4K_ALIGN)
 
+#define NO_PAGE ((paddr_t)1) /* 1 is not a valid addr for a page, as they must be 4k-aligned */
+
 // Die Anzahl der Pages, die von n Bytes belegt werden.
 #define NUM_PAGES(n) ((((n) + ~PAGE_MASK) & PAGE_MASK) / PAGE_SIZE)
 
@@ -58,5 +60,7 @@
 
 // Rundet eine Adresse auf das grï¿œte Vielfache von PAGE_SIZE < n ab
 #define PAGE_ALIGN_ROUND_DOWN(n) ((n) & PAGE_MASK)
+
+#define IS_PAGE_ALIGNED(addr) (((dword)addr & BMASK_4K_ALIGN) == 0)
 
 #endif

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <kos/syscall.h>
 #include "acpi.h"
+#include "debug.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
@@ -63,33 +64,33 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_kout();
 
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
+	init_debug();
 
 	byte oc = kout_set_status(0x04);
 	kout_puts("\t\t\t\t       kOS\n");
 	kout_set_status(oc);
 	kout_puts("kOS booting...\n");
 
-	kout_puts("Setting up gdt:");
+	dbg_printf(DBG_LOAD, "* Setting up gdt...\n");
 	init_gdt();
-	kout_puts("\t\t\t\tdone!\n");
 
-	kout_puts("Setting up idt:");
+	dbg_printf(DBG_LOAD, "* Setting up idt...\n");
 	init_idt();
-	kout_puts("\t\t\t\tdone!\n");
 
-	kout_puts("Setting up mm:");
+	dbg_printf(DBG_LOAD, "* Setting up mm...\n");
 	init_mm();
-	kout_puts("\t\t\t\tdone!\n");
 
+	dbg_printf(DBG_LOAD, "* Setting up paging...\n");
 	init_paging();
 
-	kout_puts("Setting up pm:");
-	init_pm();
-	kout_puts("\t\t\t\tdone!\n");
+	dbg_printf(DBG_LOAD, "* Setting up stack backtrace...\n");
+	init_stack_backtrace();
 
-	kout_puts("Setting up timer:");
+	dbg_printf(DBG_LOAD, "* Setting up pm...\n");
+	init_pm();
+
+	dbg_printf(DBG_LOAD, "* Setting up timer...\n");
 	init_timer();
-	kout_puts("\t\t\t\tdone!\n");
 
 	kout_puts("kOS booted.\n");
 
@@ -142,7 +143,8 @@ static void print_info()
 
 	if (multiboot_info.flags & 9) { // Bootloader
 		km_identity_map((char*)multiboot_info.boot_loader_name, VM_COMMON_FLAGS, 1024);
-		// hopefully the cmdline isn't larger than 1024 bytes...
+
+		// hopefully the boot_load_name isn't larger than 1024 bytes...
 		kout_printf("== Bootloader ==\n");
 		kout_printf("%s\n", (char*)multiboot_info.boot_loader_name);
 	}
@@ -172,5 +174,7 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_puts("Panic: ");
 	kout_aprintf(fmt, &args);
 	kout_puts("\n");
-	shutdown();
+	while (1) {
+		asm volatile("hlt");
+	}
 }

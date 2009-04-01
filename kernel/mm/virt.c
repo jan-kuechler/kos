@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <page.h>
 #include <string.h>
+#include "debug.h"
 #include "kernel.h"
 #include "tty.h"
 #include "mm/mm.h"
@@ -22,13 +23,7 @@ static inline paddr_t getaddr(pany_entry_t entry)
 	return (paddr_t)bmask((dword)entry, BMASK_PE_ADDR);
 }
 
-static inline void check_align(void *addr, const char *func, const char *var)
-{
-	if (bmask((dword)addr,BMASK_4K_ALIGN)) {
-		panic("%s: %s is not 4k aligned.", func, var);
-	}
-}
-#define CHECK_ALIGN(var) check_align(var, __func__, #var)
+#define CHECK_ALIGN(var) kassert(IS_PAGE_ALIGNED(var))
 
 #define page2addr(page) ((paddr_t)(page * PAGE_SIZE))
 #define addr2page(addr) ((dword)addr / PAGE_SIZE)
@@ -69,10 +64,12 @@ void init_paging(void)
 
 	/* alloc the kernel's page directory */
 	kernel_pdir = mm_alloc_page();
+	kassert(kernel_pdir != NO_PAGE);
 	memset(kernel_pdir, 0, PAGE_SIZE);
 
 	/* this is the page table where the working table is mapped into */
 	working_table_map = mm_alloc_page();
+	kassert(working_table_map != NO_PAGE);
 	memset(working_table_map, 0, PAGE_SIZE);
 
 	kernel_pdir[pdir_index(MAP_TABLE_VADDR)] = (pdir_entry_t)working_table_map | PE_PRESENT | PE_READWRITE;

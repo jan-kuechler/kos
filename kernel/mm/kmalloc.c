@@ -1,6 +1,9 @@
 #include <page.h>
 #include <string.h>
 
+#include "config.h"
+
+#include "kernel.h"
 #include "mm/kmalloc.h"
 #include "mm/mm.h"
 #include "mm/virt.h"
@@ -53,7 +56,7 @@ static mem_node_t *create_node(size_t size, void *ptr, byte is_free)
 	return node;
 }
 
-void *kmalloc(size_t size)
+void *kmallocu(size_t size)
 {
 	if (size < 1) return NULL;
 
@@ -97,6 +100,19 @@ void *kmalloc(size_t size)
 		}
 	}
 	return cur->ptr;
+}
+
+void *kmalloc(size_t size)
+{
+	void *ptr = kmallocu(size);
+
+#ifdef CONF_SAFE_KMALLOC
+	if (!ptr) {
+		panic("kmalloc: failed to alloc %d bytes.", size);
+	}
+#endif
+
+	return ptr;
 }
 
 void kfree(void *ptr)

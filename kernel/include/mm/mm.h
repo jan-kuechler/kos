@@ -3,8 +3,6 @@
 
 #include <types.h>
 
-#define NO_PAGE ((paddr_t)1) /* 1 is not a valid addr for a page, as they must be 4k-aligned */
-
 void init_mm(void);
 
 paddr_t mm_alloc_page();

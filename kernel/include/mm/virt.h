@@ -2,6 +2,7 @@
 #define MM_VIRT_H
 
 #include <types.h>
+#include "mm/types.h"
 
 #define PE_PRESENT      0x0001
 #define PE_READWRITE    0x0002
@@ -14,17 +15,7 @@
 #define PT_DIRTY        0x0100
 
 #define VM_COMMON_FLAGS (PE_PRESENT | PE_READWRITE)
-
-#define _aligned_
-#define _unaligned_
-
-typedef dword pany_entry_t;
-typedef dword pdir_entry_t;
-typedef dword ptab_entry_t;
-
-typedef pany_entry_t *pany_t;
-typedef pdir_entry_t *pdir_t;
-typedef ptab_entry_t *ptab_t;
+#define VM_USER_FLAGS (VM_COMMON_FLAGS | PE_USERMODE)
 
 extern pdir_t kernel_pdir;
 
