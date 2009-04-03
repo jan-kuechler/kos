@@ -14,6 +14,7 @@ extern dword  mm_get_mmap_size();
 
 pdir_t kernel_pdir;
 ptab_t working_table_map;
+dword  kpdir_rev;
 
 static byte paging_enabled;
 
@@ -42,7 +43,7 @@ static inline paddr_t getaddr(pany_entry_t entry)
 #define safe_pti(pdi) ((pdi == 0) ? 1 : 0)
 
 // invalidate page
-#define invlpg(addr) { asm volatile("invlpg %0" : : "m"(*(char*)addr)); }
+#define invlpg(addr) do { asm volatile("invlpg %0" : : "m"(*(char*)addr)); } while (0);
 
 // maps a page table to a virtual addr
 static inline ptab_t map_working_table(ptab_t tab)
@@ -86,6 +87,8 @@ void init_paging(void)
 
 	km_map_page(kernel_pdir, kernel_pdir, PE_PRESENT | PE_READWRITE);
 	km_map_page(working_table_map, working_table_map, PE_PRESENT | PE_READWRITE);
+
+	kpdir_rev = 0;
 
 	/* and enable paging */
 	asm volatile("movl %%eax, %%cr3       \n"
@@ -145,6 +148,13 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 	else {
 		ptab[ptab_index(vaddr)] = (dword)paddr | flags;
 		invlpg(vaddr);
+
+		if (pdir == kernel_pdir) {
+			dword old = kpdir_rev;
+			kpdir_rev++;
+			if (kpdir_rev < old)
+				panic("vm_map_page: overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
+		}
 	}
 
 }
@@ -178,6 +188,16 @@ void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstar
 
 		vm_map_page(pdir, paddr, vaddr, flags);
 	}
+}
+
+/**
+ *  vm_unmap_range(pdir, vstart, num)
+ *
+ * Unmaps a range of num pages from a page directory.
+ */
+void vm_unmap_range(pdir_t pdir, _aligned_ vaddr_t vstart, int num)
+{
+	vm_map_range(pdir, NULL, vstart, 0, num);
 }
 
 /**
@@ -274,13 +294,13 @@ vaddr_t vm_find_range(pdir_t pdir, int num)
 }
 
 /**
- *  vm_map_anywhere(pdir, pstart, size)
+ *  vm_alloc_addr(pdir, pstart, size)
  *
  * Maps size bytes anywhere in the page directory
  * and returns their virtual address.
  * pstart does not need to be 4k aligned
  */
-vaddr_t vm_map_anywhere(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size)
+vaddr_t vm_alloc_addr(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size)
 {
 	paddr_t aligned_pstart = align_addr(pstart);
 	size_t  aligned_size   = align_size(pstart, size);
@@ -293,6 +313,19 @@ vaddr_t vm_map_anywhere(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, si
 	vm_map_range(pdir, aligned_pstart, vstart, flags, NUM_PAGES(aligned_size));
 
 	return vstart + PAGE_OFFSET(pstart);
+}
+
+/**
+ *  vm_free_addr(pdir, vstart, size)
+ *
+ * Unmaps an addr returned by vm_alloc_addr
+ */
+void vm_free_addr(pdir_t pdir, _unaligned_ vaddr_t vstart, size_t size)
+{
+	vaddr_t aligned_vstart = align_addr(vstart);
+	size_t  aligned_size   = align_size(vstart, size);
+
+	vm_unmap_range(pdir, aligned_vstart, NUM_PAGES(aligned_size));
 }
 
 /**
@@ -325,7 +358,7 @@ vaddr_t vm_alloc_page(pdir_t pdir, int user)
 	if (user)
 		flags |= PE_USERMODE;
 
-	return vm_map_anywhere(pdir, page, flags, PAGE_SIZE);
+	return vm_alloc_addr(pdir, page, flags, PAGE_SIZE);
 }
 
 /**
@@ -345,7 +378,7 @@ vaddr_t vm_alloc_range(pdir_t pdir, int user, int num)
 	if (user)
 		flags |= PE_USERMODE;
 
-	return vm_map_anywhere(pdir, pstart, flags, num * PAGE_SIZE);
+	return vm_alloc_addr(pdir, pstart, flags, num * PAGE_SIZE);
 
 }
 
@@ -358,7 +391,7 @@ void vm_free_range(pdir_t pdir, vaddr_t start, int num)
 {
 }
 
-/*static ptab_entry_t get_ptab_entry(pdir_t pdir, vaddr_t vaddr)
+static ptab_entry_t get_ptab_entry(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 {
 	ptab_t       tab;
 	ptab_entry_t pte = 0;
@@ -379,4 +412,16 @@ void vm_free_range(pdir_t pdir, vaddr_t start, int num)
 	}
 
 	return pte;
-}*/
+}
+
+paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr)
+{
+	ptab_entry_t pte = get_ptab_entry(pdir, vaddr);
+
+	if (bnotset(pte, PE_PRESENT)) {
+		return NULL;
+	}
+
+	return getaddr(pte) + PAGE_OFFSET(vaddr);
+}
+

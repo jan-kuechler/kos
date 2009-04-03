@@ -8,6 +8,7 @@
 #include "kernel.h"
 #include "pm.h"
 #include "regs.h"
+#include "syscall.h"
 #include "timer.h"
 #include "tty.h"
 #include "fs/fs.h"
@@ -213,7 +214,7 @@ void syscall(dword *esp)
 #endif
 }
 
-void syscall_register(dword calln, syscall_t call);
+void syscall_register(dword calln, syscall_t call)
 {
 	kassert(calln < SYSCALL_MAX);
 	kassert(!syscalls[calln]);
