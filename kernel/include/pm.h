@@ -40,6 +40,12 @@ typedef enum block_reason
 	BR_INIT,
 } block_reason_t;
 
+typedef enum proc_mode
+{
+	PM_KERNEL = 0,
+	PM_USER,
+} proc_mode_t;
+
 typedef struct proc {
 	pid_t  pid;
 	pid_t  parent;
@@ -54,6 +60,7 @@ typedef struct proc {
 	dword  esp;
 
 	pdir_t pagedir;
+	dword  pdrev;
 
 	regs_t *sc_regs;
 
@@ -77,7 +84,7 @@ extern proc_t *cur_proc;
 
 void init_pm(void);
 
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, proc_status_t status);
+proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status);
 void    pm_destroy(proc_t *proc);
 
 proc_t *pm_get_proc(pid_t pid);

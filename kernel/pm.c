@@ -1,9 +1,12 @@
+#include <string.h>
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
 #include "kernel.h"
 #include "pm.h"
 #include "tss.h"
+#include "mm/kmalloc.h"
+#include "mm/util.h"
 
 proc_t procs[MAX_PROCS];
 static proc_t *plist_head, *plist_tail;
@@ -23,7 +26,7 @@ void idle()
  *
  * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t parent, proc_status_t status)
+proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -62,6 +65,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	procs[id].msg_wait_buffer = (void*)0;
 
 	procs[id].pagedir = mm_create_pagedir();
+	procs[id].pdrev   = kpdir_rev;
 
 	dword *ustack = user_stacks[id];
 	ustack += USTACK_SIZE;
@@ -71,8 +75,8 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, byte usermode, pid_t par
 	dword *kstack = kernel_stacks[id];
 	kstack += KSTACK_SIZE;
 
-	dword code_seg = usermode ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
-	dword data_seg = usermode ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
+	dword code_seg = mode == PM_USER ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
+	dword data_seg = mode == PM_USER ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
 
 	*(--kstack) = data_seg;      // ss
 	*(--kstack) = (dword)ustack; // esp
@@ -239,6 +243,8 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
+	cur_proc->pdrev = vm_switch_pdir(cur_proc->pagedir, cur_proc->pdrev);
+
 	*esp = cur_proc->esp;
 }
 
@@ -310,7 +316,7 @@ void init_pm(void)
 
 	cur_proc = idle_proc;
 
-	/* DEBUG */
+#if 0
 	if (dbg_check(DBG_TESTTASKS)) {
 		extern void task1(void);
 		extern void task2(void);
@@ -324,5 +330,6 @@ void init_pm(void)
 		pm_create(task4, "task4", 0, 0, 1);
 		pm_create(task5, "task5", 0, 0, 1);
 	}
+#endif
 }
 

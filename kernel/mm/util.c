@@ -1,5 +1,6 @@
 #include <page.h>
 #include <string.h> // memcpy/set
+#include "debug.h"
 #include "mm/mm.h"
 #include "mm/util.h"
 #include "mm/virt.h"
@@ -47,4 +48,14 @@ void vm_set_p(paddr_t dst, byte val, size_t size)
 	vaddr_t vdst = map(dst);
 	memset(vdst, val, size);
 	unmap(vdst);
+}
+
+dword vm_switch_pdir(pdir_t pdir, dword rev)
+{
+	//if (rev < kpdir_rev) {
+	//	/* copy the kernel addr space (lower half) */
+	//	memcpy(pdir, kernel_pdir, PAGE_SIZE / 2);
+	//}
+	asm volatile("mov %0, %%cr3" : : "r"(pdir));
+	return kpdir_rev;
 }

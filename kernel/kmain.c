@@ -52,7 +52,7 @@ void kinit()
 	write(stdout, "This is /dev/tty0\n", 18);
 
 	extern void ksh(void);
-	pm_create(ksh, "ksh", 0, 1, 1);
+	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
 	kos_exit(0);
 }
@@ -92,13 +92,16 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	dbg_printf(DBG_LOAD, "* Setting up timer...\n");
 	init_timer();
 
+	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
+	init_mod();
+
 	kout_puts("kOS booted.\n");
 
 	kout_puts("\n");
 
 	print_info();
 
-	pm_create(kinit, "kinit", 0, 0, 1);
+	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 
 	kernel_init_done = 1;
 
@@ -174,6 +177,9 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_puts("Panic: ");
 	kout_aprintf(fmt, &args);
 	kout_puts("\n");
+
+	dbg_stack_backtrace();
+
 	while (1) {
 		asm volatile("hlt");
 	}

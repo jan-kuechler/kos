@@ -7,6 +7,10 @@
 #define DBG_GDT       'g'
 #define DBG_IDT       'i'
 #define DBG_TESTTASKS 't'
+#define DBG_MODULE    'm'
+#define DBG_ELF       'e'
+#define DBG_TTY       'c' // for console
+#define DBG_VM        'v'
 
 #ifdef CONF_DEBUG
 #define kassert(exp)                                 \

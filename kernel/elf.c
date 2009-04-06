@@ -126,6 +126,8 @@ void elf_load(vaddr_t obj, const char *cmdline)
 		panic("elf_load: ELF program is no executable (%s)", cmdline ? cmdline : "<NULL>");
 	}
 
+	dbg_printf(DBG_ELF, "Loading %s\n", cmdline);
+
 	Elf32_Phdr *phdr = (Elf32_Phdr*)((dword)header + header->e_phoff);
 	proc_t *proc = NULL;
 
@@ -139,9 +141,11 @@ void elf_load(vaddr_t obj, const char *cmdline)
 			}
 			kassert(proc);
 
+			dbg_vprintf(DBG_ELF, "Mapping segment %d\n", i);
+
 			map_segment_mem(proc->pagedir, phdr, obj);
 		}
 	}
 
-	pm_unblock(proc);
+	//pm_unblock(proc);
 }

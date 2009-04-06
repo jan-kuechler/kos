@@ -33,7 +33,7 @@ irq_stub_%1:
 global isr_null_handler
 isr_null_handler:
 	push dword 0
-	push dword 0xBEEF
+	push dword 0xD00F
 	jmp  isr_common
 	
 global syscall_stub

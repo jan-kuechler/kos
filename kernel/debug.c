@@ -10,7 +10,7 @@ static Elf32_Shdr *strtab;
 
 static byte dbg_flags[26];
 
-static Elf32_Sym *find_sym(dword addr)
+static inline Elf32_Sym *find_sym(dword addr)
 {
 	if (!symtab)
 		return 0;
@@ -25,11 +25,21 @@ static Elf32_Sym *find_sym(dword addr)
 	return 0;
 }
 
-static const char *get_str(Elf32_Word index)
+static inline const char *get_str(Elf32_Word index)
 {
 	if (!strtab)
 		return 0;
 	return (const char*)strtab->sh_addr + index;
+}
+
+static inline void print_sym(dword ebp, dword eip)
+{
+	Elf32_Sym *sym = find_sym(eip);
+	kout_printf("ebp 0x%08x eip 0x%08x", ebp, eip);
+	if (sym) {
+		kout_printf(" <%s + 0x%x>", get_str(sym->st_name), eip - sym->st_value);
+	}
+	kout_puts("\n");
 }
 
 void dbg_stack_backtrace_ex(dword ebp, dword eip)
@@ -45,10 +55,17 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 	kout_puts("Stack backtrace:\n");
 
 	if (ebp != 0) {
-
+		print_sym(ebp, eip);
+		stack_frame = (struct stack_frame*)ebp;
 	}
 	else {
+		asm volatile("mov %%ebp, %0" : "=r"(stack_frame));
+	}
 
+	for (; vm_is_userspace(stack_frame, sizeof(struct stack_frame));
+	       stack_frame = stack_frame->ebp)
+	{
+		print_sym(stack_frame->ebp, stack_frame->eip);
 	}
 
 }

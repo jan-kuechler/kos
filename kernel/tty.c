@@ -5,6 +5,7 @@
 #include <kos/error.h>
 
 #include "acpi.h"
+#include "debug.h"
 #include "idt.h"
 #include "kbc.h"
 #include "kernel.h"
@@ -218,10 +219,16 @@ static void answer_rq(tty_t *tty, fs_request_t *rq)
 {
 	byte remove_rq = 0;
 
+	dbg_vprintf(DBG_TTY, "answer_rq...\n");
+
 	if (!rq) {
+		dbg_vprintf(DBG_TTY, "  using request waitbuffer\n");
 		rq = tty->rqs[0];
 		remove_rq = 1;
+		dbg_vprintf(DBG_TTY, "  got rq[0]: 0x%x\n", (char*)rq);
 	}
+
+	dbg_vprintf(DBG_TTY, "  answer_rq: Buffer: 0x%x\n", (char*)rq->buf);
 
 	byte len = 0, offs = 0;
 	/* copy the data to the buffer */
@@ -548,6 +555,7 @@ static inline void handle_input(byte code)
 
 input_end:
 	while (can_answer_rq(cur_tty, 0)) {
+		dbg_vprintf(DBG_TTY, "can_answer_rq!\n");
 		answer_rq(cur_tty, 0);
 	}
 
@@ -666,6 +674,7 @@ void init_tty(void)
 		tty->status  = 0x07;
 		tty->flags   = TTY_ECHO;
 
+		tty->rqs     = 0;
 		tty->rqcount = 0;
 
 		clear(tty);
@@ -703,6 +712,7 @@ void init_kout(void)
 	kout_tty->status  = 0x07;
 	kout_tty->flags   = TTY_ECHO;
 
+	kout_tty->rqs     = 0;
 	kout_tty->rqcount = 0;
 
 	clear(kout_tty);

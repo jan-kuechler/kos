@@ -25,12 +25,14 @@ static void print(int fd, const char *str)
 static void shutdown();
 static void restart();
 static void help();
+static void test();
 static void int3();
 
 static cmd_t cmds[] = {
 	{"shutdown", "Turns the computer off.", shutdown},
 	{"restart",  "Restarts the computer.", restart},
 	{"int3", "Generates a debug interrupt.", int3},
+	{"test", "Starts the test module.", test},
 	{"help", "Prints this list.", help},
 };
 static int num_cmds = sizeof(cmds) / sizeof(cmd_t);
@@ -52,6 +54,12 @@ static void restart()
 static void int3()
 {
 	asm volatile("int $0x03");
+}
+
+static void test()
+{
+	print(stdout, "Loading module 0!\n");
+	//mod_load(0);
 }
 
 static void help()

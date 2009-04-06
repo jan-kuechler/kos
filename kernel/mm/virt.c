@@ -76,6 +76,8 @@ void init_paging(void)
 	kernel_pdir[pdir_index(MAP_TABLE_VADDR)] = (pdir_entry_t)working_table_map | PE_PRESENT | PE_READWRITE;
 	map_working_table(0);
 
+	kpdir_rev = 0;
+
 	/* map the kernel, the video memory and some other stuff */
 	km_map_range(kernel_phys_start, kernel_phys_start, PE_PRESENT | PE_READWRITE,
 	             NUM_PAGES((dword)kernel_phys_end - (dword)kernel_phys_start));
@@ -88,6 +90,8 @@ void init_paging(void)
 	km_map_page(kernel_pdir, kernel_pdir, PE_PRESENT | PE_READWRITE);
 	km_map_page(working_table_map, working_table_map, PE_PRESENT | PE_READWRITE);
 
+	/* reset the revision to 0, as there are no
+	   proc pdirs yet, that could have older data */
 	kpdir_rev = 0;
 
 	/* and enable paging */
@@ -152,6 +156,7 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		if (pdir == kernel_pdir) {
 			dword old = kpdir_rev;
 			kpdir_rev++;
+			/* just to be on the safe side (-; */
 			if (kpdir_rev < old)
 				panic("vm_map_page: overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
 		}
@@ -197,6 +202,7 @@ void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstar
  */
 void vm_unmap_range(pdir_t pdir, _aligned_ vaddr_t vstart, int num)
 {
+	CHECK_ALIGN(vstart);
 	vm_map_range(pdir, NULL, vstart, 0, num);
 }
 
@@ -414,6 +420,12 @@ static ptab_entry_t get_ptab_entry(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 	return pte;
 }
 
+
+/**
+ *  vm_resolve_virt(pdir, vaddr)
+ *
+ * Resolves a virtual addr using any page directory.
+ */
 paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 {
 	ptab_entry_t pte = get_ptab_entry(pdir, vaddr);
@@ -425,3 +437,7 @@ paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 	return getaddr(pte) + PAGE_OFFSET(vaddr);
 }
 
+int vm_is_userspace(vaddr_t vaddr, dword size)
+{
+	return 0;
+}

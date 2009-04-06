@@ -1,3 +1,5 @@
+#if 0
+
 #include <kos/error.h>
 #include <kos/syscall.h>
 
@@ -10,7 +12,7 @@
 static void wait(void)
 {
 	unsigned int i=0, j=0;
-	for (; i < 0xFFFFFL; ++i) {
+	for (; i < 0xFFFFF; ++i) {
 		for (j=0; j < 25; ++j) {
 			asm volatile("nop");
 		}
@@ -115,3 +117,5 @@ void task5(void)
 		wait();
 	}
 }
+
+#endif
