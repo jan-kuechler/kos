@@ -21,6 +21,13 @@ void idle()
 	for (;;) { }
 }
 
+#ifdef CONF_DEBUG
+int proc_debug;
+#define dbg(proc, ...) if (proc->debug) { dbg_printf(DBG_PM, __VA_ARGS__); }
+#else
+#define dbg(proc, ...) do { } while (0);
+#endif
+
 /**
  *  pm_create(entry, cmdline, parent)
  *
@@ -106,6 +113,13 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].kstack = (dword)kstack;
 	procs[id].esp    = (dword)kstack;
 
+#ifdef CONF_DEBUG
+	procs[id].debug = proc_debug;
+	proc_debug = 0;
+#endif
+
+	dbg((&procs[id]), "Debug Proc: created (%s)\n", cmdline);
+
 	if (status == PS_READY)
 		pm_activate(&procs[id]);
 
@@ -119,12 +133,10 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
  */
 void pm_destroy(proc_t *proc)
 {
-//	debug("destroying %d\n", proc->pid);
+	dbg(proc, "Debug Proc: destroyed\n");
 
 	pm_deactivate(proc);
 	procs[proc->pid].status = PS_SLOT_FREE;
-
-//	debug("done!\n");
 }
 
 /**
@@ -160,6 +172,8 @@ void pm_activate(proc_t *proc)
 	plist_tail = proc;
 	proc->next = 0;
 
+	dbg(proc, "Debug Proc: activated\n");
+
 	enable_intr();
 }
 
@@ -187,6 +201,8 @@ void pm_deactivate(proc_t *proc)
 
 	if (proc == cur_proc)
 		pm_schedule();
+
+	dbg(proc, "Debug Proc: deactivated\n");
 
 	enable_intr();
 }
@@ -245,6 +261,8 @@ void pm_pick(dword *esp)
 {
 	cur_proc->pdrev = vm_switch_pdir(cur_proc->pagedir, cur_proc->pdrev);
 
+	dbg(cur_proc, "Debug Proc: picked\n");
+
 	*esp = cur_proc->esp;
 }
 
@@ -258,6 +276,8 @@ void pm_restore(dword *esp)
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
 		tss.esp0 = cur_proc->kstack;
+
+		dbg(cur_proc, "Debug Proc: restored\n");
 	}
 }
 
@@ -275,6 +295,8 @@ byte pm_block(proc_t *proc, block_reason_t reason)
 	proc->status = PS_BLOCKED;
 	proc->block = reason;
 
+	dbg(proc, "Debug Proc: blocked (%d)\n", reason);
+
 	pm_deactivate(proc);
 
 	return 1;
@@ -289,6 +311,8 @@ void pm_unblock(proc_t *proc)
 {
 	proc->status = PS_READY;
 	proc->block  = BR_NOT_BLOCKED;
+
+	dbg(proc, "Debug Proc: unblocked\n");
 
 	pm_activate(proc);
 }
@@ -308,6 +332,10 @@ void init_pm(void)
 
 	plist_head = 0;
 	plist_tail = 0;
+
+#ifdef CONF_DEBUG
+	proc_debug = 0;
+#endif
 
 
 	/* create special process 0: idle */

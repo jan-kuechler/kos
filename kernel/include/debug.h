@@ -9,8 +9,10 @@
 #define DBG_TESTTASKS 't'
 #define DBG_MODULE    'm'
 #define DBG_ELF       'e'
-#define DBG_TTY       'c' // for console
+#define DBG_TTY       'c' // console
 #define DBG_VM        'v'
+#define DBG_MM        'r' // RAM
+#define DBG_PM        'p'
 
 #ifdef CONF_DEBUG
 #define kassert(exp)                                 \

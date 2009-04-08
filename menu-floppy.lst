@@ -2,6 +2,6 @@ default 0
 timeout 2
 
 title kOS
-kernel /kos.bin debug=lMECV
+kernel /kos.bin debug=cElMPV
 module /test.mod test
 root (fd0)

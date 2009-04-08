@@ -136,13 +136,15 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		ptab = (ptab_t)mm_alloc_page();
 
 		pdir[pdir_index(vaddr)] = (dword)ptab | flags;
+
+		ptab = map_working_table(ptab);
+		memset(ptab, 0, PAGE_SIZE);
+
+		dbg_vprintf(DBG_VM, "New page table created for 0x%08x\n", vaddr);
 	}
 	else {
-		ptab = getaddr(pde);
+		ptab = map_working_table(getaddr(pde));
 	}
-
-	/* map the page table, so it can be accessed */
-	ptab = map_working_table(ptab);
 
 	if (bisset(ptab[ptab_index(vaddr)], PE_PRESENT) && bisset(flags, PE_PRESENT)) {
 		/* attempt to create a new mapping to an addr that allready exists */
@@ -152,8 +154,9 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		if (pte != (ptab_entry_t)((dword)paddr | flags)) {
 			panic("vm_map_page: Double mapping!\n"
 			      "\tVirt:     0x%08x\n"
-			      "\tOld phys: 0x%08x\n"
 			      "\tNew phys: 0x%08x\n"
+			      "\tOld phys: 0x%08x\n"
+			      "\t           xxxG0DACWURP\n"
 			      "\tNew flags: %012b\n"
 			      "\tOld flags: %012b\n",
 			      vaddr, getaddr(pte), paddr, flags, getflags(pte));
@@ -169,12 +172,13 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 			kpdir_rev++;
 			/* just to be on the safe side (-; */
 			if (kpdir_rev < old)
-				panic("vm_map_page: overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
+				panic("vm_map_page: Overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
 		}
 	}
 
-	if (vaddr == 0x3000) {
-		dbg_vprintf(DBG_VM, "Mapped 0x3000!\n");
+	if (vaddr == 0x40000000) {
+		dbg_vprintf(DBG_VM, "Mapped USER_MEM_START!\n");
+		while (1) asm volatile ("hlt");
 	}
 }
 

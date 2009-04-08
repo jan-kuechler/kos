@@ -1,7 +1,7 @@
 #include <bitop.h>
 #include <ports.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #include <kos/error.h>
 
 #include "acpi.h"
@@ -730,7 +730,7 @@ void kout_putn(int num, int base)
 	putn(kout_tty, num, base, 0, ' ');
 }
 
-void kout_aprintf(const char *fmt, int **args)
+void kout_aprintf(const char *fmt, va_list args)
 {
 	long long val = 0;
 	int pad;
@@ -754,7 +754,7 @@ void kout_aprintf(const char *fmt, int **args)
 			}
 
 			if (*fmt == 'd' || *fmt == 'u') {
-				val = *(*args)++;
+				val = va_arg(args, int);
 				if (val < 0) {
 					putc(kout_tty, '-');
 					pad--;
@@ -765,14 +765,14 @@ void kout_aprintf(const char *fmt, int **args)
 			         *fmt == 'p' || *fmt == 'x' ||
 			         *fmt == 'b')
 			{
-				val = *(*args)++;
+				val = va_arg(args, int);
 				val = val  & 0xffffffff;
 			}
 
 
 			switch (*fmt) {
 			case 'c':
-				putc(kout_tty, *(*args)++);
+				putc(kout_tty, va_arg(args, char));
 				break;
 
 			case 'b':
@@ -790,12 +790,15 @@ void kout_aprintf(const char *fmt, int **args)
 				break;
 
 			case 'p':
+				padc = '0';
+				pad  = 8;
+				puts(kout_tty, "0x");
 			case 'x':
 				putn(kout_tty, val, 16, pad, padc);
 				break;
 
 			case 's':
-				puts(kout_tty, (char*)*(*args)++);
+				puts(kout_tty, va_arg(args, char*));
 				break;
 
 			case '%':
@@ -817,8 +820,9 @@ void kout_aprintf(const char *fmt, int **args)
 
 void kout_printf(const char *fmt, ...)
 {
-	int *args = ((int*)&fmt) + 1;
-	kout_aprintf(fmt, &args);
+	va_list args;
+	va_start(args, fmt);
+	kout_aprintf(fmt, args);
 }
 
 byte kout_set_status(byte status)

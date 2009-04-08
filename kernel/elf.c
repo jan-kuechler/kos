@@ -138,6 +138,7 @@ void elf_load(vaddr_t obj, const char *cmdline)
 
 			/* the first proghdr containa the entry point */
 			if (has_entry(phdr, header)) {
+				pm_set_debug();
 				proc = pm_create((void*)header->e_entry, cmdline, 1, 0, PS_BLOCKED);
 			}
 			kassert(proc);

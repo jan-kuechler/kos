@@ -1,4 +1,5 @@
 #include <elf.h>
+#include <stdarg.h>
 #include <string.h>
 #include <types.h>
 #include "config.h"
@@ -141,15 +142,23 @@ int dbg_verbose(char flag)
 void dbg_printf(char flag, const char *fmt, ...)
 {
 	if (dbg_check(flag)) {
-		int *args = ((int*)&fmt) + 1;
-		kout_aprintf(fmt, &args);
+		va_list args;
+		va_start(args, fmt);
+
+		byte old = kout_set_status(0x02);
+		kout_aprintf(fmt, args);
+		kout_set_status(old);
 	}
 }
 
 void dbg_vprintf(char flag, const char *fmt, ...)
 {
 	if (dbg_verbose(flag)) {
-		int *args = ((int*)&fmt) + 1;
-		kout_aprintf(fmt, &args);
+		va_list args;
+		va_start(args, fmt);
+
+		byte old = kout_set_status(0x0A);
+		kout_aprintf(fmt, args);
+		kout_set_status(old);
 	}
 }

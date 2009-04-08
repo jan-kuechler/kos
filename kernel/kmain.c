@@ -2,6 +2,7 @@
 #include <multiboot.h>
 #include <page.h>
 #include <string.h>
+#include <stdarg.h>
 #include <kos/syscall.h>
 #include "acpi.h"
 #include "debug.h"
@@ -169,13 +170,14 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
 	kernel_init_done = 0; // interrupts won't get enabled again
 
-	int *args = ((int*)&fmt) + 1;
+	va_list args;
+	va_start(args, fmt);
 
 	kout_select();
 
 	kout_set_status(0x04); /* white on red */
 	kout_puts("Panic: ");
-	kout_aprintf(fmt, &args);
+	kout_aprintf(fmt, args);
 	kout_puts("\n");
 
 	dbg_stack_backtrace();

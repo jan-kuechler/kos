@@ -4,6 +4,7 @@
 #include <types.h>
 #include <kos/msg.h>
 
+#include "config.h"
 #include "regs.h"
 #include "mm/virt.h"
 
@@ -77,10 +78,21 @@ typedef struct proc {
 	msg_t  *msg_head, *msg_tail;
 	byte   msg_count;
 
+#ifdef CONF_DEBUG
+	int    debug;
+#endif
+
 	struct proc *next;
 } proc_t;
 
 extern proc_t *cur_proc;
+
+#ifdef CONF_DEBUG
+extern int proc_debug;
+#define pm_set_debug() do { proc_debug = 1; } while (0);
+#else
+#define pm_set_debug() do { } while (0)
+#endif
 
 void init_pm(void);
 
