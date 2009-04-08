@@ -79,35 +79,28 @@ objlist:
 
 .PHONY: floppy
 floppy: 
-	rm -rf tmp
-	mkdir tmp
-	cp menu-floppy.lst tmp/menu.lst
-	cp ../tools/grub/grldr tmp
-	cp $(BIN_DIR)/kos.bin tmp
-	cp $(BIN_DIR)/test.mod tmp
-	bfi -t=144 -f=img/floppy.img tmp -b=../tools/grub/grldr.mbr
-	cmd "/C makeboot.bat img\floppy.img "
+	./cpyfiles.sh floppy
+	bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
+	cmd "/C makeboot.bat img\kos.img "
 	rm -rf tmp
 	
 .PHONY: iso
 iso:
-	rm -rf tmp
-	mkdir tmp
-	cp menu-iso.lst tmp/menu.lst
-	cp $(BIN_DIR)/kos.bin tmp
-	cp ../tools/grub/grldr tmp
+	./cpyfiles.sh iso
 	mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
 	rm -rf tmp
 	
-.PHONY: run
 run:
-	qemu -m 16 -L ../tools/qemu -fda img/floppy.img
+	qemu -m 16 -L ../tools/qemu -fda img/kos.img
 	
 run-iso:
 	qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
 
 dbg:
-	qemu -m 16 -S -s -L ../tools/qemu -fda img/floppy.img 
+	qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
+	
+bochs:
+	bochs
 	
 ## Rest ##
 
@@ -137,6 +130,9 @@ clean:
 	
 cleanall: clean
 	rm -f $(BIN_DIR)/kos.bin
-	rm -f img/floppy.img
+	rm -f $(BIN_DIR)/*.mod
+	rm -f $(BIN_DIR)/*.a
+	rm -f img/kos.img
+	rm -f img/kos.iso
 	rm -f *.target
 	rm -f .objlist
