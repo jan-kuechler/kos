@@ -3,5 +3,5 @@ timeout 2
 
 title kOS
 kernel /kos.bin debug=lMECV
-module /test.mod
+module /test.mod test
 root (fd0)

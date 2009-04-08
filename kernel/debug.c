@@ -1,8 +1,10 @@
 #include <elf.h>
+#include <string.h>
 #include <types.h>
 #include "config.h"
 #include "kernel.h"
 #include "pm.h"
+#include "tty.h"
 #include "mm/virt.h"
 
 static Elf32_Shdr *symtab;
@@ -140,7 +142,7 @@ void dbg_printf(char flag, const char *fmt, ...)
 {
 	if (dbg_check(flag)) {
 		int *args = ((int*)&fmt) + 1;
-		kout_aprintf(fmt, args);
+		kout_aprintf(fmt, &args);
 	}
 }
 
@@ -148,6 +150,6 @@ void dbg_vprintf(char flag, const char *fmt, ...)
 {
 	if (dbg_verbose(flag)) {
 		int *args = ((int*)&fmt) + 1;
-		kout_aprintf(fmt, args);
+		kout_aprintf(fmt, &args);
 	}
 }

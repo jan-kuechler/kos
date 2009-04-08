@@ -10,9 +10,11 @@
 #define PE_WRITETRHOUGH 0x0008
 #define PE_CACHEDISABLE 0x0010
 #define PE_ACCESSED     0x0020
+
 #define PD_4MBSIZE      0x0080
-#define PT_GLOBAL       0x0040
-#define PT_DIRTY        0x0100
+
+#define PT_DIRTY        0x0040
+#define PT_GLOBAL       0x0100
 
 #define VM_COMMON_FLAGS (PE_PRESENT | PE_READWRITE)
 #define VM_USER_FLAGS (VM_COMMON_FLAGS | PE_USERMODE)

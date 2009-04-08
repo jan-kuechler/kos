@@ -1,5 +1,7 @@
+#include <string.h>
 #include "debug.h"
 #include "kernel.h"
+#include "mm/kmalloc.h"
 #include "mm/virt.h"
 
 static byte *loaded;
@@ -7,10 +9,11 @@ static byte *loaded;
 void init_mod()
 {
 	/* map the module list into the kernel pagedir */
-	km_identity_map(multiboot_info.mods_addr, VM_COMMON_FLAGS,
+	km_identity_map((paddr_t)multiboot_info.mods_addr, VM_COMMON_FLAGS,
 	                multiboot_info.mods_count * sizeof(multiboot_mod_t));
 
 	loaded = kmalloc(multiboot_info.mods_count);
+	memset(loaded, 0, multiboot_info.mods_count);
 }
 
 void mod_load(int n)
@@ -24,18 +27,18 @@ void mod_load(int n)
 
 	dbg_printf(DBG_MODULE, "Loading module %d.\n", n);
 
-	return;
+	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr + n * sizeof(multiboot_mod_t);
 
-	multiboot_mod_t *mod = multiboot_info.mods_addr + n * sizeof(multiboot_mod_t);
+	dbg_vprintf(DBG_MODULE, "Mapping module: 0x%08x\n", mod->mod_start);
+	km_identity_map((paddr_t)mod->mod_start, VM_COMMON_FLAGS, mod->mod_end - mod->mod_start);
+	dbg_vprintf(DBG_MODULE, "Mapping cmdline: 0x%08x\n", mod->cmdline);
+	km_identity_map((paddr_t)mod->cmdline, VM_COMMON_FLAGS, 1024);
 
-	dbg_vprintf(DBG_MODULE, "Mapping: 0x%x and 0x%x\n", mod->mod_start, mod->cmdline);
-	km_identity_map(mod->mod_start, VM_COMMON_FLAGS, mod->mod_end - mod->mod_start);
-	km_identity_map(mod->cmdline, VM_COMMON_FLAGS, 4096);
+	dbg_vprintf(DBG_MODULE, "Loading elf module\n");
+	elf_load((vaddr_t)mod->mod_start, (char*)mod->cmdline);
 
-	elf_load(mod->mod_start, mod->cmdline);
-
-	km_free_addr(mod->mod_start, mod->mod_end - mod->mod_start);
-	km_free_addr(mod->cmdline, 4096);
+	km_free_addr((vaddr_t)mod->mod_start, mod->mod_end - mod->mod_start);
+	km_free_addr((vaddr_t)mod->cmdline, 1024);
 
 	loaded[n] = 1;
 }

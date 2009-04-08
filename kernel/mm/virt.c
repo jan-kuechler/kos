@@ -24,6 +24,11 @@ static inline paddr_t getaddr(pany_entry_t entry)
 	return (paddr_t)bmask((dword)entry, BMASK_PE_ADDR);
 }
 
+static inline dword getflags(pany_entry_t entry)
+{
+	return (dword)bmask((dword)entry, BMASK_PE_FLAGS);
+}
+
 #define CHECK_ALIGN(var) kassert(IS_PAGE_ALIGNED(var))
 
 #define page2addr(page) ((paddr_t)(page * PAGE_SIZE))
@@ -139,13 +144,19 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 	/* map the page table, so it can be accessed */
 	ptab = map_working_table(ptab);
 
-	if (bisset(ptab[ptab_index(vaddr)], PE_PRESENT) && bnotset(flags, PE_PRESENT)) {
+	if (bisset(ptab[ptab_index(vaddr)], PE_PRESENT) && bisset(flags, PE_PRESENT)) {
 		/* attempt to create a new mapping to an addr that allready exists */
 
 		ptab_entry_t pte = ptab[ptab_index(vaddr)];
-		pte &= (PE_ACCESSED | PT_DIRTY); // clear any proccessor flags for comparison
+		pte &= ~(PE_ACCESSED | PT_DIRTY); // clear any proccessor flags for comparison
 		if (pte != (ptab_entry_t)((dword)paddr | flags)) {
-			panic("mm_map_page: There is allready a mapping to virt 0x%x (phys: 0x%x flags: %b)", vaddr, paddr, flags);
+			panic("vm_map_page: Double mapping!\n"
+			      "\tVirt:     0x%08x\n"
+			      "\tOld phys: 0x%08x\n"
+			      "\tNew phys: 0x%08x\n"
+			      "\tNew flags: %012b\n"
+			      "\tOld flags: %012b\n",
+			      vaddr, getaddr(pte), paddr, flags, getflags(pte));
 		}
 		/* ignore the rest */
 	}
@@ -162,6 +173,9 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		}
 	}
 
+	if (vaddr == 0x3000) {
+		dbg_vprintf(DBG_VM, "Mapped 0x3000!\n");
+	}
 }
 
 /**
@@ -186,7 +200,6 @@ void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstar
 	CHECK_ALIGN(vstart);
 
 	int i=0;
-
 	for (; i < num; ++i) {
 		paddr_t paddr = (paddr_t)((dword)pstart + (i * PAGE_SIZE));
 		vaddr_t vaddr = (vaddr_t)((dword)vstart + (i * PAGE_SIZE));
@@ -343,6 +356,8 @@ void vm_identity_map(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_
 {
 	paddr_t aligned_pstart = align_addr(pstart);
 	size_t  aligned_size   = align_size(pstart, size);
+
+	dbg_vprintf(DBG_VM, "Aligning addr: 0x%08x => 0x%08x\n", pstart, aligned_pstart);
 
 	vm_map_range(pdir, aligned_pstart, aligned_pstart, flags, NUM_PAGES(aligned_size));
 }

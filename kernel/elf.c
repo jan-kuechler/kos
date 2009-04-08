@@ -5,6 +5,7 @@
 #include "debug.h"
 #include "kernel.h"
 #include "pm.h"
+#include "mm/mm.h"
 #include "mm/util.h"
 #include "mm/virt.h"
 
@@ -51,10 +52,10 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 	}
 
 	int memsz_pages = NUM_PAGES(phdr->p_memsz);
-	vaddr_t base = PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
+	vaddr_t base = (vaddr_t)PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
 
-	if (base < CONF_PROG_BASE_MIN)
-		base = CONF_PROG_BASE_MIN;
+	if (base < (vaddr_t)CONF_PROG_BASE_MIN)
+		base = (vaddr_t)CONF_PROG_BASE_MIN;
 
 	/* allocate the memory for the segment */
 	int i=0;
@@ -147,5 +148,5 @@ void elf_load(vaddr_t obj, const char *cmdline)
 		}
 	}
 
-	//pm_unblock(proc);
+	pm_unblock(proc);
 }

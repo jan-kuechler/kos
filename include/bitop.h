@@ -18,6 +18,7 @@
 #define BMASK_3BIT         0x7
 #define BMASK_4BIT         0xF
 #define BMASK_BYTE        0xFF
+#define BMASK_12BIT      0xFFF
 #define BMASK_WORD      0xFFFF
 #define BMASK_DWORD 0xFFFFFFFF
 
