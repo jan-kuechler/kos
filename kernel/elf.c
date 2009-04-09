@@ -54,9 +54,13 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 	int memsz_pages = NUM_PAGES(phdr->p_memsz);
 	vaddr_t base = (vaddr_t)PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
 
+	dbg_vprintf(DBG_ELF, "  Segment: memsz %d pages, base at %p\n", memsz_pages, base);
+
 	if (base < (vaddr_t)CONF_PROG_BASE_MIN)
 		base = (vaddr_t)CONF_PROG_BASE_MIN;
 
+
+	dbg_vprintf(DBG_ELF, "  Allocating memory...\n");
 	/* allocate the memory for the segment */
 	int i=0;
 	for (; i < memsz_pages; ++i) {
@@ -64,6 +68,7 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 		vm_map_page(pdir, page, (vaddr_t)(base + i * PAGE_SIZE), VM_USER_FLAGS);
 	}
 
+	dbg_vprintf(DBG_ELF, "  Copying first page...\n");
 	/* the data may begin anywhere on the first page... */
 	dword first_page_bytes;
 	if (phdr->p_filesz > PAGE_SIZE - (phdr->p_vaddr % PAGE_SIZE)) {
@@ -86,6 +91,8 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 
 	int filesz_pages = NUM_PAGES(phdr->p_filesz);
 
+	dbg_vprintf(DBG_ELF, "  Rest of %d pages are copied...\n", filesz_pages);
+
 	/* copy all other pages */
 	for (i = 1; i < filesz_pages; ++i) {
 		pdst = vm_resolve_virt(pdir, (vaddr_t)(start + i * PAGE_SIZE));
@@ -95,12 +102,14 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 
 	/* fill the rest of the last page with 0 */
 	if (last_page_padding) {
+		dbg_vprintf(DBG_ELF, "  Last page is padded with %d 0s\n", last_page_padding);
 		vaddr_t data_end = start + ((filesz_pages - 1) * PAGE_SIZE) +
 		                   (PAGE_SIZE - last_page_padding);
 		pdst = vm_resolve_virt(pdir, data_end);
 		vm_set_p(pdst, 0, last_page_padding);
 	}
 
+	dbg_vprintf(DBG_ELF, "  Filling %d pages with 0s\n", memsz_pages - filesz_pages);
 	/* if the programs size in memory is greater than its filesize,
 	   the memory has to be filled with 0 */
 	for (i = filesz_pages; i < memsz_pages; ++i) {
@@ -108,6 +117,8 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
 
 		vm_set_p(pdst, 0, PAGE_SIZE);
 	}
+
+	dbg_vprintf(DBG_ELF, "  Segment loaded!\n");
 }
 
 /**
@@ -115,7 +126,7 @@ static inline void map_segment_mem(pdir_t pdir, Elf32_Phdr *phdr, vaddr_t start)
  *
  * Loads an ELF executable
  */
-void elf_load(vaddr_t obj, const char *cmdline)
+void elf_load(vaddr_t obj, const char *cmdline, pid_t parent)
 {
 	Elf32_Ehdr *header = (Elf32_Ehdr*)obj;
 
@@ -127,7 +138,7 @@ void elf_load(vaddr_t obj, const char *cmdline)
 		panic("elf_load: ELF program is no executable (%s)", cmdline ? cmdline : "<NULL>");
 	}
 
-	dbg_printf(DBG_ELF, "Loading %s\n", cmdline);
+	dbg_printf(DBG_ELF, "Loading '%s'\n", cmdline);
 
 	Elf32_Phdr *phdr = (Elf32_Phdr*)((dword)header + header->e_phoff);
 	proc_t *proc = NULL;
@@ -138,8 +149,8 @@ void elf_load(vaddr_t obj, const char *cmdline)
 
 			/* the first proghdr containa the entry point */
 			if (has_entry(phdr, header)) {
-				pm_set_debug();
-				proc = pm_create((void*)header->e_entry, cmdline, 1, 0, PS_BLOCKED);
+				//pm_set_debug();
+				proc = pm_create((void*)header->e_entry, cmdline, PM_USER, parent, PS_BLOCKED);
 			}
 			kassert(proc);
 
@@ -149,5 +160,6 @@ void elf_load(vaddr_t obj, const char *cmdline)
 		}
 	}
 
-	pm_unblock(proc);
+	dbg_printf(DBG_ELF, "ELF program loaded.\n");
+	//pm_unblock(proc);
 }

@@ -18,7 +18,7 @@ static int stderr;
 
 static void print(int fd, const char *str)
 {
-	kos_write(fd, str, strlen(str));
+	write(fd, str, strlen(str));
 }
 
 /***************************/
@@ -60,6 +60,7 @@ static void test()
 {
 	//print(stdout, "Loading module 0!\n");
 	mod_load(0);
+	print(stdout, "Done!\n");
 }
 
 static void help()
@@ -91,19 +92,19 @@ static void run_cmd(const char *cmd)
 
 void ksh(void)
 {
-	stdin  = kos_open("/dev/tty7", 0, 0);
-	stdout = kos_open("/dev/tty7", 0, 0);
-	stderr = kos_open("/dev/tty7", 0, 0);
+	stdin  = open("/dev/tty7", 0, 0);
+	stdout = open("/dev/tty7", 0, 0);
+	stderr = open("/dev/tty7", 0, 0);
 
 	char buffer[512] = {0};
 	int len = 0;
 
 	print(stdout, PROMPT);
-	while ((len = kos_read(stdin, buffer, 512)) > 0) {
+	while ((len = read(stdin, buffer, 512)) > 0) {
 		buffer[len] = 0;
 		run_cmd(buffer);
 		print(stdout, PROMPT);
 	}
 
-	kos_exit(0);
+	exit(0);
 }

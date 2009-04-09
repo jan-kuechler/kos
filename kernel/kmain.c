@@ -100,7 +100,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	kout_puts("\n");
 
-	print_info();
+	//print_info();
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 
@@ -141,7 +141,6 @@ static void print_info()
 		kout_puts("== Memory ==\n");
 		kout_printf("Total:       %4d MB\n", mm_total_mem() / 1024 / 1024);
 		kout_printf("Free:        %4d MB\n", (mm_num_free_pages() * 4) / 1024);
-		kout_printf("Page size:   %4d  B\n", PAGE_SIZE);
 		kout_printf("Kernel size: %4d KB\n", (int)(kernel_end - kernel_start) / 1024);
 	}
 

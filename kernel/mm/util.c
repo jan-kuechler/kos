@@ -54,7 +54,9 @@ dword vm_switch_pdir(pdir_t pdir, dword rev)
 {
 	//if (rev < kpdir_rev) {
 	//	/* copy the kernel addr space (lower half) */
+	//	//dbg_vprintf(DBG_VM, "Updating pdir (%d => %d)\n", rev, kpdir_rev);
 	//	memcpy(pdir, kernel_pdir, PAGE_SIZE / 2);
+	//	//dbg_vprintf(DBG_VM, "Update done.\n");
 	//}
 	asm volatile("mov %0, %%cr3" : : "r"(pdir));
 	return kpdir_rev;

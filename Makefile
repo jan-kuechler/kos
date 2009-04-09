@@ -2,23 +2,19 @@
 # Makefile for kOS #
 ####################
 
-###############
-# Environment #
-###############
-
+######### osdev environment ######### 
 OSDEV=/c/osdev
 TOOLS=$(OSDEV)/tools
 
 LUA=lua.exe
 PRINT_LUA=$(TOOLS)/print.lua
 
-#############
-# Constants #
-#############
+######### constants #########
 ARCH=i386
 
 BIN_DIR=bin
 INC_DIR=include
+LIB_DIR=lib
 
 ARCH_INC=$(INC_DIR)/arch/$(ARCH)
 
@@ -28,7 +24,8 @@ KERNEL_INC=$(KERNEL_DIR)/include
 FS_DIR=$(KERNEL_DIR)/fs
 MM_DIR=$(KERNEL_DIR)/mm
 
-LIB_DIR=lib
+ASM=nasm
+ASM_FLAGS=-felf
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC)
@@ -39,14 +36,11 @@ LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld
 
 LIBS=-lminc -lk 
 
-ASM=nasm
-ASM_FLAGS=-felf
-
-###########
-# Targets #
-###########
+######### targets ##########
 
 all: kernel link_map
+
+test: all floppy bochs
 
 version:
 	$(ASM) -v
@@ -56,9 +50,7 @@ version:
 ## Makefile generation ##
 prepare: targets objlist
 
-targets: ktar
-
-ktar:
+targets:
 	rm -f kernel.target
 	for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
@@ -69,38 +61,8 @@ objlist:
 	rm -f .objlist
 	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target
 	
-# Provides rules to make the kernel
 -include kernel.target
-
-# Provides $(OBJS), which includes all objects from the above files
 -include .objlist
-
-## Image creation ##
-
-.PHONY: floppy
-floppy: 
-	./cpyfiles.sh floppy
-	bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
-	cmd "/C makeboot.bat img\kos.img "
-	rm -rf tmp
-	
-.PHONY: iso
-iso:
-	./cpyfiles.sh iso
-	mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
-	rm -rf tmp
-	
-run:
-	qemu -m 16 -L ../tools/qemu -fda img/kos.img
-	
-run-iso:
-	qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
-
-dbg:
-	qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
-	
-bochs:
-	bochs
 	
 ## Rest ##
 
@@ -121,6 +83,31 @@ $(BIN_DIR)/kstart.o: $(KERNEL_DIR)/kstart.s
 	
 $(BIN_DIR)/int.o: $(KERNEL_DIR)/int.s
 	$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/int.o $(KERNEL_DIR)/int.s
+	
+## Image creation ##
+
+floppy: 
+	./cpyfiles.sh floppy
+	bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
+	cmd "/C makeboot.bat img\kos.img "
+	rm -rf tmp
+	
+iso:
+	./cpyfiles.sh iso
+	mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
+	rm -rf tmp
+	
+run:
+	qemu -m 16 -L ../tools/qemu -fda img/kos.img
+	
+run-iso:
+	qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
+
+dbg:
+	qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
+	
+bochs:
+	bochs
 
 ## Clean ##
 

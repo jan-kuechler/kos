@@ -3,6 +3,7 @@
 #include <page.h>
 #include <string.h>
 
+#include "debug.h"
 #include "kernel.h"
 #include "mm/mm.h"
 
@@ -263,8 +264,10 @@ void init_mm(void)
 	for (i=0; i < multiboot_info.mods_count; ++i) {
 		multiboot_mod_t *mod = (multiboot_mod_t*)((char*)multiboot_info.mods_addr + (i * sizeof(multiboot_mod_t)));
 		mark(blocks, &nblocks, mod->mod_start, mod->mod_end);
-		if (mod->cmdline)
+		if (mod->cmdline) {
+			dbg_vprintf(DBG_MM, "mod cmdline reserved at %p\n", mod->cmdline);
 			mark(blocks, &nblocks, mod->cmdline, mod->cmdline + strlen((const char*)mod->cmdline) + 1);
+		}
 	}
 
 	dword upper_end = 0;

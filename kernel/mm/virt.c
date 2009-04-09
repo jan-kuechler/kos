@@ -7,7 +7,8 @@
 #include "mm/mm.h"
 #include "mm/virt.h"
 
-#define MAP_TABLE_VADDR 0xFFFFF000
+// this is the last addr in kernel space
+#define MAP_TABLE_VADDR 0x3FFFF000
 
 extern dword *mm_get_mmap(void);
 extern dword  mm_get_mmap_size();
@@ -77,6 +78,8 @@ void init_paging(void)
 	working_table_map = mm_alloc_page();
 	kassert(working_table_map != NO_PAGE);
 	memset(working_table_map, 0, PAGE_SIZE);
+
+	dbg_vprintf(DBG_VM, "wtm is at %p\n", working_table_map);
 
 	kernel_pdir[pdir_index(MAP_TABLE_VADDR)] = (pdir_entry_t)working_table_map | PE_PRESENT | PE_READWRITE;
 	map_working_table(0);
@@ -176,9 +179,8 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		}
 	}
 
-	if (vaddr == 0x40000000) {
-		dbg_vprintf(DBG_VM, "Mapped USER_MEM_START!\n");
-		while (1) asm volatile ("hlt");
+	if (vaddr == (vaddr_t)0x2000) {
+		dbg_vprintf(DBG_VM, "!! mapped %p => 0x2000\n", paddr);
 	}
 }
 
@@ -313,6 +315,7 @@ vaddr_t vm_find_range(pdir_t pdir, int num)
 		}
 	}
 
+	dbg_vprintf(DBG_VM, "nothing found )-:\n");
 	return 0;
 }
 
@@ -330,7 +333,7 @@ vaddr_t vm_alloc_addr(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size
 
 	vaddr_t vstart = vm_find_range(pdir, NUM_PAGES(aligned_size));
 	if (!vstart) {
-		panic("vm_map_anywhere: page directory is full.");
+		panic("vm_alloc_addr: page directory is full.");
 	}
 
 	vm_map_range(pdir, aligned_pstart, vstart, flags, NUM_PAGES(aligned_size));

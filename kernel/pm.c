@@ -279,6 +279,8 @@ void pm_restore(dword *esp)
 
 		dbg(cur_proc, "Debug Proc: restored\n");
 	}
+
+	vm_switch_pdir(kernel_pdir, kpdir_rev);
 }
 
 /**

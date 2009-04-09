@@ -89,7 +89,7 @@ static void idt_handle_exception(dword *esp)
 	kout_select();
 	byte oc = kout_set_status(0x04);
 
-	byte user = (regs->ds == GDT_SEL_UDATA);
+	byte user = (regs->ds == (GDT_SEL_UDATA + 0x03));
 
 	if (user) {
 		kout_printf("%s triggered an exception.\n", cur_proc->cmdline);
@@ -109,6 +109,8 @@ static void idt_handle_exception(dword *esp)
 	kout_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
 	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
 
+	kout_printf("Current process: '%s' (%d)\n", cur_proc->cmdline, cur_proc->pid);
+
 	kout_puts("\n");
 
 	if (user) {
@@ -127,6 +129,7 @@ static void idt_handle_irq(dword *esp)
 	dword irq = regs->intr - IRQ_BASE;
 
 	if (irq == 7 || irq == 15) {
+		// theese irqs may be fake ones, test it
 		byte pic = (irq < 8) ? PIC1 : PIC2;
 		outb(pic + 3, 0x03);
 		if ((inb(pic) & 0x80) != 0) {
@@ -149,6 +152,7 @@ dword idt_handle_int(dword esp)
 {
 	regs_t *regs = (regs_t*)esp;
 
+	// let interrupts don't get enabled until we have finished
 	idt_in_irq_handler = 1;
 
 	pm_restore(&esp);
