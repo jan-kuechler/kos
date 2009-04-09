@@ -13,14 +13,12 @@
 #define page_to_pos(p) (((dword)p / PAGE_SIZE) & 31)
 #define pos_to_offs(p) ((dword)p * PAGE_SIZE)
 
-static dword *mmap;
+// this is enough for 4GB memory
+#define MMAP_SIZE 0x8000
+
+static dword mmap[MMAP_SIZE];
 static dword mmap_length;
 static dword total_mem;
-
-struct memblock
-{
-	dword start, end;
-};
 
 static inline void mark_free(paddr_t page)
 {
@@ -191,51 +189,7 @@ dword *mm_get_mmap(void)
 
 dword mm_get_mmap_size(void)
 {
-	return (mmap_length * sizeof(dword));
-}
-
-static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
-{
-	int i = 0;
-
-	start = PAGE_ALIGN_ROUND_UP(start);
-	end   = PAGE_ALIGN_ROUND_DOWN(end);
-
-	for (; i < *nblocks; ++i) {
-		if (blocks[i].start == start) {
-			if (blocks[i].end == end) {  // it's a whole block
-				int j=i;
-
-				(void)*nblocks--;
-				for (; j < *nblocks; ++j) {
-					blocks[j].start = blocks[j+1].start;
-					blocks[j].end   = blocks[j+1].end;
-
-				}
-				break;
-			}
-			else if (blocks[i].end > end) {
-				blocks[i].start = end;
-				break;
-			}
-		}
-		else if (blocks[i].start < start) {
-			if (blocks[i].end == end) {
-				blocks[i].end = start;
-				break;
-			}
-			else if (blocks[i].end > end) {
-				blocks[*nblocks].start = end;
-				blocks[*nblocks].end   = blocks[i].end;
-
-				blocks[i].end = start;
-
-				(void)*nblocks++;
-
-				break;
-			}
-		}
-	}
+	return (MMAP_SIZE * sizeof(dword));
 }
 
 /**
@@ -245,50 +199,24 @@ static void mark(struct memblock *blocks, int *nblocks, dword start, dword end)
  */
 void init_mm(void)
 {
-	struct memblock blocks[16] = {0};
-	int nblocks = 0;
+	// mark everything as not available
+	memset(mmap, 0, 4 * MMAP_SIZE); // mmap_size is in dwords
+	mmap_length = MMAP_SIZE;
 
-	int i = 0;
-	blocks[0].start = 0x000000;
-	blocks[0].end   = multiboot_info.mem_lower * 1024; // the mb.mem_* fields are in kilobytes
+	mark_range_free((paddr_t)0x000000, NUM_PAGES(multiboot_info.mem_lower * 1024));
+	mark_range_free((paddr_t)0x100000, NUM_PAGES((multiboot_info.mem_upper * 1024) - 0x100000));
 
-	blocks[1].start = 0x100000; // 1 MB -> start of upper memory
-	blocks[1].end   = 0x100000 + (1024 * multiboot_info.mem_upper);
 
-	total_mem = 0x100000 + (1024 * multiboot_info.mem_upper);
-
-	nblocks = 2;
-
-	mark(blocks, &nblocks, (dword)kernel_phys_start, (dword)kernel_phys_end);
-
-	for (i=0; i < multiboot_info.mods_count; ++i) {
-		multiboot_mod_t *mod = (multiboot_mod_t*)((char*)multiboot_info.mods_addr + (i * sizeof(multiboot_mod_t)));
-		mark(blocks, &nblocks, mod->mod_start, mod->mod_end);
+	mark_range_used(kernel_phys_start, NUM_PAGES(kernel_phys_end - kernel_phys_start));
+	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr;
+	int i=0;
+	for (; i < multiboot_info.mods_count; ++i) {
+		mark_range_used((paddr_t)mod, NUM_PAGES(sizeof(multiboot_mod_t)));
+		mark_range_used((paddr_t)mod->mod_start, NUM_PAGES(mod->mod_end - mod->mod_start));
 		if (mod->cmdline) {
-			dbg_vprintf(DBG_MM, "mod cmdline reserved at %p\n", mod->cmdline);
-			mark(blocks, &nblocks, mod->cmdline, mod->cmdline + strlen((const char*)mod->cmdline) + 1);
+			dbg_vprintf(DBG_MM, "marking cmdline %p %d\n", mod->cmdline, NUM_PAGES(strlen((char*)mod->cmdline)));
+			mark_range_used((paddr_t)mod->cmdline, NUM_PAGES(strlen((char*)mod->cmdline)));
 		}
 	}
-
-	dword upper_end = 0;
-	for (i=0; i < nblocks; ++i) {
-		if (blocks[i].end > upper_end)
-			upper_end = blocks[i].end;
-	}
-
-	mmap_length = upper_end / PAGE_SIZE / 32;
-	for (i=0; i < nblocks; ++i) {
-		if (blocks[i].start && ((blocks[i].end - blocks[i].start) >= (mmap_length * 4))) {
-			mmap = (dword*)blocks[i].start;
-			blocks[i].start = PAGE_ALIGN_ROUND_UP(blocks[i].start + mmap_length * 4);
-			break;
-		}
-	}
-
-	/*mark_range_used(0, upper_end / PAGE_SIZE);*/
-	memset(mmap, 0, mmap_length * 4);
-	for (i=0; i < nblocks; ++i) {
-		mark_range_free((paddr_t)blocks[i].start, blocks[i].end - blocks[i].start);
-	}
-	mark_used((void*)0); // don't use the NULL page
+	mark_used((paddr_t)0x00);
 }
