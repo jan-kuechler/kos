@@ -161,5 +161,5 @@ void elf_load(vaddr_t obj, const char *cmdline, pid_t parent)
 	}
 
 	dbg_printf(DBG_ELF, "ELF program loaded.\n");
-	//pm_unblock(proc);
+	pm_unblock(proc);
 }

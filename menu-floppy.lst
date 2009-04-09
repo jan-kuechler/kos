@@ -3,5 +3,5 @@ timeout 2
 
 title kOS
 kernel /kos.bin debug=celmPVR
-module /test.mod test
+module /test.mod
 root (fd0)
