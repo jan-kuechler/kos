@@ -1,6 +1,8 @@
 #ifndef SYSCALLN_H
 #define SYSCALLN_H
 
+#define SC_TEST          0
+
 #define SC_PUTS          1
 #define SC_PUTN          2
 

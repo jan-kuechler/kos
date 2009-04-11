@@ -41,8 +41,6 @@ void mod_load(int n)
 	km_free_addr(mod_start, mod->mod_end - mod->mod_start);
 	km_free_addr(cmdline, 1024);
 
-	dbg_printf(DBG_MODULE, "Module loaded.\n");
-
 	loaded[n] = 1;
 }
 

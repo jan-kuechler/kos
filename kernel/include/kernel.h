@@ -11,7 +11,7 @@ extern void kernel_phys_start(void);
 extern void kernel_phys_end(void);
 extern void kernel_start(void);
 extern void kernel_end(void);
-extern void kernel_size();
+extern void kernel_size(void);
 
 void shutdown();
 void panic(const char *fmt, ...);

@@ -169,6 +169,11 @@ void do_get_answer(regs_t *regs)
 	sc_return(42);
 }
 
+void do_test(regs_t *regs)
+{
+	kout_printf("Test syscall from process %d (%s)\n", cur_proc->pid, cur_proc->cmdline);
+}
+
 #define MAP(calln,func) case calln: func(regs); break;
 
 void syscall(dword *esp)
@@ -196,6 +201,8 @@ void syscall(dword *esp)
 	MAP(SC_CLOSE,      do_close)
 	MAP(SC_READ,       do_readwrite)
 	MAP(SC_WRITE,      do_readwrite)
+
+	MAP(SC_TEST,       do_test)
 
 	MAP(SC_GET_ANSWER, do_get_answer)
 
