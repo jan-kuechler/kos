@@ -20,7 +20,7 @@
 #define VM_USER_FLAGS (VM_COMMON_FLAGS | PE_USERMODE)
 
 
-#define USER_STACK_ADDR 0xFFF00000
+#define USER_STACK_ADDR 0xFFFF0000
 
 /* the kernel page directory */
 extern pdir_t kernel_pdir;

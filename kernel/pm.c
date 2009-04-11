@@ -1,3 +1,4 @@
+#include <page.h>
 #include <string.h>
 #include "debug.h"
 #include "gdt.h"
@@ -76,7 +77,9 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].pdrev   = kpdir_rev;
 
 	dword *ustack = user_stacks[id];
-	ustack += USTACK_SIZE;
+	dword usize   = USTACK_SIZE * sizeof(dword);
+	vm_map_range(procs[id].pagedir, ustack, USER_STACK_ADDR - usize,
+	             VM_USER_FLAGS, NUM_PAGES(usize));
 
 	procs[id].ustack = (dword)ustack;
 
@@ -87,7 +90,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	dword data_seg = mode == PM_USER ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
 
 	*(--kstack) = data_seg;      // ss
-	*(--kstack) = (dword)ustack; // esp
+	*(--kstack) = USER_STACK_ADDR; // esp
 	*(--kstack) = 0x0202;        // eflags: 0000000100000010b -> IF
 	*(--kstack) = code_seg;      // cs
 	*(--kstack) = (dword)entry;  // eip
@@ -277,6 +280,7 @@ void pm_restore(dword *esp)
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
 		tss.esp0 = cur_proc->kstack;
+		tss.ss0  = GDT_SEL_DATA;
 
 		dbg(cur_proc, "Debug Proc: restored\n");
 	}

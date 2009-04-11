@@ -13,6 +13,7 @@
 #define DBG_VM        'v'
 #define DBG_MM        'r' // RAM
 #define DBG_PM        'p'
+#define DBG_SC        's'
 
 #ifdef CONF_DEBUG
 #define kassert(exp)                                 \

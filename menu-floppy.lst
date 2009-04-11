@@ -2,6 +2,6 @@ default 0
 timeout 2
 
 title kOS
-kernel /kos.bin debug=celmpvr
+kernel /kos.bin debug=celmpvrS
 module /test.mod
 root (fd0)
