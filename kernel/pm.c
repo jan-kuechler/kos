@@ -13,8 +13,9 @@ static proc_t *plist_head, *plist_tail;
 
 proc_t *cur_proc;
 
-dword user_stacks[MAX_PROCS][USTACK_SIZE];
+dword user_stacks[MAX_PROCS][USTACK_SIZE] __attribute__((aligned(4096)));
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
+
 
 void idle()
 {

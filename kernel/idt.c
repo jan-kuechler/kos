@@ -82,6 +82,13 @@ static const char *fault_msg[] = {
 	"??", "??", "??", "??",
 };
 
+static inline dword get_cr2()
+{
+	dword val = 0;
+	asm volatile("mov %%cr2, %0" : "=r"(val) :);
+	return val;
+}
+
 static void idt_handle_exception(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
@@ -98,13 +105,13 @@ static void idt_handle_exception(dword *esp)
 		kout_printf("kOS triggered an exception.\n");
 	}
 
-	kout_printf("Exception: #%02d (%s) @ %06x:%010x\n",
+	kout_printf("Exception: #%02d (%s) @ %06x:%p\n",
 	            regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
-	kout_printf("ss:esp = %06x:%010x error code: %010x\n",
-	            regs->u_ss, regs->u_esp, regs->errc);
-	kout_printf("eax: %010x ebx: %010x ecx: %010x edx: %010x\n",
+	kout_printf("ss:esp: %06x:%p error code: %08b cr2: %010x\n",
+	            regs->u_ss, regs->u_esp, regs->errc, get_cr2());
+	kout_printf("eax: %p ebx: %p ecx: %p edx: %p\n",
 	            regs->eax, regs->ebx, regs->ecx, regs->edx);
-	kout_printf("ebp: %010x esp: %010x esi: %010x edi: %010x\n",
+	kout_printf("ebp: %p esp: %p esi: %p edi: %p\n",
 	            regs->ebp, regs->esp, regs->esi, regs->edi);
 	kout_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
 	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);

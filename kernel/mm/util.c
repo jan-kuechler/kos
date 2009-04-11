@@ -1,16 +1,21 @@
 #include <page.h>
 #include <string.h> // memcpy/set
 #include "debug.h"
+#include "pm.h"
 #include "mm/mm.h"
 #include "mm/util.h"
 #include "mm/virt.h"
 
 pdir_t mm_create_pagedir()
 {
+	dbg_vprintf(DBG_VM, "Creating new page directory...");
+
 	pdir_t pdir = mm_alloc_page();
 	km_identity_map(pdir, VM_COMMON_FLAGS, PAGE_SIZE);
 
 	memcpy(pdir, kernel_pdir, PAGE_SIZE);
+
+	dbg_vprintf(DBG_VM, "done (%p)\n", pdir);
 
 	return pdir;
 }
