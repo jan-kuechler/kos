@@ -14,8 +14,12 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 
+// FIXME: does not handle user space!
+
+// "returns" the nth argument of the call
 #define arg(n,type) (*((type*)((char*)&regs->u_esp + ((n)*4))))
 
+// sets the return value
 #define sc_return(v) {regs->eax = v; return;}
 
 syscall_t syscalls[SYSCALL_MAX] = {0};
@@ -176,6 +180,11 @@ void do_test(regs_t *regs)
 
 #define MAP(calln,func) case calln: func(regs); break;
 
+/**
+ *  syscall(esp)
+ *
+ * Handles a syscall interrupt.
+ */
 void syscall(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;

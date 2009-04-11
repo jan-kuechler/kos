@@ -280,7 +280,6 @@ void pm_restore(dword *esp)
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
 		tss.esp0 = cur_proc->kstack;
-		tss.ss0  = GDT_SEL_DATA;
 
 		dbg(cur_proc, "Debug Proc: restored\n");
 	}

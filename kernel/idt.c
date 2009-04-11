@@ -11,11 +11,13 @@
 #include "tty.h"
 
 idt_entry_t   idt[IDT_SIZE];
-irq_handler_t irq_handlers[16] = {0};
+irq_handler_t irq_handlers[16] = {0}; // a list of functions to be called
+                                      // when an IRQ happens
 
-byte idt_in_irq_handler;
+byte idt_in_irq_handler; // this controls whether enable/disable_intr
+                         // has an effect
 
-/* int.s */
+/* assembler stubs exported by int.s */
 extern void isr_null_handler(void);
 
 extern void isr_stub_0(void);
@@ -58,6 +60,7 @@ extern void irq_stub_15(void);
 
 extern void syscall_stub(void);
 
+/* messages for (nearly) all exceptions */
 static const char *fault_msg[] = {
 	"Devide by 0",
 	"Debug exception",
@@ -154,7 +157,12 @@ irq_handeled:
 	outb(PIC1_CMD, PIC_EOI);
 }
 
-/* this function is called from int.s */
+/**
+ *  idt_handle_int(esp)
+ *
+ * This function is called whenever an interrupt happens.
+ * NOTE: Called by int.s
+ */
 dword idt_handle_int(dword esp)
 {
 	regs_t *regs = (regs_t*)esp;
@@ -181,6 +189,11 @@ dword idt_handle_int(dword esp)
 	return esp;
 }
 
+/**
+ *  idt_set_irq_handler(irq, handler)
+ *
+ * Sets the handler for an irq.
+ */
 byte idt_set_irq_handler(byte irq, irq_handler_t handler)
 {
 	if (irq > 15)
@@ -193,6 +206,11 @@ byte idt_set_irq_handler(byte irq, irq_handler_t handler)
 	return 1;
 }
 
+/**
+ *  idt_clr_irq_handler(irq)
+ *
+ * Clears the handler for an irq.
+ */
 byte idt_clr_irq_handler(byte irq)
 {
 	if (irq > 15)
@@ -202,6 +220,11 @@ byte idt_clr_irq_handler(byte irq)
 	return 1;
 }
 
+/**
+ *  init_idt()
+ *
+ * Initializes the IDT.
+ */
 void init_idt(void)
 {
 	int i = 0;
@@ -212,6 +235,7 @@ void init_idt(void)
 
 	idt_in_irq_handler = 0;
 
+	// there should be some sort of compile time 'for' with macros )-:
 	idt_set_gate( 0, GDT_SEL_CODE, isr_stub_0,  0, IDT_INTERRUPT_GATE);
 	idt_set_gate( 1, GDT_SEL_CODE, isr_stub_1,  0, IDT_INTERRUPT_GATE);
 	idt_set_gate( 2, GDT_SEL_CODE, isr_stub_2,  0, IDT_INTERRUPT_GATE);
@@ -257,18 +281,18 @@ void init_idt(void)
 	/* start initialization */
 	outb_wait(PIC1_CMD, ICW1_INIT + ICW1_ICW4);
 	outb_wait(PIC2_CMD, ICW1_INIT + ICW1_ICW4);
-  /* define PIC vectors */
+	/* define PIC vectors */
 	outb_wait(PIC1_DATA, IRQ_BASE);
 	outb_wait(PIC2_DATA, IRQ_BASE + 8);
 	/* continue initialization */
 	outb_wait(PIC1_DATA, 4);
 	outb_wait(PIC2_DATA, 2);
 	/* mode: 8086 */
-  outb_wait(PIC1_DATA, ICW4_8086);
-  outb_wait(PIC2_DATA, ICW4_8086);
+	outb_wait(PIC1_DATA, ICW4_8086);
+	outb_wait(PIC2_DATA, ICW4_8086);
 	/* nothing masked */
-  outb_wait(PIC1_DATA, 0x00);
-  outb_wait(PIC2_DATA, 0x00);
+	outb_wait(PIC1_DATA, 0x00);
+	outb_wait(PIC2_DATA, 0x00);
 
 	struct {
 		word  size;
@@ -284,6 +308,11 @@ void init_idt(void)
 	disable_intr();
 }
 
+/**
+ *  idt_set_gate(intr, selector, handler, dpl, type)
+ *
+ * Sets an IDT gate.
+ */
 void idt_set_gate(int intr, word selector, void *handler,
                   byte dpl, byte type)
 {

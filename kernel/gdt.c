@@ -6,8 +6,15 @@
 
 gdt_entry_t gdt[GDT_SIZE];
 
+/**
+ *  init_gdt()
+ *
+ * Initializes all GDT entries.
+ */
 void init_gdt(void)
 {
+	/* NOTE: The order of the descriptors is important! */
+
 	/* NULL descriptor */
 	gdt_set_desc(0, 0x00, 0x00, GDT_NULL, 0, 0);
 
@@ -27,19 +34,18 @@ void init_gdt(void)
 	gdt_set_desc(5, sizeof(tss_t)-1, (dword)&tss,
 	             GDT_PRESENT | GDT_TSS, 3, 1);
 
-
 	struct
 	{
 		word  size;
 		dword base;
 	} __attribute__((packed)) gdt_ptr = {
-			.size = GDT_SIZE*8-1,
-			.base = (dword)gdt,
+		.size = GDT_SIZE*8-1,
+		.base = (dword)gdt,
 	};
 
 	dbg_printf(DBG_GDT, "Loading GDT\n");
 	asm volatile(
-		"lgdtl %0           \n\t"	/* load the gdt */
+		"lgdtl %0           \n\t" /* load the gdt */
 		"ljmpl $0x08, $1f   \n\t" /* jump to new code segment (loads cs)
 		                             (0x08 => 2. entry in the gdt) */
 		"1:                 \n\t"
@@ -56,6 +62,11 @@ void init_gdt(void)
 	asm volatile("ltr %%ax \n\t" : : "a"(GDT_SEL_TSS));
 }
 
+/**
+ *  gdt_set_desc(segment, size, base, access, dpl, byte_gran)
+ *
+ * Sets a GDT gate.
+ */
 void gdt_set_desc(int segment, dword size, dword base, byte access,
                   byte dpl, byte byte_gran)
 {

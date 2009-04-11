@@ -44,7 +44,7 @@ static int keycode[][128] = {
 		00,  00,  00,  00,  00,  00, 100,  00,  00,  00,
 		00,  00,  00,  00,  00,  00,  00,  00,  00,  00,
 		00, 102, 103, 104,  00, 105,  00, 106,  00, 107,
-	 108, 109, 110, 111,  00,  00,  00,  00,  00,  00,
+		108, 109, 110, 111,  00,  00,  00,  00,  00,  00,
 		00,  00,  00,  00,  00,  00,  00,  00,  00,  00,
 		00,  00,  00,  00,  00,  00,  00,  00,  00,  00,
 		00,  00,  00,  00,  00,  00,  00,  00,  00,  00,
@@ -52,6 +52,7 @@ static int keycode[][128] = {
 	},
 };
 
+// the cmd port has to be empty to send any commands
 static inline void clear_in(void)
 {
 	while (inb(KBC_CMD) & STATUS_INB) {
@@ -73,6 +74,8 @@ static inline void send_data(byte data)
 
 /**
  *  kbc_getkey()
+ *
+ * Returns the first key of the keyboards input buffer
  */
 byte kbc_getkey(void)
 {
@@ -81,6 +84,8 @@ byte kbc_getkey(void)
 
 /**
  *  kbc_scan_to_keycode(elv, scancode)
+ *
+ * Translates a keyboard scancode to a keycode, used in the keymaps.
  */
 byte kbc_scan_to_keycode(byte elvl, word scancode)
 {
@@ -92,11 +97,12 @@ byte kbc_scan_to_keycode(byte elvl, word scancode)
 		return keycode[1][scancode];
 
 	case 2:
-		// special case for PAUSE key, with results in a E1 E0 45 1D make code (wtf!)
+		// special case for PAUSE key, witch results
+		// in a E1 E0 45 1D make code (wtf!)
 		if (scancode == 0x451D)
 			return 119;
 
-		// yep, it's a possible fallthrough
+		// yep, it's a possible (and wanted!) fallthrough
 	default:
 			return 0;
 	}
@@ -104,11 +110,13 @@ byte kbc_scan_to_keycode(byte elvl, word scancode)
 
 /**
  *  kbc_led(caps, num, scroll)
+ *
+ * Controls the keyboard LEDs
  */
 void kbc_led(byte caps, byte num, byte scroll)
 {
 	byte led = 0;
-	if (caps)	  bsetn(led, 2);
+	if (caps)   bsetn(led, 2);
 	if (num)    bsetn(led, 1);
 	if (scroll) bsetn(led, 0);
 
@@ -119,6 +127,9 @@ void kbc_led(byte caps, byte num, byte scroll)
 
 /**
  *  kbc_reset_cpu()
+ *
+ * Issues the keyboard controler to pulse the
+ * CPU reset line.
  */
 void kbc_reset_cpu(void)
 {
