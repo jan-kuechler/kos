@@ -51,15 +51,15 @@ version:
 prepare: targets objlist
 
 targets:
-	rm -f kernel.target
-	for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+	@rm -f kernel.target
+	@for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+	@for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+	@for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	
 .PHONY: objlist
 objlist:
-	rm -f .objlist
-	$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target
+	@rm -f .objlist
+	@$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target
 	
 -include kernel.target
 -include .objlist
@@ -73,53 +73,53 @@ ALL_OBJS = $(ASM_OBJS) $(OBJS)
 kernel: link
 
 link: $(ALL_OBJS)
-	$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS)
+	@$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS)
 	
 link_map:
-	$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS) -Map link.map
+	@$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS) -Map link.map
 		
 $(BIN_DIR)/kstart.o: $(KERNEL_DIR)/kstart.s
-	$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/kstart.o $(KERNEL_DIR)/kstart.s
+	@$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/kstart.o $(KERNEL_DIR)/kstart.s
 	
 $(BIN_DIR)/int.o: $(KERNEL_DIR)/int.s
-	$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/int.o $(KERNEL_DIR)/int.s
+	@$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/int.o $(KERNEL_DIR)/int.s
 	
 ## Image creation ##
 
 floppy: 
-	./cpyfiles.sh floppy
-	bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
-	cmd "/C makeboot.bat img\kos.img "
-	rm -rf tmp
+	@./cpyfiles.sh floppy
+	@bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
+	@cmd "/C makeboot.bat img\kos.img "
+	@rm -rf tmp
 	
 iso:
-	./cpyfiles.sh iso
-	mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
-	rm -rf tmp
+	@./cpyfiles.sh iso
+	@mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
+	@rm -rf tmp
 	
 run:
-	qemu -m 16 -L ../tools/qemu -fda img/kos.img
+	@qemu -m 16 -L ../tools/qemu -fda img/kos.img
 	
 run-iso:
-	qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
+	@qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
 
 dbg:
-	qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
+	@qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
 	
 bochs:
-	bochs
+	@bochs
 
 ## Clean ##
 
 clean:
-	rm -f $(BIN_DIR)/*.o
-	rm -f link.map
+	@rm -f $(BIN_DIR)/*.o
+	@rm -f link.map
 	
 cleanall: clean
-	rm -f $(BIN_DIR)/kos.bin
-	rm -f $(BIN_DIR)/*.mod
-	rm -f $(BIN_DIR)/*.a
-	rm -f img/kos.img
-	rm -f img/kos.iso
-	rm -f *.target
-	rm -f .objlist
+	@rm -f $(BIN_DIR)/kos.bin
+	@rm -f $(BIN_DIR)/*.mod
+	@rm -f $(BIN_DIR)/*.a
+	@rm -f img/kos.img
+	@rm -f img/kos.iso
+	@rm -f *.target
+	@rm -f .objlist

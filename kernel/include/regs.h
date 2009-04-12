@@ -30,19 +30,4 @@ typedef struct regs {
 	dword   u_ss;
 } regs_t;
 
-#ifdef DUMP_REGS
-#include "console.h"
-static void dump_regs(dword *esp)
-{
-	regs_t *regs = (regs_t*)*esp;
-
-	con_printf("Stackdump @ %010x:\n", esp);
-	con_printf("ds: %06x es: %06x fs: %06x gs: %06x\n", regs->ds, regs->es, regs->fs, regs->gs);
-	con_printf("intr: %06d errc: %06d\n", regs->intr, regs->errc);
-	con_printf("eip: %010x cs: %06x\n", regs->eip, regs->cs);
-	con_printf("eflags: %x\n", regs->eflags);
-	con_printf("u_esp: %010x u_ss: %06x\n", regs->u_esp, regs->u_ss);
-}
-#endif
-
 #endif /*REGS_H*/

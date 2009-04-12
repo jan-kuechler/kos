@@ -52,6 +52,8 @@ void kinit()
 
 	write(stdout, "This is /dev/tty0\n", 18);
 
+	puts("Test Test Test\n");
+
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 

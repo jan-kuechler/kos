@@ -5,6 +5,9 @@
 
 pdir_t mm_create_pagedir();
 
+vaddr_t vm_user_to_kernel(pdir_t pdir, vaddr_t vaddr, size_t size);
+vaddr_t vm_kernel_to_user(pdir_t pdir, vaddr_t vaddr, size_t size);
+
 /* memcpy wrapper */
 void vm_cpy_pp(paddr_t dst, paddr_t src, size_t num);
 void vm_cpy_pv(paddr_t dst, vaddr_t src, size_t num);

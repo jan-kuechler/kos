@@ -6,6 +6,11 @@
 #include "mm/util.h"
 #include "mm/virt.h"
 
+/**
+ *  mm_create_pagedir()
+ *
+ * Creates a page directory mapping the full kernel.
+ */
 pdir_t mm_create_pagedir()
 {
 	dbg_vprintf(DBG_VM, "Creating new page directory...");
@@ -18,6 +23,31 @@ pdir_t mm_create_pagedir()
 	dbg_vprintf(DBG_VM, "done (%p)\n", pdir);
 
 	return pdir;
+}
+
+/**
+ *  vm_user_to_kernel(pdir, vaddr, size)
+ *
+ * Maps a memory region from user- to kernelspace.
+ * NOTE: Remember to free the address after using!
+ */
+vaddr_t vm_user_to_kernel(pdir_t pdir, vaddr_t vaddr, size_t size)
+{
+	paddr_t paddr = vm_resolve_virt(pdir, vaddr);
+	vaddr_t kaddr = km_alloc_addr(paddr, VM_COMMON_FLAGS, size);
+	return kaddr;
+}
+
+/**
+ *  vm_kernel_to_user(pdir, vaddr, size)
+ *
+ * Maps a memory region from kernel- to userspace.
+ */
+vaddr_t vm_kernel_to_user(pdir_t pdir, vaddr_t vaddr, size_t size)
+{
+	paddr_t paddr = vm_resolve_virt(kernel_pdir, vaddr);
+	vaddr_t uaddr = vm_alloc_addr(pdir, paddr, VM_USER_FLAGS, size);
+	return uaddr;
 }
 
 #define map(addr) km_alloc_addr(addr, VM_COMMON_FLAGS, size)

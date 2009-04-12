@@ -5,11 +5,13 @@
 
 void syscall(dword *esp);
 
-typedef void (*syscall_t)(regs_t *);
+typedef void (*syscall_t)(dword calln, dword arg0, dword arg1, dword arg2);
 
 void syscall_register(dword calln, syscall_t call);
 
-#define sc_arg(n,t,r) (*((t*)((char*)&r->u_esp + ((n)*4))))
-#define sc_result(v,r)  do { r->eax = v; } while (0);
+#define sc_arg0(r) (r->ebx)
+#define sc_arg1(r) (r->ecx)
+#define sc_arg2(r) (r->edx)
+#define sc_result(r, v)  do { r->eax = v; } while (0);
 
 #endif /*SYSCALL_H*/
