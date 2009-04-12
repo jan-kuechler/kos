@@ -52,8 +52,6 @@ void kinit()
 
 	write(stdout, "This is /dev/tty0\n", 18);
 
-	puts("Test Test Test\n");
-
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
@@ -63,7 +61,6 @@ void kinit()
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	kernel_init_done = 0;
-	//init_console();
 	init_kout();
 
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
@@ -102,7 +99,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	kout_puts("\n");
 
-	//print_info();
+	print_info();
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 

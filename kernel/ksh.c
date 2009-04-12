@@ -58,9 +58,7 @@ static void int3()
 
 static void test()
 {
-	//print(stdout, "Loading module 0!\n");
 	mod_load(0);
-	print(stdout, "Done!\n");
 }
 
 static void help()
