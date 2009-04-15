@@ -24,10 +24,13 @@
 
 #define bmask(var,mask) (var & mask)
 
+#include <kos/config.h>
+
 /* There is no invalid return value to mark an error, so make
    sure that at least one bit is set, when you call this! */
 static inline unsigned char bscanfwd(unsigned int map)
 {
+#ifdef CONF_DEBUG
 	int i = 0;
 	for (; i < (sizeof(map) * 8); ++i) {
 		if (bissetn(map,i))
@@ -37,6 +40,13 @@ static inline unsigned char bscanfwd(unsigned int map)
 	asm volatile("int $0x03");
 	/* but stop warnings about missing return values */
 	return 0;
+#else
+	unsigned int ret = 0;
+	asm volatile("bsfl %1, %0 \n"
+	            : "=r"(ret)
+	            : "r"(map));
+	return ret;
+#endif
 }
 
 #endif /*BITOP_H*/

@@ -1,5 +1,6 @@
 #include <page.h>
 #include <string.h>
+#include <kos/config.h>
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
@@ -218,14 +219,19 @@ void pm_deactivate(proc_t *proc)
  */
 void pm_update()
 {
+#ifdef CONF_KOOP_MULTITASKING
+	if (!cur_proc || cur_proc->status != PS_READY)
+		pm_schedule();
+#else
 	if (!cur_proc || cur_proc->status != PS_READY || (--cur_proc->ticks_left) <= 0)
 		pm_schedule();
+#endif
 }
 
 /**
  *  pm_schedule()
  *
- * Schedules a new process or IDLE
+ * Schedules a new process or idle
  */
 void pm_schedule()
 {
@@ -247,8 +253,8 @@ void pm_schedule()
 	plist_head = plist_head->next;
 	plist_tail->next = 0;
 
+	cur_proc = plist_head;
 	if (cur_proc) {
-		cur_proc = plist_head;
 		cur_proc->status = PS_RUNNING;
 	}
 	else {
