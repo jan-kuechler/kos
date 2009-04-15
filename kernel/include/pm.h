@@ -53,7 +53,7 @@ typedef struct proc {
 
 	proc_status_t  status;
 	block_reason_t block;
-	msg_t        **msg_wait_buffer;
+	msg_t         *msg_wait_buffer;
 	dword          wakeup;
 
 	dword  kstack;
@@ -68,9 +68,9 @@ typedef struct proc {
 	struct fs_handle *fds[PROC_NUM_FDS];
 	dword  numfds;
 
-	const char *cmdline;
+	char *cmdline;
 
-	const char *cwd;
+	char *cwd;
 
 	dword  ticks_left;
 

@@ -772,7 +772,7 @@ void kout_aprintf(const char *fmt, va_list args)
 
 			switch (*fmt) {
 			case 'c':
-				putc(kout_tty, va_arg(args, char));
+				putc(kout_tty, va_arg(args, int));
 				break;
 
 			case 'b':

@@ -8,6 +8,9 @@ static byte *loaded;
 
 void init_mod()
 {
+	if (!multiboot_info.mods_count)
+		return;
+
 	/* map the module list into the kernel pagedir */
 	km_identity_map((paddr_t)multiboot_info.mods_addr, VM_COMMON_FLAGS,
 	                multiboot_info.mods_count * sizeof(multiboot_mod_t));

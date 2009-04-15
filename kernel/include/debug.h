@@ -32,4 +32,7 @@ int dbg_verbose(char flag);
 void dbg_printf(char flag, const char *msg, ...);
 void dbg_vprintf(char flag, const char *msg, ...);
 
+void init_stack_backtrace(void);
+void dbg_stack_backtrace(void);
+
 #endif /*DEBUG_H*/

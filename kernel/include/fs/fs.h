@@ -4,70 +4,105 @@
 #include <types.h>
 #include "pm.h"
 
-struct fs_request;
+/*
+ * maximal length for a file name
+ */
+#define FS_MAX_NAME 256
 
-struct proc_t;
+/*
+ * Inode type flags.
+ * Note: FS_MOUNTP and FS_DIR can be or'd together
+ */
+#define FS_FILE     0x01
+#define FS_DIR      0x02
+#define FS_CHARDEV  0x03
+#define FS_BLOCKDEV 0x04
+#define FS_PIPE     0x05
+#define FS_SYMLINK  0x06
+#define FS_MOUNTP   0x08
 
-typedef struct fs_filesystem
+/*
+ * Fstype flags
+ */
+#define FST_NEED_DEV 0x01
+
+struct inode;
+struct superblock;
+struct dirent;
+
+/*
+ * Operations that can be done on an inode
+ */
+typedef struct inode_ops
 {
-	char *path; // path at which this filesystem is mounted
+	int (*open)(struct inode* inode);
+	int (*close)(struct inode* inode);
 
-	struct fs_handle *device; // device for this filesystem
-	struct fs_driver *driver; // driver for this filesystem
+	int (*read)(struct inode* inode, dword offset, void *buffer, dword size);
+	int (*write)(struct inode* inode, dword offset, void *buffer, dword size);
 
-	int (*umount)(struct fs_filesystem *fs); // callback for unmounting
+	struct dirent* (*readdir)(struct inode *inode, dword index);
+	struct inode*  (*finddir)(struct inode *inode, char *name);
+} inode_ops_t;
 
-	int (*query)(struct fs_filesystem *fs, struct fs_request *request); // callback for requests
-} fs_filesystem_t;
-
-typedef struct fs_driver
+/*
+ * Any inode data comes here
+ */
+typedef struct inode
 {
-	byte flags;
+	char *name;
+	dword flags;
 
-	fs_filesystem_t* (*mount)(struct fs_driver *driver, const char *path, const char *dev, dword flags);
+	dword mask;
+	dword length;
 
-} fs_driver_t;
+	uid_t uid;
+	gid_t gid;
 
-typedef struct fs_file
+	dword impl;
+
+	inode_ops_t ops;
+	struct superblock *sb;
+} inode_t;
+
+typedef struct sb_ops
 {
-	dword refs;
-	fs_filesystem_t *fs;
-} fs_file_t;
+	void (*read_inode)(inode_t *inode);
+	void (*write_inode)(inode_t *inode);
+	void (*release_inode)(inode_t *inode);
 
-typedef struct fs_handle
+	void (*write_super)(struct superblock *sb);
+	void (*release_super)(struct superblock *sb);
+
+	int  (*remount)(struct superblock *sb, dword flags);
+} sb_ops_t;
+
+typedef struct superblock
 {
-	fs_file_t *file;
-	dword      pos;
-	dword      flags;
-} fs_handle_t;
+	sb_ops_t *ops;
+} superblock_t;
 
-#define FS_DRV_SINGLE  0x1 /* Driver can only create 1 filesystem */
-#define FS_DRV_NOMOUNT 0x2 /* Cannot be mounted manually */
-#define FS_DRV_NODATA  0x4 /* Does not need any data source */
+typedef struct fstype
+{
+	char  *name;
+	dword flags;
+	superblock_t*    (*mount)(dword flags);
+} fstype_t;
 
-#define FS_READ 0
-#define FS_WRITE 1
+typedef struct dirent
+{
+	char name[FS_MAX_NAME];
+	dword inode;
+} dirent_t;
 
-void init_fs(void);
+/* The root of the file system */
+extern inode_t *fs_root;
 
-int fs_register_driver(fs_driver_t *driver, const char *name);
-int fs_unregister_driver(fs_driver_t *driver);
-
-fs_driver_t *fs_get_driver(const char *name);
-
-int fs_mount(fs_driver_t *driver, const char *path, const char *device, dword flags);
-int fs_umount(const char *path);
-
-fs_handle_t *fs_open(const char *name, dword mode);
-fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc);
-
-int fs_close(fs_handle_t *file);
-int fs_mknod(const char *name, dword mode);
-
-int fs_readwrite(fs_handle_t *file, char *buf, int size, int mode);
-
-int fs_seek(fs_handle_t *file, dword offs, int orig);
-
-
+int fs_open(inode_t *inode);
+int fs_close(inode_t *inode);
+int fs_read(inode_t *inode, dword offset, void *buffer, dword size);
+int fs_write(inode_t *inode, dword offset, void *buffer, dword size);
+struct dirent *fs_readdir(inode_t *inode, dword index);
+inode_t *fs_finddir(inode_t *inode, char *name);
 
 #endif /*FS_H*/

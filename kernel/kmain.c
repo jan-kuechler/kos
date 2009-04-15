@@ -8,8 +8,10 @@
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
+#include "ipc.h"
 #include "kernel.h"
 #include "keymap.h"
+#include "module.h"
 #include "pm.h"
 #include "timer.h"
 #include "tty.h"
@@ -91,6 +93,9 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	dbg_printf(DBG_LOAD, "* Setting up timer...\n");
 	init_timer();
+
+	dbg_printf(DBG_LOAD, "* Setting up IPC...\n");
+	init_ipc();
 
 	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
 	init_mod();

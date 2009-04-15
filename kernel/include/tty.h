@@ -49,7 +49,7 @@ void init_kout(void);
 void kout_puts(const char *str);
 void kout_putn(int num, int base);
 void kout_aprintf(const char *fmt, va_list args);
-void kout_printf(const char *fmt, ...)  __attribute__((format(printf, 1, 2)));
+void kout_printf(const char *fmt, ...);
 byte kout_set_status(byte status);
 void kout_select(void);
 void kout_clear(void);
