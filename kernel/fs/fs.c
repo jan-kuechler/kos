@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <string.h>
 #include "fs/fs.h"
 #include "util/list.h"
 

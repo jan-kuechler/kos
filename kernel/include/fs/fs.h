@@ -79,6 +79,8 @@ typedef struct sb_ops
 
 typedef struct superblock
 {
+	inode_t *root;
+
 	sb_ops_t *ops;
 } superblock_t;
 
@@ -86,7 +88,7 @@ typedef struct fstype
 {
 	char  *name;
 	dword flags;
-	superblock_t*    (*mount)(dword flags);
+	int (*get_sb)(superblock_t *sb, char *device, int flags);
 } fstype_t;
 
 typedef struct dirent
@@ -97,6 +99,14 @@ typedef struct dirent
 
 /* The root of the file system */
 extern inode_t *fs_root;
+
+/* in fs.c */
+int fs_register(fstype_t *type);
+int fs_unregister(fstype_t *type);
+fstype_t *fs_find_type(char *name);
+
+/* in super.c */
+int fs_mount(fstype_t *type, char *device, int flags);
 
 int fs_open(inode_t *inode);
 int fs_close(inode_t *inode);
