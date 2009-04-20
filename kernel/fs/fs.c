@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <string.h>
+#include "debug.h"
 #include "fs/fs.h"
 #include "util/list.h"
 
@@ -13,6 +14,8 @@ static list_t *fslist = 0;
  */
 int fs_register(fstype_t *type)
 {
+	kassert(type);
+
 	if (!fslist)
 		fslist = list_create();
 
@@ -28,6 +31,8 @@ int fs_register(fstype_t *type)
  */
 int fs_unregister(fstype_t *type)
 {
+	kassert(type);
+
 	list_entry_t *e;
 	list_iterate(e, fslist) {
 		if (e->data == type) {
@@ -45,6 +50,8 @@ int fs_unregister(fstype_t *type)
  */
 fstype_t *fs_find_type(char *name)
 {
+	kassert(name);
+
 	list_entry_t *e;
 	list_iterate(e, fslist) {
 		fstype_t *type = e->data;

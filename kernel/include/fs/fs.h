@@ -5,6 +5,12 @@
 #include "pm.h"
 
 /*
+ * Path seperator and root directory
+ */
+#define FS_PATH_SEP '/'
+#define FS_ROOT_DIR '/'
+
+/*
  * maximal length for a file name
  */
 #define FS_MAX_NAME 256
@@ -26,6 +32,14 @@
  */
 #define FST_NEED_DEV 0x01
 
+/*
+ * Mount flags
+ */
+#define FSM_READ   0x01
+#define FSM_WRITE  0x02
+#define FSM_EXEC   0x03
+#define FSM_UMOUNT 0x08
+
 struct inode;
 struct superblock;
 struct dirent;
@@ -35,7 +49,7 @@ struct dirent;
  */
 typedef struct inode_ops
 {
-	int (*open)(struct inode* inode);
+	int (*open)(struct inode* inode, dword flags);
 	int (*close)(struct inode* inode);
 
 	int (*read)(struct inode* inode, dword offset, void *buffer, dword size);
@@ -62,7 +76,7 @@ typedef struct inode
 	dword impl;
 
 	inode_ops_t ops;
-	struct superblock *sb;
+	struct superblock *sb, *mnt;
 } inode_t;
 
 typedef struct sb_ops
@@ -106,7 +120,7 @@ int fs_unregister(fstype_t *type);
 fstype_t *fs_find_type(char *name);
 
 /* in super.c */
-int fs_mount(fstype_t *type, char *device, int flags);
+int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags);
 
 int fs_open(inode_t *inode);
 int fs_close(inode_t *inode);
