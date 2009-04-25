@@ -32,6 +32,8 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 int fs_umount(superblock_t *sb)
 {
 	kassert(sb);
+	if (!sb->remount)
+		return -EINVAL;
 
 	int err = sb->remount(sb, FSM_UMOUNT);
 

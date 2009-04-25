@@ -79,7 +79,7 @@ typedef struct inode
 
 	struct inode *link;
 
-	inode_ops_t ops;
+	inode_ops_t *ops;
 	struct superblock *sb;
 } inode_t;
 
@@ -118,12 +118,26 @@ typedef struct dirent
 /* The root of the file system */
 extern inode_t *fs_root;
 
-/* in fs.c */
+/**
+ *  fs_register(type)
+ *
+ * Registers a new filesystem type.
+ */
 int fs_register(fstype_t *type);
-int fs_unregister(fstype_t *type);
-fstype_t *fs_find_type(char *name);
 
-/* in super.c */
+/**
+ *  fs_unregister(type)
+ *
+ * Unregisters a previously registered filesystem type.
+ */
+int fs_unregister(fstype_t *type);
+
+/**
+ *  fs_find_type(name)
+ *
+ * Returns the filesystem type with the given name or 0.
+ */
+fstype_t *fs_find_type(char *name);
 
 int fs_open(inode_t *inode);
 int fs_close(inode_t *inode);
