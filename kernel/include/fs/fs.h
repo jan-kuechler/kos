@@ -10,6 +10,8 @@
 #define FS_PATH_SEP '/'
 #define FS_ROOT_DIR '/'
 
+#define FS_MAX_SYMLOOP 20
+
 /*
  * maximal length for a file name
  */
@@ -75,8 +77,10 @@ typedef struct inode
 
 	dword impl;
 
+	struct inode *link;
+
 	inode_ops_t ops;
-	struct superblock *sb, *mnt;
+	struct superblock *sb;
 } inode_t;
 
 typedef struct sb_ops
@@ -120,7 +124,6 @@ int fs_unregister(fstype_t *type);
 fstype_t *fs_find_type(char *name);
 
 /* in super.c */
-int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags);
 
 int fs_open(inode_t *inode);
 int fs_close(inode_t *inode);
