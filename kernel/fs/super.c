@@ -1,6 +1,8 @@
-#include <errnno.h>
+#include <bitop.h>
+#include <errno.h>
 #include "debug.h"
 #include "fs/fs.h"
+#include "mm/kmalloc.h"
 
 inode_t *fs_root;
 
@@ -23,7 +25,7 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 		return err;
 
 	bset(ino->flags, FS_MOUNTP);
-	ino->mnt = sb;
+	ino->link = sb->root;
 
 	return 0;
 }
@@ -32,10 +34,10 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 int fs_umount(superblock_t *sb)
 {
 	kassert(sb);
-	if (!sb->remount)
+	if (!sb->ops->remount)
 		return -EINVAL;
 
-	int err = sb->remount(sb, FSM_UMOUNT);
+	int err = sb->ops->remount(sb, FSM_UMOUNT);
 
 	if (err != 0)
 		return err;

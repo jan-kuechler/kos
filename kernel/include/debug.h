@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "config.h"
+#include <kos/config.h>
 
 #define DBG_LOAD      'l'
 #define DBG_GDT       'g'
@@ -16,6 +16,7 @@
 #define DBG_SC        's'
 
 #ifdef CONF_DEBUG
+#include "kernel.h"
 #define kassert(exp)                                 \
 	do {                                               \
 		if (!(exp))                                      \
@@ -23,7 +24,7 @@
 			      __FILE__, __func__, __LINE__);           \
 	} while (0);
 #else
-#  define kassert(exp)
+#  define kassert(exp) do {} while (0);
 #endif
 
 void init_debug(void);

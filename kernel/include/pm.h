@@ -2,9 +2,9 @@
 #define PM_H
 
 #include <types.h>
+#include <kos/config.h>
 #include <kos/msg.h>
 
-#include "config.h"
 #include "regs.h"
 #include "mm/virt.h"
 

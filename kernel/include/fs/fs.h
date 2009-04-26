@@ -139,7 +139,7 @@ int fs_unregister(fstype_t *type);
  */
 fstype_t *fs_find_type(char *name);
 
-int fs_open(inode_t *inode);
+int fs_open(inode_t *inode, dword flags);
 int fs_close(inode_t *inode);
 int fs_read(inode_t *inode, dword offset, void *buffer, dword size);
 int fs_write(inode_t *inode, dword offset, void *buffer, dword size);

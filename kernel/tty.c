@@ -14,7 +14,6 @@
 #include "tty.h"
 #include "mm/kmalloc.h"
 
-
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
 static char *names[NUM_TTYS] = {
@@ -45,6 +44,19 @@ static struct {
 	byte capslock;
 	byte numlock;
 } modifiers;
+
+int tty_open(inode_t *inode, dword flags);
+int tty_close(inode_t *inode);
+int tty_read(inode_t *inode, dword offset, void *buffer, dword size);
+int tty_write(inode_t *inode, dword offset, void *buffer, dword size);
+
+static inode_ops_t tty_ops = {
+	tty_open,
+	tty_close,
+	tty_read,
+	tty_write,
+	NULL, NULL,
+};
 
 /**
  *  scroll(tty, lines)
@@ -667,8 +679,16 @@ void init_tty(void)
 		tty_t *tty = &ttys[i];
 
 		tty->id = i;
-		tty->file.path  = names[i];
-		tty->file.query = query;
+
+		tty->inode.name   = names[i];
+		tty->inode.flags  = FS_CHARDEV;
+		tty->inode.mask   = 0;
+		tty->inode.length = 0;
+		tty->inode.uid    = 0;
+		tty->inode.gid    = 0;
+		tty->inode.impl   = i;
+		tty->inode.link   = NULL;
+		tty->inode.ops    = &tty_ops;
 
 		tty->incount = 0;
 		tty->status  = 0x07;
@@ -679,7 +699,7 @@ void init_tty(void)
 
 		clear(tty);
 
-		fs_create_dev(&tty->file);
+		devfs_register(&tty->inode);
 	}
 
 	// anything else for tty7 is done in init_kout
@@ -705,8 +725,16 @@ void init_kout(void)
 	kout_tty = &ttys[kout_id];
 
 	kout_tty->id = kout_id;
-	kout_tty->file.path  = names[kout_id];
-	kout_tty->file.query = query;
+
+	kout_tty->inode.name   = names[kout_id];
+	kout_tty->inode.flags  = FS_CHARDEV;
+	kout_tty->inode.mask   = 0;
+	kout_tty->inode.length = 0;
+	kout_tty->inode.uid    = 0;
+	kout_tty->inode.gid    = 0;
+	kout_tty->inode.impl   = kout_id;
+	kout_tty->inode.link   = NULL;
+	kout_tty->inode.ops    = &tty_ops;
 
 	kout_tty->incount = 0;
 	kout_tty->status  = 0x07;

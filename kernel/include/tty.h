@@ -6,8 +6,6 @@
 #include "keymap.h"
 #include "pm.h"
 #include "fs/devfs.h"
-#include "fs/fs.h"
-#include "fs/request.h"
 
 #define NUM_TTYS 8
 
@@ -21,9 +19,9 @@
 
 typedef struct tty
 {
-	fs_devfile_t file; // this _must_ be the first entry in the struct! (see query in tty.c)
-
 	int   id;
+
+	inode_t inode;
 
 	char  inbuf[TTY_INBUF_SIZE];
 	dword incount;

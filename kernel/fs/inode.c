@@ -1,10 +1,8 @@
+#include <bitop.h>
+#include <errno.h>
+#include "debug.h"
 #include "fs/fs.h"
 
-/**
- *
- *
- *
- */
 int fs_open(inode_t *inode, dword flags)
 {
 	kassert(inode);
@@ -14,11 +12,6 @@ int fs_open(inode_t *inode, dword flags)
 	return -EINVAL;
 }
 
-/**
- *
- *
- *
- */
 int fs_close(inode_t *inode)
 {
 	kassert(inode);
@@ -28,11 +21,6 @@ int fs_close(inode_t *inode)
 	return -EINVAL;
 }
 
-/**
- *
- *
- *
- */
 int fs_read(inode_t *inode, dword offset, void *buffer, dword size)
 {
 	kassert(inode);
@@ -42,11 +30,6 @@ int fs_read(inode_t *inode, dword offset, void *buffer, dword size)
 	return -EINVAL;
 }
 
-/**
- *
- *
- *
- */
 int fs_write(inode_t *inode, dword offset, void *buffer, dword size)
 {
 	kassert(inode);
@@ -56,7 +39,7 @@ int fs_write(inode_t *inode, dword offset, void *buffer, dword size)
 	return -EINVAL;
 }
 
-dirent_t fs_readdir(inode_t *inode, dword index)
+dirent_t *fs_readdir(inode_t *inode, dword index)
 {
 	kassert(inode);
 

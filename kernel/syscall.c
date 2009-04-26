@@ -72,6 +72,7 @@ void do_receive(regs_t *regs)
 {
 }
 
+#if 0
 void do_open(regs_t *regs)
 {
 	const char *fname = (const char*)sc_arg0(regs);
@@ -142,6 +143,7 @@ void do_readwrite(regs_t *regs)
 
 	sc_result(regs, status);
 }
+#endif /* 0 */
 
 void do_get_answer(regs_t *regs)
 {

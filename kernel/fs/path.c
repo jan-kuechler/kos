@@ -1,6 +1,8 @@
 #include <string.h>
 #include "mm/kmalloc.h"
 
+// TODO: permissions
+
 /**
  *  next_part(path, start)
  *
@@ -17,9 +19,7 @@ static inline int next_part(char *path, int *start, char *buffer)
 	if (end <= *start)
 		return 0;
 
-	/*char *part = kmalloc(end - *start + 1);
-	strncpy(part, path + *start, end - *start);
-	part[end - *start] = '\0';*/
+	kassert((end - *start) < FS_MAX_NAME);
 
 	strncpy(buffer, path + *start, end - *start);
 	buffer[end - *start] = '\0';
@@ -35,49 +35,9 @@ static inline int next_part(char *path, int *start, char *buffer)
 
 int fs_lookup_dir(char *path, inode_t *start, inode_t **result)
 {
-	/* adjust absolut paths */
-	if (*path == '/') {
-		start = fs_root;
-		while (*(++path) == '/')
-			;
-	}
-
-
-	inode_t *cur = start;
-	inode_t *prev = 0;
-	char *part = NULL;
-	int pidx = 0;
-	int symc = 0;
-
-	while (part = next_part(path, &pidx)) {
-		prev = cur;
-		cur  = fs_finddir(cur, part);
-		kfree(part);
-
-		if (bisset(cur->flags, FS_SYMLINK)) {
-			cur = cur->link;
-
-			if (++symc >= FS_MAX_SYMLOOP) {
-				return -ELOOP;
-			}
-		}
-		else if (bisset(cur->flags, FS_MOUNTP)) {
-			cur = cur->link;
-		}
-		else if (bnotset(cur->flags, FS_DIR)) {
-			return -ENOENT;
-		}
-	}
-
-
+	return -1;
 }
 
-/**
- *  lookup(path, start)
- *
- * This function returns the inode for a path.
- * It handles mountpoints and (soon) symlinks.
- */
 inode_t *lookup(char *path, inode_t *start)
 {
 	/* adjust absolut paths */
@@ -116,27 +76,3 @@ inode_t *lookup(char *path, inode_t *start)
 
 	return ino;
 }
-
-/** PSEUDO CODE **
-
-inode = start
-
-while (part = get_next_part(path)) {
-	if (!inode)
-		error
-
-	if (inode != DIRECTORY || SYMLINK || MOUNTPOINT)
-		error
-
-	if (inode == MOUNTPOINT)
-		inode = inode->mount_inode;
-	if (inode == SYMLINK)
-		inode = inode->symlink_inode;
-
-	inode = fs_finddir(inode, part)
-
-}
-
-return inode;
-
-******************/
