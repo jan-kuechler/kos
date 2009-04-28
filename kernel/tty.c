@@ -13,6 +13,7 @@
 #include "keymap.h"
 #include "tty.h"
 #include "mm/kmalloc.h"
+#include "util/list.h"
 
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
@@ -45,10 +46,10 @@ static struct {
 	byte numlock;
 } modifiers;
 
-int tty_open(inode_t *inode, dword flags);
-int tty_close(inode_t *inode);
-int tty_read(inode_t *inode, dword offset, void *buffer, dword size);
-int tty_write(inode_t *inode, dword offset, void *buffer, dword size);
+static int tty_open(inode_t *inode, dword flags);
+static int tty_close(inode_t *inode);
+static int tty_read(inode_t *inode, dword offset, void *buffer, dword size);
+static int tty_write(inode_t *inode, dword offset, void *buffer, dword size);
 
 static inode_ops_t tty_ops = {
 	tty_open,
@@ -201,22 +202,63 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 }
 
 /**
- *  can_answer_rq(tty, gotrq)
+ *  enough_data(tty, wanted)
  *
- * Returns 1 if there is a request that can be answered
+ * Returns true if the tty has enough data.
  */
-static byte can_answer_rq(tty_t *tty, int gotrq)
+static int enough_data(tty_t *tty, dword wanted)
 {
-	if (!gotrq && !tty->rqcount) {
-		return 0;
-	}
-
 	if (tty->flags & TTY_RAW) {
-		return (tty->incount >= tty->rqs[0]->buflen);
+		return (tty->incount >= wanted);
 	}
 	else {
 		return (tty->eotcount > 0);
 	}
+}
+
+/**
+ *  can_answer_rq(tty, gotrq)
+ *
+ * Returns 1 if there is a request that can be answered
+ */
+static byte can_answer_rq(tty_t *tty)
+{
+	if (list_size(tty->requests) <= 0) {
+		return 0;
+	}
+
+	return enough_data(tty, ((request_t*)list_front(tty->requests))->buflen);
+}
+
+/**
+ *  copy_data(tty, buffer, size)
+ *
+ * Copy up to size bytes of data from the tty to the buffer.
+ */
+static inline dword copy_data(tty_t *tty, void *buffer, dword size)
+{
+	if (bisset(tty->flags, TTY_RAW)) {
+		memcpy(buffer, tty->inbuf, size);
+		return size;
+	}
+	else {
+		strcpy(buffer, tty->inbuf);
+		return strlen(tty->inbuf) + 1; // include the trailing 0
+	}
+}
+
+/**
+ *  remove_data(tty, count)
+ *
+ * Remove count bytes from the tty inbuffer.
+ */
+static inline void remove_data(tty_t *tty, dword count)
+{
+	memmove(tty->inbuf, tty->inbuf + count, TTY_INBUF_SIZE - count);
+	tty->incount -= count;
+
+	if (bnotset(tty->flags, TTY_RAW))
+		tty->eotcount--;
 }
 
 /**
@@ -227,145 +269,52 @@ static byte can_answer_rq(tty_t *tty, int gotrq)
  * Note: This function does not check anything.
  *       Be sure you know what you're doing!
  */
-static void answer_rq(tty_t *tty, fs_request_t *rq)
+static void answer_rq(tty_t *tty)
 {
-	byte remove_rq = 0;
+	request_t *rq = list_del_front(tty->requests);
 
-	dbg_vprintf(DBG_TTY, "answer_rq...\n");
+	dword count = copy_data(tty, rq->buffer, rq->buflen);
+	remove_data(tty, count);
 
-	if (!rq) {
-		dbg_vprintf(DBG_TTY, "  using request waitbuffer\n");
-		rq = tty->rqs[0];
-		remove_rq = 1;
-		dbg_vprintf(DBG_TTY, "  got rq[0]: 0x%x\n", (char*)rq);
-	}
+	rq->result = count;
 
-	dbg_vprintf(DBG_TTY, "  answer_rq: Buffer: 0x%x\n", (char*)rq->buf);
+	rq_finish(rq);
+}
 
-	byte len = 0, offs = 0;
-	/* copy the data to the buffer */
-	if (tty->flags & TTY_RAW) {
-		memcpy(rq->buf, tty->inbuf, rq->buflen);
-		len  = rq->buflen;
-		offs = rq->buflen;
+static int tty_open(inode_t *inode, dword flags)
+{
+	return 0;
+}
+
+static int tty_close(inode_t *inode)
+{
+	return 0;
+}
+
+static int tty_read(inode_t *inode, dword offset, void *buffer, dword size)
+{
+	tty_t *tty = ttys[inode->impl];
+
+	if (enough_data(tty, size)) {
+		dword count = copy_data(tty, buffer, size);
+		remove_data(tty, count);
+		return count;
 	}
 	else {
-		len  = strlen(tty->inbuf); // eot is marked by a \0
-		strcpy(rq->buf, tty->inbuf);
-		offs = len + 1;
-	}
-
-	/* update the inbuffer */
-	//int num = tty->incount - offs;
-	//if (num > 0) {
-	//	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
-	//}
-	memmove(tty->inbuf, tty->inbuf + offs, TTY_INBUF_SIZE - len);
-	tty->incount -= offs;
-	/* and finish the rq */
-	rq->result = len;
-
-	fs_finish_rq(rq);
-
-	if (remove_rq) {
-		memmove(tty->rqs, tty->rqs + 1, (tty->rqcount - 1) * sizeof(fs_request_t*));
-		tty->rqcount--;
-		tty->rqs = krealloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
-	}
-
-	if (!(tty->flags & TTY_RAW)) {
-		tty->eotcount--;
+		request_t *rq = rq_create(buffer, size, NULL);
+		list_add_back(tty->requests, rq);
+		return -EAGAIN;
 	}
 }
 
-
-/**
- *  open(tty, rq)
- */
-static void open(tty_t *tty, fs_request_t *rq)
-{
-	if (!tty->owner && !tty->opencount)
-		tty->owner = rq->proc;
-
-	if (tty->owner == rq->proc)
-		tty->opencount++;
-
-	fs_finish_rq(rq);
-}
-
-/**
- *  close(tty, rq)
- */
-static void close(tty_t *tty, fs_request_t *rq)
-{
-	if (tty->owner == rq->proc)
-		tty->opencount--;
-
-	if (!tty->opencount)
-		tty->owner = 0;
-
-	fs_finish_rq(rq);
-}
-
-/**
- *  read(tty, rq)
- */
-static void read(tty_t *tty, fs_request_t *rq)
-{
-	if (can_answer_rq(tty, 1)) { /* fullfill request */
-		answer_rq(tty, rq);
-	}
-	else { /* store request */
-		tty->rqs = krealloc(tty->rqs, sizeof(fs_request_t*) * (++tty->rqcount));
-		tty->rqs[tty->rqcount-1] = rq;
-	}
-}
-
-/**
- *  write(tty, rq)
- */
-static void write(tty_t *tty, fs_request_t *rq)
+static int tty_write(inode_t *inode, dword offset, void *buffer, dword size)
 {
 	int i=0;
-	char *buffer = rq->buf;
-	for (; i < rq->buflen; ++i) {
+	for (; i < size; ++i) {
 		putc(tty, buffer[i]);
 	}
 
-	rq->result = rq->buflen;
-	fs_finish_rq(rq);
-}
-
-/**
- *  query(file, rq)
- */
-static int query(fs_devfile_t *file, fs_request_t *rq)
-{
-	tty_t *tty = (tty_t*)file; // the file is just the first position in the tty_t struct
-
-	switch (rq->type) {
-	case RQ_OPEN:
-		open(tty, rq);
-		break;
-
-	case RQ_CLOSE:
-		close(tty, rq);
-		break;
-
-	case RQ_READ:
-		read(tty, rq);
-		break;
-
-	case RQ_WRITE:
-		write(tty, rq);
-		break;
-
-	default:
-		fs_finish_rq(rq);
-		return E_NOT_SUPPORTED;
-	}
-
-	return OK;
+	return size;
 }
 
 /**
@@ -669,6 +618,29 @@ void tty_putn(int num, int base)
 	putn(cur_tty, num, base, 0, ' ');
 }
 
+static inline void init(tty_t *tty, int id)
+{
+	tty->id = id;
+
+	tty->inode.name   = names[id];
+	tty->inode.flags  = FS_CHARDEV;
+	tty->inode.mask   = 0;
+	tty->inode.length = 0;
+	tty->inode.uid    = 0;
+	tty->inode.gid    = 0;
+	tty->inode.impl   = id;
+	tty->inode.link   = NULL;
+	tty->inode.ops    = &tty_ops;
+
+	tty->incount = 0;
+	tty->status  = 0x07;
+	tty->flags   = TTY_ECHO;
+
+	tty->requests = list_create();
+
+	clear(tty);
+}
+
 /**
  *  init_tty()
  */
@@ -678,32 +650,13 @@ void init_tty(void)
 	for (; i < NUM_TTYS - 1; ++i) { // spare the kout_tty
 		tty_t *tty = &ttys[i];
 
-		tty->id = i;
-
-		tty->inode.name   = names[i];
-		tty->inode.flags  = FS_CHARDEV;
-		tty->inode.mask   = 0;
-		tty->inode.length = 0;
-		tty->inode.uid    = 0;
-		tty->inode.gid    = 0;
-		tty->inode.impl   = i;
-		tty->inode.link   = NULL;
-		tty->inode.ops    = &tty_ops;
-
-		tty->incount = 0;
-		tty->status  = 0x07;
-		tty->flags   = TTY_ECHO;
-
-		tty->rqs     = 0;
-		tty->rqcount = 0;
-
-		clear(tty);
+		init(tty, i);
 
 		devfs_register(&tty->inode);
 	}
 
-	// anything else for tty7 is done in init_kout
-	fs_create_dev(&kout_tty->file);
+	// anything else for kout_tty is done in init_kout
+	devfs_register(&kout_ttty->inode);
 
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;
@@ -724,26 +677,7 @@ void init_kout(void)
 {
 	kout_tty = &ttys[kout_id];
 
-	kout_tty->id = kout_id;
-
-	kout_tty->inode.name   = names[kout_id];
-	kout_tty->inode.flags  = FS_CHARDEV;
-	kout_tty->inode.mask   = 0;
-	kout_tty->inode.length = 0;
-	kout_tty->inode.uid    = 0;
-	kout_tty->inode.gid    = 0;
-	kout_tty->inode.impl   = kout_id;
-	kout_tty->inode.link   = NULL;
-	kout_tty->inode.ops    = &tty_ops;
-
-	kout_tty->incount = 0;
-	kout_tty->status  = 0x07;
-	kout_tty->flags   = TTY_ECHO;
-
-	kout_tty->rqs     = 0;
-	kout_tty->rqcount = 0;
-
-	clear(kout_tty);
+	init(kout_tty, kout_id);
 
 	cur_tty = kout_tty;
 }

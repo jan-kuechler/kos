@@ -6,6 +6,9 @@
 #include "keymap.h"
 #include "pm.h"
 #include "fs/devfs.h"
+#define LIST_NO_IMPL
+#include "util/list.h"
+#undef LIST_NO_IMPL
 
 #define NUM_TTYS 8
 
@@ -34,8 +37,7 @@ typedef struct tty
 
 	byte  flags;
 
-	fs_request_t **rqs;
-	int            rqcount;
+	list_t *requests;
 
 	int    opencount;
 	proc_t *owner;

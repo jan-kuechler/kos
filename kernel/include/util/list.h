@@ -21,6 +21,8 @@ typedef struct list
 	int size;
 } list_t;
 
+#ifndef LIST_NO_IMPL
+
 /**
  *  list_empty(list)
  *
@@ -212,5 +214,7 @@ static inline void list_destroy(list_t *list)
 #define list_iterate(pos, list) for (pos = list->front; pos != 0; pos = pos->next)
 
 #define list_riterate(pos, list) for (pos = list->back; pos != 0; pos = pos->prev)
+
+#endif
 
 #endif /*UTIL_LIST_H*/

@@ -5,17 +5,11 @@
 #include "pm.h"
 
 /*
- * Path seperator and root directory
- */
-#define FS_PATH_SEP '/'
-#define FS_ROOT_DIR '/'
-
-#define FS_MAX_SYMLOOP 20
-
-/*
  * maximal length for a file name
  */
 #define FS_MAX_NAME 256
+
+#define FS_MAX_SYMLOOP 20
 
 /*
  * Inode type flags.
