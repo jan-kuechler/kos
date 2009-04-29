@@ -36,6 +36,12 @@
 #define FSM_EXEC   0x03
 #define FSM_UMOUNT 0x08
 
+/*
+ * Open flags
+ */
+#define FSO_READ   0x01
+#define FSO_WRITE  0x02
+
 struct inode;
 struct superblock;
 struct dirent;
@@ -51,8 +57,10 @@ typedef struct inode_ops
 	int (*read)(struct inode* inode, dword offset, void *buffer, dword size);
 	int (*write)(struct inode* inode, dword offset, void *buffer, dword size);
 
+	int (*mknod)(struct inode* inode, char *name, dword flags);
 	struct dirent* (*readdir)(struct inode *inode, dword index);
 	struct inode*  (*finddir)(struct inode *inode, char *name);
+
 } inode_ops_t;
 
 /*
@@ -137,6 +145,7 @@ int fs_open(inode_t *inode, dword flags);
 int fs_close(inode_t *inode);
 int fs_read(inode_t *inode, dword offset, void *buffer, dword size);
 int fs_write(inode_t *inode, dword offset, void *buffer, dword size);
+int fs_mknod(inode_t *inode, char *name, dword flags);
 struct dirent *fs_readdir(inode_t *inode, dword index);
 inode_t *fs_finddir(inode_t *inode, char *name);
 

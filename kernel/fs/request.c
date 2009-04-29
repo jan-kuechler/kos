@@ -13,11 +13,13 @@ request_t *rq_create(void *buffer, dword buflen, proc_t *proc)
 	rq->proc   = proc ? proc : cur_proc;
 	rq->blocked = 0;
 	rq->result = -EINVAL;
+
+	return rq;
 }
 
 void rq_block(request_t *rq)
 {
-	pm_block(rq->proc, PM_WAIT_FS);
+	pm_block(rq->proc, BR_WAIT_FS);
 	rq->blocked = 1;
 }
 

@@ -1,10 +1,10 @@
 #include <bitop.h>
+#include <errno.h>
 #include <ports.h>
 #include <stdlib.h>
 #include <string.h>
-#include <kos/error.h>
 
-#include "acpi.h"
+//#include "acpi.h"
 #include "debug.h"
 #include "idt.h"
 #include "kbc.h"
@@ -12,6 +12,8 @@
 #include "keycode.h"
 #include "keymap.h"
 #include "tty.h"
+#include "fs/devfs.h"
+#include "fs/request.h"
 #include "mm/kmalloc.h"
 #include "util/list.h"
 
@@ -293,7 +295,7 @@ static int tty_close(inode_t *inode)
 
 static int tty_read(inode_t *inode, dword offset, void *buffer, dword size)
 {
-	tty_t *tty = ttys[inode->impl];
+	tty_t *tty = &ttys[inode->impl];
 
 	if (enough_data(tty, size)) {
 		dword count = copy_data(tty, buffer, size);
@@ -309,9 +311,13 @@ static int tty_read(inode_t *inode, dword offset, void *buffer, dword size)
 
 static int tty_write(inode_t *inode, dword offset, void *buffer, dword size)
 {
+	tty_t *tty = &ttys[inode->impl];
+
+	char *buf = buffer;
+
 	int i=0;
 	for (; i < size; ++i) {
-		putc(tty, buffer[i]);
+		putc(tty, buf[i]);
 	}
 
 	return size;
@@ -350,7 +356,7 @@ static void tty_dbg_info(tty_t *tty)
 	putc(tty, '\n');
 
 	puts(tty, "   RQs:       ");
-	putc(tty, tty->rqcount + '0');
+	putc(tty, list_size(tty->requests) + '0');
 	putc(tty, '\n');
 
 	puts(tty, "   EOTs:      ");
@@ -515,9 +521,9 @@ static inline void handle_input(byte code)
 	cur_tty->inbuf[cur_tty->incount++] = c;
 
 input_end:
-	while (can_answer_rq(cur_tty, 0)) {
+	while (can_answer_rq(cur_tty)) {
 		dbg_vprintf(DBG_TTY, "can_answer_rq!\n");
-		answer_rq(cur_tty, 0);
+		answer_rq(cur_tty);
 	}
 
 }
@@ -592,10 +598,10 @@ int tty_select_keymap(const char *name)
 	for (; i < nummaps; ++i) {
 		if (strcmp(keymaps[i].name, name) == 0) {
 			cur_map = keymaps[i].map;
-			return OK;
+			return 0;
 		}
 	}
-	return E_NOT_FOUND;
+	return -ENOENT;
 }
 
 /**
@@ -656,7 +662,7 @@ void init_tty(void)
 	}
 
 	// anything else for kout_tty is done in init_kout
-	devfs_register(&kout_ttty->inode);
+	devfs_register(&kout_tty->inode);
 
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;

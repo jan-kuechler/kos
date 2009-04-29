@@ -17,10 +17,13 @@
 #define SC_RECEIVE       9
 
 #define SC_OPEN         10
-#define SC_CREAT        11
-#define SC_CLOSE        12
-#define SC_READ         13
-#define SC_WRITE        14
+#define SC_CLOSE        11
+#define SC_READ         12
+#define SC_WRITE        13
+#define SC_READDIR      14
+#define SC_FINDDIR      15
+#define SC_MKNOD        16
+#define SC_MOUNT        17
 
 #define SC_GET_ANSWER   42
 

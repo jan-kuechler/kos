@@ -1,5 +1,8 @@
+#include <bitop.h>
 #include <string.h>
+#include "debug.h"
 #include "mm/kmalloc.h"
+#include "fs/fs.h"
 
 // TODO: permissions
 

@@ -5,10 +5,8 @@
 #include <types.h>
 #include "keymap.h"
 #include "pm.h"
-#include "fs/devfs.h"
-#define LIST_NO_IMPL
+#include "fs/fs.h"
 #include "util/list.h"
-#undef LIST_NO_IMPL
 
 #define NUM_TTYS 8
 

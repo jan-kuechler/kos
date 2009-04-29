@@ -3,7 +3,7 @@
 
 #include "pm.h"
 
-struct request {
+typedef struct request {
 	proc_t *proc;
 	int     blocked;
 

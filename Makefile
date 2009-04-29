@@ -23,6 +23,7 @@ KERNEL_INC=$(KERNEL_DIR)/include
 
 FS_DIR=$(KERNEL_DIR)/fs
 MM_DIR=$(KERNEL_DIR)/mm
+UTIL_DIR=$(KERNEL_DIR)/util
 
 ASM=nasm
 ASM_FLAGS=-felf
@@ -55,7 +56,8 @@ targets:
 	@for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	@for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	@for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	
+	@for F in $(UTIL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+		
 .PHONY: objlist
 objlist:
 	@rm -f .objlist

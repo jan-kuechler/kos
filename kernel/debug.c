@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <types.h>
-#include "config.h"
+#include <kos/config.h>
 #include "kernel.h"
 #include "pm.h"
 #include "tty.h"

@@ -39,6 +39,15 @@ int fs_write(inode_t *inode, dword offset, void *buffer, dword size)
 	return -EINVAL;
 }
 
+int fs_mknod(inode_t *inode, char *name, dword flags)
+{
+	kassert(inode);
+
+	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->mknod)
+		return inode->ops->mknod(inode, name, flags);
+	return -EINVAL;
+}
+
 dirent_t *fs_readdir(inode_t *inode, dword index)
 {
 	kassert(inode);

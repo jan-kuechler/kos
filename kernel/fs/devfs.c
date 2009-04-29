@@ -1,4 +1,8 @@
+#include <errno.h>
+#include <string.h>
+
 #include "fs/fs.h"
+#include "mm/kmalloc.h"
 #include "util/list.h"
 #include "intern.h"
 
@@ -6,15 +10,9 @@ static fstype_t devfs;
 
 static inode_ops_t iops;
 static inode_t  devfs_root = {
-	"dev",
-	FS_DIR,
-	0,
-	0,
-	0,
-	0,
-	0,
-	&iops,
-	0,
+	.name = "dev",
+	.flags = FS_DIR,
+	.ops = &iops,
 };
 static sb_ops_t sbops;
 
@@ -24,7 +22,7 @@ static int get_sb(superblock_t *sb, char *dev, int flags)
 {
 	// ignore any device or flags
 	sb->root = &devfs_root;
-	sb->ops  = &sb_ops;
+	sb->ops  = &sbops;
 
 	devfs_root.sb = sb;
 	return 0;
@@ -39,14 +37,14 @@ static dirent_t *readdir(inode_t *ino, dword index)
 		return NULL;
 
 	int i=0;
-	list_entry_t pos;
+	list_entry_t *pos;
 	dirent_t *dirent = kmalloc(sizeof(dirent_t));
 
 	list_iterate(pos, devices) {
 		if (index == i) {
 			inode_t *dev = pos->data;
-			dirent->name = dev->name;
-			dirent->ino  = (dword)dev;
+			strcpy(dirent->name, dev->name);
+			dirent->inode = (dword)dev;
 			return dirent;
 		}
 		i++;
@@ -60,7 +58,7 @@ static inode_t *finddir(inode_t *ino, char *name)
 	if (ino != &devfs_root)
 		return NULL;
 
-	list_entry_t pos;
+	list_entry_t *pos;
 
 	list_iterate(pos, devices) {
 		inode_t *dev = pos->data;
@@ -81,7 +79,7 @@ int devfs_register(inode_t *file)
 
 int devfs_unregister(inode_t *file)
 {
-	list_entry_t pos;
+	list_entry_t *pos;
 
 	list_iterate(pos, devices) {
 		if (file == pos->data) {
