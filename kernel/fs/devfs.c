@@ -4,7 +4,6 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 #include "util/list.h"
-#include "intern.h"
 
 static fstype_t devfs;
 

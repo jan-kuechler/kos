@@ -624,7 +624,7 @@ void tty_putn(int num, int base)
 	putn(cur_tty, num, base, 0, ' ');
 }
 
-static inline void init(tty_t *tty, int id)
+static inline void init(tty_t *tty, int id, int early)
 {
 	tty->id = id;
 
@@ -642,7 +642,8 @@ static inline void init(tty_t *tty, int id)
 	tty->status  = 0x07;
 	tty->flags   = TTY_ECHO;
 
-	tty->requests = list_create();
+	if (!early)
+		tty->requests = list_create();
 
 	clear(tty);
 }
@@ -656,12 +657,13 @@ void init_tty(void)
 	for (; i < NUM_TTYS - 1; ++i) { // spare the kout_tty
 		tty_t *tty = &ttys[i];
 
-		init(tty, i);
+		init(tty, i, 0);
 
 		devfs_register(&tty->inode);
 	}
 
 	// anything else for kout_tty is done in init_kout
+	kout_tty->requests = list_create();
 	devfs_register(&kout_tty->inode);
 
 	modifiers.shift = 0;
@@ -683,7 +685,7 @@ void init_kout(void)
 {
 	kout_tty = &ttys[kout_id];
 
-	init(kout_tty, kout_id);
+	init(kout_tty, kout_id, 1);
 
 	cur_tty = kout_tty;
 }

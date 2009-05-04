@@ -4,8 +4,6 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 
-inode_t *fs_root;
-
 int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 {
 	kassert(ino);
@@ -29,7 +27,6 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 
 	return 0;
 }
-
 
 int fs_umount(superblock_t *sb)
 {

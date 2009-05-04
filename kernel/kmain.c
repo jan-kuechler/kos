@@ -20,7 +20,6 @@
 #include "fs/fs.h"
 #include "fs/devfs.h"
 
-
 multiboot_info_t multiboot_info;
 
 static void print_info();
@@ -42,22 +41,23 @@ void kinit()
 	kout_puts("Initializing FS:");
 	init_fs();
 	init_devfs();
-	fs_mount(fs_get_driver("devfs"), "/dev/", 0, 0);
+	fs_mount(fs_root, fs_find_type("devfs"), NULL, FSM_READ | FSM_WRITE);
+
 	init_tty();
 	tty_register_keymap("de", keymap_de);
 	kout_puts("\tdone!\n");
 
-	int stdout = kos_open("/dev/tty0", 0, 0);
-	if (stdout == -1) {
-		kout_puts("Error opening tty0");
-	}
+	//int stdout = open("/dev/tty0", 0, 0);
+	//if (stdout == -1) {
+	//	kout_puts("Error opening tty0");
+	//}
 
-	write(stdout, "This is /dev/tty0\n", 18);
+	//write(stdout, "This is /dev/tty0\n", 18);
 
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
-	kos_exit(0);
+	exit(0);
 }
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)

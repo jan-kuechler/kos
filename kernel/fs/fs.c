@@ -54,39 +54,122 @@ fstype_t *fs_find_type(char *name)
 	return 0;
 }
 
+// FIXME: please please fix me!
+static inline char *safe_path(dword addr)
+{
+	char *name = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)addr, 1024);
+	return name;
+}
+
+// FIXME: please please fix me!
+static inline char *safe_name(dword addr)
+{
+	char *name = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)addr, 1024);
+	return name;
+}
+
+static inline inode_t *inode_from_fd(dword fd)
+{
+	if (fd >= cur_proc->numfds)
+		return NULL;
+
+	return cur_proc->fds[fd];
+}
+
 dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
-	return -ENOSYS;
+	char *name = safe_name(fname);
+
+	inode_t *inode = fs_lookup(name, cur_proc->cwd);
+
+	if (!inode)
+		return -ENOENT;
+
+	return fs_open(inode, flags);
 }
 
 dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 {
-	return -ENOSYS;
+	inode_t *inode = inode_from_fd(fd);
+
+	if (!inode)
+		return -ENOENT;
+
+	return fs_close(inode);
 }
 
 dword sys_read(dword calln, dword fd, dword buffer, dword size)
 {
-	return -ENOSYS;
+	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
+
+	inode_t *inode = inode_from_fd(fd);
+
+	if (!inode)
+		return -ENOENT;
+
+	return fs_read(inode, 0, kbuf, size);
 }
 
 dword sys_write(dword calln, dword fd, dword buffer, dword size)
 {
-	return -ENOSYS;
+	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
+
+	inode_t *inode = inode_from_fd(fd);
+
+	if (!inode)
+		return -ENOENT;
+
+	return fs_write(inode, 0, kbuf, size);
 }
 
 dword sys_mknod(dword calln, dword fname, dword flags, dword arg2)
 {
 	return -ENOSYS;
+
+	//char *name = safe_path(fname);
+
+	//inode_t *inode = fs_lookup_dir(name, cur_proc->cwd);
+	//char *file = last_part(name);
+
+	//if (!inode)
+	//	return -ENOENT;
+
+	//return fs_mknod(inode, file, flags);
 }
 
 dword sys_readdir(dword calln, dword fname, dword index, dword arg2)
 {
-	return -ENOSYS;
+	char *name = safe_path(fname);
+
+	inode_t *inode = fs_lookup(name, cur_proc->cwd);
+
+	if (!inode)
+		return -ENOENT;
+
+	return fs_readdir(inode, index);
 }
 
 dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
 {
-	return -ENOSYS;
+	if (!mountp || ! ftype)
+		return -EINVAL;
+
+
+	char *path = safe_path(mountp);
+	char *type = safe_name(ftype);
+
+	char *dev  = NULL;
+	if (device != 0)
+		dev = safe_path(device);
+
+	fstype_t *driver = fs_find_type(type);
+
+	inode_t *inode = fs_lookup(path);
+
+	if (!driver || !inode)
+		return -EINVAL;
+
+	return fs_mount(inode, type, device, 0);
 }
 
 void init_fs(void)

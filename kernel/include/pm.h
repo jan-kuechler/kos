@@ -6,6 +6,7 @@
 #include <kos/msg.h>
 
 #include "regs.h"
+#include "fs/types.h"
 #include "mm/virt.h"
 
 #define MAX_PROCS 256
@@ -65,12 +66,11 @@ typedef struct proc {
 
 	regs_t *sc_regs;
 
-	struct fs_handle *fds[PROC_NUM_FDS];
+	inode_t *cwd;
+	inode_t *fds[PROC_NUM_FDS];
 	dword  numfds;
 
 	char *cmdline;
-
-	char *cwd;
 
 	dword  ticks_left;
 

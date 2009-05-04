@@ -3,11 +3,7 @@
 
 #include <types.h>
 #include "pm.h"
-
-/*
- * maximal length for a file name
- */
-#define FS_MAX_NAME 256
+#include "fs/types.h"
 
 #define FS_MAX_SYMLOOP 20
 
@@ -42,80 +38,6 @@
 #define FSO_READ   0x01
 #define FSO_WRITE  0x02
 
-struct inode;
-struct superblock;
-struct dirent;
-
-/*
- * Operations that can be done on an inode
- */
-typedef struct inode_ops
-{
-	int (*open)(struct inode* inode, dword flags);
-	int (*close)(struct inode* inode);
-
-	int (*read)(struct inode* inode, dword offset, void *buffer, dword size);
-	int (*write)(struct inode* inode, dword offset, void *buffer, dword size);
-
-	int (*mknod)(struct inode* inode, char *name, dword flags);
-	struct dirent* (*readdir)(struct inode *inode, dword index);
-	struct inode*  (*finddir)(struct inode *inode, char *name);
-
-} inode_ops_t;
-
-/*
- * Any inode data comes here
- */
-typedef struct inode
-{
-	char *name;
-	dword flags;
-
-	dword mask;
-	dword length;
-
-	uid_t uid;
-	gid_t gid;
-
-	dword impl;
-
-	struct inode *link;
-
-	inode_ops_t *ops;
-	struct superblock *sb;
-} inode_t;
-
-typedef struct sb_ops
-{
-	void (*read_inode)(inode_t *inode);
-	void (*write_inode)(inode_t *inode);
-	void (*release_inode)(inode_t *inode);
-
-	void (*write_super)(struct superblock *sb);
-	void (*release_super)(struct superblock *sb);
-
-	int  (*remount)(struct superblock *sb, dword flags);
-} sb_ops_t;
-
-typedef struct superblock
-{
-	inode_t *root;
-
-	sb_ops_t *ops;
-} superblock_t;
-
-typedef struct fstype
-{
-	char  *name;
-	dword flags;
-	int (*get_sb)(superblock_t *sb, char *device, int flags);
-} fstype_t;
-
-typedef struct dirent
-{
-	char name[FS_MAX_NAME];
-	dword inode;
-} dirent_t;
 
 /* The root of the file system */
 extern inode_t *fs_root;
@@ -141,6 +63,30 @@ int fs_unregister(fstype_t *type);
  */
 fstype_t *fs_find_type(char *name);
 
+/**
+ *  fs_mount(ino, type, device, flags)
+ *
+ * Mounts a filesystem specified by type to a device.
+ */
+int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags);
+int fs_umount(superblock_t *sb);
+
+/**
+ *  lookup_dir(path, start)
+ *
+ * Returns the inode for the last directory
+ * in the given path.
+ */
+int fs_lookup_dir(char *path, inode_t *start, inode_t **result);
+
+/**
+ *  lookup(path, start)
+ *
+ * This function returns the inode for a path.
+ * It handles mountpoints and (soon) symlinks.
+ */
+inode_t *lookup(char *path, inode_t *start);
+
 int fs_open(inode_t *inode, dword flags);
 int fs_close(inode_t *inode);
 int fs_read(inode_t *inode, dword offset, void *buffer, dword size);
@@ -148,5 +94,7 @@ int fs_write(inode_t *inode, dword offset, void *buffer, dword size);
 int fs_mknod(inode_t *inode, char *name, dword flags);
 struct dirent *fs_readdir(inode_t *inode, dword index);
 inode_t *fs_finddir(inode_t *inode, char *name);
+
+void init_fs(void);
 
 #endif /*FS_H*/

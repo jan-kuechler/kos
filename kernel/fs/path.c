@@ -41,7 +41,7 @@ int fs_lookup_dir(char *path, inode_t *start, inode_t **result)
 	return -1;
 }
 
-inode_t *lookup(char *path, inode_t *start)
+inode_t *fs_lookup(char *path, inode_t *start)
 {
 	/* adjust absolut paths */
 	if (*path == '/') {
