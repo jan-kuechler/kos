@@ -1,7 +1,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "config.h"
+#include <types.h>
+#include <kos/config.h>
 
 #define DBG_LOAD      'l'
 #define DBG_GDT       'g'
@@ -24,6 +25,34 @@
 	} while (0);
 #else
 #  define kassert(exp)
+#endif
+
+#ifdef CONF_DEBUG
+extern dword dbg_lsc_calln;
+extern dword dbg_lsc_arg0;
+extern dword dbg_lsc_arg1;
+extern dword dbg_lsc_arg2;
+extern pid_t dbg_lsc_proc;
+
+#  define dbg_set_last_syscall(n,a0,a1,a2) \
+	do {                                     \
+		dbg_lsc_calln = n;                     \
+		dbg_lsc_arg0  = a0;                    \
+		dbg_lsc_arg1  = a1;                    \
+		dbg_lsc_arg2  = a2;                    \
+		dbg_lsc_proc  = cur_proc->pid;         \
+	} while (0);
+
+#  define dbg_print_last_syscall()        \
+	kout_printf("Last syscall: %d"          \
+	            "(0x%08x, 0x%08x, 0x%08x)"  \
+	            "by %d\n",                  \
+	            dbg_lsc_calln, dbg_lsc_arg0,\
+	            dbg_lsc_arg1, dbg_lsc_arg2, \
+	            dbg_lsc_proc);
+#else
+#  define dbg_set_last_syscall(n,a0,a1,a2)
+#  define dbg_print_last_syscall()
 #endif
 
 void init_debug(void);

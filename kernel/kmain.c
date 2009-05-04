@@ -180,6 +180,8 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 
 	dbg_stack_backtrace();
 
+	dbg_print_last_syscall();
+
 	while (1) {
 		asm volatile("hlt");
 	}
