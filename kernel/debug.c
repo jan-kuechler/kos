@@ -8,6 +8,14 @@
 #include "tty.h"
 #include "mm/virt.h"
 
+#ifdef CONF_DEBUG
+dword dbg_lsc_calln;
+dword dbg_lsc_arg0;
+dword dbg_lsc_arg1;
+dword dbg_lsc_arg2;
+pid_t dbg_lsc_proc;
+#endif
+
 static Elf32_Shdr *symtab;
 static Elf32_Shdr *strtab;
 
