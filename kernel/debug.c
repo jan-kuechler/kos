@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <types.h>
-#include "config.h"
+#include <kos/config.h>
 #include "kernel.h"
 #include "pm.h"
 #include "tty.h"
@@ -53,8 +53,6 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 		dword  eip;
 	} *stack_frame;
 
-	Elf32_Sym *sym;
-
 	kout_puts("Stack backtrace:\n");
 
 	if (ebp != 0) {
@@ -65,12 +63,15 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 		asm volatile("mov %%ebp, %0" : "=r"(stack_frame));
 	}
 
-	for (; vm_is_userspace(stack_frame, sizeof(struct stack_frame));
+	for (; vm_is_mapped(cur_proc->pagedir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_PRESENT);
 	       stack_frame = stack_frame->ebp)
 	{
-		print_sym(stack_frame->ebp, stack_frame->eip);
+		print_sym((dword)stack_frame->ebp, stack_frame->eip);
 	}
 
+	if (stack_frame && !vm_is_mapped(cur_proc->pagedir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_USERMODE)) {
+		kout_puts("Stack broken!\n");
+	}
 }
 
 void dbg_stack_backtrace(void)
@@ -81,6 +82,8 @@ void dbg_stack_backtrace(void)
 void dbg_proc_backtrace(proc_t *proc)
 {
 	proc = proc ? proc : cur_proc;
+
+
 }
 
 void init_stack_backtrace(void)
@@ -102,8 +105,8 @@ void init_stack_backtrace(void)
 	}
 
 	if (symtab && strtab) {
-		km_identity_map(symtab->sh_addr, VM_COMMON_FLAGS, symtab->sh_size);
-		km_identity_map(strtab->sh_addr, VM_COMMON_FLAGS, strtab->sh_size);
+		km_identity_map((paddr_t)symtab->sh_addr, VM_COMMON_FLAGS, symtab->sh_size);
+		km_identity_map((paddr_t)strtab->sh_addr, VM_COMMON_FLAGS, strtab->sh_size);
 	}
 }
 
@@ -112,7 +115,7 @@ void init_debug(void)
 	memset(dbg_flags, 0, 26);
 
 #ifdef CONF_DEBUG
-	const char *opts = strstr(multiboot_info.cmdline, "debug=");
+	const char *opts = strstr((char*)multiboot_info.cmdline, "debug=");
 	if (!opts)
 		return;
 

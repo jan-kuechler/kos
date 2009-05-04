@@ -5,6 +5,10 @@ section .text
 kstart:
 	mov esp, kernelstack
 	
+	push 0 ; Stack backtrace ends here
+	push 0
+	mov ebp, esp
+	
 	push ebx
 	push eax
 	
