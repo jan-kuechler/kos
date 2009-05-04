@@ -51,6 +51,8 @@ void    vm_free_range(pdir_t pdir, _aligned_ vaddr_t start, int num);
 
 paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr);
 
+int     vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags);
+
 /* define km_* as an abbreviation for vm_*(kernel_pdir, ...) */
 #define km_map_page(paddr,vaddr,flags)        vm_map_page(kernel_pdir, paddr, vaddr, flags)
 #define km_unmap_page(vaddr)                  vm_unmap_page(kernel_pdir, vaddr)

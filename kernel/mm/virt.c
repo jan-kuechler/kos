@@ -459,7 +459,23 @@ paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 	return getaddr(pte) + PAGE_OFFSET(vaddr);
 }
 
-int vm_is_userspace(vaddr_t vaddr, dword size)
+/**
+ *  vm_is_mapped(pdir, vaddr, size, flags)
+ *
+ * Returns true if the addr range is mapped with the given flags
+ */
+int vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags)
 {
-	return 0;
+	if (vaddr + size < vaddr) // overflow
+		return 0;
+
+	vaddr_t cur = vaddr;
+	for (; cur < (vaddr + size); cur += PAGE_SIZE) {
+		ptab_entry_t pte = get_ptab_entry(pdir, cur);
+		if (!pte || bnotset(pte, flags)) {
+			return 0;
+		}
+	}
+
+	return 1;
 }
