@@ -85,7 +85,16 @@ dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 	if (!inode)
 		return -ENOENT;
 
-	return fs_open(inode, flags);
+	if (cur_proc->numfds >= PROC_NUM_FDS)
+		return -EMFILE;
+
+	int res = fs_open(inode, flags);
+	if (res < 0)
+		return res;
+
+	cur_proc->fds[cur_proc->numfds] = inode;
+
+	return cur_proc->numfds++;
 }
 
 dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
