@@ -95,6 +95,9 @@ void syscall(dword *esp)
 
 	cur_proc->sc_regs = regs;
 
+	dbg_set_last_syscall(regs->eax, sc_arg0(regs),
+	                     sc_arg1(regs), sc_arg2(regs));
+
 	if (regs->eax >= SYSCALL_MAX)
 		panic("Invalid syscall: %d", regs->eax);
 

@@ -45,8 +45,8 @@ extern pid_t dbg_lsc_proc;
 	} while (0);
 
 #  define dbg_print_last_syscall()        \
-	kout_printf("Last syscall: %d"          \
-	            "(0x%08x, 0x%08x, 0x%08x)"  \
+	kout_printf("Last syscall: %d "         \
+	            "(0x%08x, 0x%08x, 0x%08x) " \
 	            "by %d\n",                  \
 	            dbg_lsc_calln, dbg_lsc_arg0,\
 	            dbg_lsc_arg1, dbg_lsc_arg2, \
