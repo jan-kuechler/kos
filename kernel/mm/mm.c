@@ -206,6 +206,7 @@ void init_mm(void)
 	mark_range_free((paddr_t)0x000000, NUM_PAGES(multiboot_info.mem_lower * 1024));
 	mark_range_free((paddr_t)0x100000, NUM_PAGES((multiboot_info.mem_upper * 1024) - 0x100000));
 
+	total_mem = (multiboot_info.mem_upper * 1024);
 
 	mark_range_used(kernel_phys_start, NUM_PAGES(kernel_phys_end - kernel_phys_start));
 	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr;

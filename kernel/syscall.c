@@ -194,6 +194,9 @@ void syscall(dword *esp)
 
 	cur_proc->sc_regs = regs;
 
+	dbg_set_last_syscall(regs->eax, sc_arg0(regs),
+	                     sc_arg1(regs), sc_arg2(regs));
+
 	switch (regs->eax) {
 
 	MAP(SC_PUTS,       do_puts)
