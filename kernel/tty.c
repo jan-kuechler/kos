@@ -54,11 +54,10 @@ static int tty_read(inode_t *inode, dword offset, void *buffer, dword size);
 static int tty_write(inode_t *inode, dword offset, void *buffer, dword size);
 
 static inode_ops_t tty_ops = {
-	tty_open,
-	tty_close,
-	tty_read,
-	tty_write,
-	NULL, NULL,
+	.open  = tty_open,
+	.close = tty_close,
+	.read  = tty_read,
+	.write = tty_write,
 };
 
 /**
@@ -273,14 +272,19 @@ static inline void remove_data(tty_t *tty, dword count)
  */
 static void answer_rq(tty_t *tty)
 {
+	dbg_vprintf(DBG_TTY, "answer_rq for %d\n", tty->id);
 	request_t *rq = list_del_front(tty->requests);
 
 	dword count = copy_data(tty, rq->buffer, rq->buflen);
+	dbg_vprintf(DBG_TTY, "  %d bytes copied.\n", count);
 	remove_data(tty, count);
+	dbg_vprintf(DBG_TTY, "  old data removed.\n");
 
 	rq->result = count;
 
+	dbg_vprintf(DBG_TTY, "  rq-proc blocked? %s\n", rq->blocked ? "yes" : "no");
 	rq_finish(rq);
+	dbg_vprintf(DBG_TTY, "  finished request.\n");
 }
 
 static int tty_open(inode_t *inode, dword flags)
@@ -305,6 +309,7 @@ static int tty_read(inode_t *inode, dword offset, void *buffer, dword size)
 	else {
 		request_t *rq = rq_create(buffer, size, NULL);
 		list_add_back(tty->requests, rq);
+		rq_block(rq);
 		return -EAGAIN;
 	}
 }

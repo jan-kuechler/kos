@@ -90,9 +90,22 @@ static void run_cmd(const char *cmd)
 
 void ksh(void)
 {
-	stdin  = open("/dev/tty7", 0, 0);
-	stdout = open("/dev/tty7", 0, 0);
-	stderr = open("/dev/tty7", 0, 0);
+	stdin  = open("/tty7", 0, 0);
+	if (stdin < 0) {
+		kout_printf("Cannot open stdin.\n");
+		exit(0);
+	}
+
+	stdout = open("/tty7", 0, 0);
+	if (stdout < 0) {
+		kout_printf("Cannot open stdout.\n");
+		exit(0);
+	}
+	stderr = open("/tty7", 0, 0);
+	if (stderr < 0) {
+		kout_printf("Cannot open stderr.\n");
+		exit(0);
+	}
 
 	char buffer[512] = {0};
 	int len = 0;

@@ -10,9 +10,9 @@ request_t *rq_create(void *buffer, dword buflen, proc_t *proc)
 	rq->buffer = buffer;
 	rq->buflen = buflen;
 
-	rq->proc   = proc ? proc : cur_proc;
+	rq->proc    = proc ? proc : cur_proc;
 	rq->blocked = 0;
-	rq->result = -EINVAL;
+	rq->result  = -EINVAL;
 
 	return rq;
 }
