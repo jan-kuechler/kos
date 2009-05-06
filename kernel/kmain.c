@@ -179,7 +179,7 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_select();
 
 	kout_set_status(0x04); /* white on red */
-	kout_puts("Panic: ");
+	kout_puts("Kernel Panic!\n");
 	kout_aprintf(fmt, args);
 	kout_puts("\n");
 
