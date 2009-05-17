@@ -12,6 +12,8 @@ struct inode;
 struct superblock;
 struct dirent;
 
+typedef void (*fscallback_t)(struct inode *, dword, void *, dword);
+
 /*
  * file operations
  */
@@ -63,7 +65,6 @@ struct blockdev
 
 	struct blockdev_ops bops;
 };
-
 
 /*
  * Operations that can be done on every inode

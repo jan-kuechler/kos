@@ -7,17 +7,18 @@
 #include "util/list.h"
 
 /* A list of all registered filesystems */
-static list_t *fslist = 0;
+static list_t *fslist = NULL;
 
-static inode_t root = {
+static struct inode root = {
 	.name = "/",
 	.flags = FS_DIR,
 };
-inode_t *fs_root = &root;
+struct inode *fs_root = &root;
 
-int fs_register(fstype_t *type)
+int fs_register(struct fstype *type)
 {
-	kassert(type);
+	if (!type)
+		return -EINVAL;
 
 	if (!fslist)
 		fslist = list_create();
@@ -27,9 +28,10 @@ int fs_register(fstype_t *type)
 	return 0;
 }
 
-int fs_unregister(fstype_t *type)
+int fs_unregister(struct fstype *type)
 {
-	kassert(type);
+	if (!type)
+		return -EINVAL;
 
 	list_entry_t *e;
 	list_iterate(e, fslist) {
@@ -41,13 +43,14 @@ int fs_unregister(fstype_t *type)
 	return -EINVAL;
 }
 
-fstype_t *fs_find_type(char *name)
+struct fstype *fs_find_type(char *name)
 {
-	kassert(name);
+	if (!name)
+		return -EINVAL;
 
 	list_entry_t *e;
 	list_iterate(e, fslist) {
-		fstype_t *type = e->data;
+		struct fstype *type = e->data;
 		if (strcmp(type->name, name) == 0)
 			return type;
 	}
@@ -68,7 +71,7 @@ static inline char *safe_name(dword addr)
 	return name;
 }
 
-static inline inode_t *inode_from_fd(dword fd)
+static inline struct inode *inode_from_fd(dword fd)
 {
 	if (fd >= cur_proc->numfds)
 		return NULL;
@@ -80,7 +83,7 @@ dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
 	char *name = safe_name(fname);
 
-	inode_t *inode = fs_lookup(name, cur_proc->cwd);
+	struct inode *inode = fs_lookup(name, cur_proc->cwd);
 
 	if (!inode)
 		return -ENOENT;
@@ -99,7 +102,7 @@ dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 
 dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 {
-	inode_t *inode = inode_from_fd(fd);
+	struct inode *inode = inode_from_fd(fd);
 
 	if (!inode)
 		return -ENOENT;
@@ -111,7 +114,7 @@ dword sys_read(dword calln, dword fd, dword buffer, dword size)
 {
 	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
 
-	inode_t *inode = inode_from_fd(fd);
+	struct inode *inode = inode_from_fd(fd);
 
 	if (!inode)
 		return -ENOENT;
@@ -123,7 +126,7 @@ dword sys_write(dword calln, dword fd, dword buffer, dword size)
 {
 	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
 
-	inode_t *inode = inode_from_fd(fd);
+	struct inode *inode = inode_from_fd(fd);
 
 	if (!inode)
 		return -ENOENT;
@@ -137,7 +140,7 @@ dword sys_mknod(dword calln, dword fname, dword flags, dword arg2)
 
 	//char *name = safe_path(fname);
 
-	//inode_t *inode = fs_lookup_dir(name, cur_proc->cwd);
+	//struct inode *inode = fs_lookup_dir(name, cur_proc->cwd);
 	//char *file = last_part(name);
 
 	//if (!inode)
@@ -150,7 +153,7 @@ dword sys_readdir(dword calln, dword fname, dword index, dword arg2)
 {
 	char *name = safe_path(fname);
 
-	inode_t *inode = fs_lookup(name, cur_proc->cwd);
+	struct inode *inode = fs_lookup(name, cur_proc->cwd);
 
 	if (!inode)
 		return -ENOENT;
@@ -171,9 +174,9 @@ dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
 	if (device != 0)
 		dev = safe_path(device);
 
-	fstype_t *driver = fs_find_type(type);
+	struct fstype *driver = fs_find_type(type);
 
-	inode_t *inode = fs_lookup(path);
+	struct inode *inode = fs_lookup(path);
 
 	if (!driver || !inode)
 		return -EINVAL;

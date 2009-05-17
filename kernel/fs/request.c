@@ -3,32 +3,36 @@
 #include "fs/request.h"
 #include "mm/kmalloc.h"
 
-request_t *rq_create(void *buffer, dword buflen, proc_t *proc)
+struct request *rq_create(struct inode *inode, void *buffer, dword buflen)
 {
-	request_t *rq = kmalloc(sizeof(request_t));
+	struct request *rq = kmalloc(sizeof(struct request));
 
+	rq->inode  = inode;
 	rq->buffer = buffer;
 	rq->buflen = buflen;
 
-	rq->proc    = proc ? proc : cur_proc;
 	rq->blocked = 0;
 	rq->result  = -EINVAL;
 
 	return rq;
 }
 
-void rq_block(request_t *rq)
+void rq_block(struct request *rq)
 {
 	pm_block(rq->proc, BR_WAIT_FS);
 	rq->blocked = 1;
 }
 
-void rq_finish(request_t *rq)
+void rq_finish(struct request *rq)
 {
-	if (rq->blocked)
-		pm_unblock(rq->proc);
+	if (rq->proc) {
+		if (rq->blocked)
+			pm_unblock(rq->proc);
 
-	sc_late_result(rq->proc, rq->result);
-
+		sc_late_result(rq->proc, rq->result);
+	}
+	else if (rq->func) {
+		rq->func(rq->inode, rq->result, rq->buffer, rq->buflen);
+	}
 	kfree(rq);
 }

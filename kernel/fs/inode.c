@@ -3,54 +3,54 @@
 #include "debug.h"
 #include "fs/fs.h"
 
-int fs_open(inode_t *inode, dword flags)
+int fs_open(struct inode *inode, dword flags)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (inode->ops && inode->ops->open)
 		return inode->ops->open(inode, flags);
 	return -EINVAL;
 }
 
-int fs_close(inode_t *inode)
+int fs_close(struct inode *inode)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (inode->ops && inode->ops->close)
 		return inode->ops->close(inode);
 	return -EINVAL;
 }
 
-int fs_read(inode_t *inode, dword offset, void *buffer, dword size)
+int fs_read(struct inode *inode, void *buffer, dword size, dword offset)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (inode->ops && inode->ops->read)
 		inode->ops->read(inode, offset, buffer, size);
 	return -EINVAL;
 }
 
-int fs_write(inode_t *inode, dword offset, void *buffer, dword size)
+int fs_write(struct inode *inode, void *buffer, dword size, dword offset)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (inode->ops && inode->ops->write)
 		inode->ops->write(inode, offset, buffer, size);
 	return -EINVAL;
 }
 
-int fs_mknod(inode_t *inode, char *name, dword flags)
+int fs_mknod(struct inode *inode, char *name, dword flags)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->mknod)
 		return inode->ops->mknod(inode, name, flags);
 	return -EINVAL;
 }
 
-dirent_t *fs_readdir(inode_t *inode, dword index)
+dirent_t *fs_readdir(struct inode *inode, dword index)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->readdir)
 		return inode->ops->readdir(inode, index);
@@ -58,9 +58,9 @@ dirent_t *fs_readdir(inode_t *inode, dword index)
 	return NULL;
 }
 
-inode_t *fs_finddir(inode_t *inode, char *name)
+struct inode *fs_finddir(struct inode *inode, char *name)
 {
-	kassert(inode);
+	if (!inode) return -EINVAL;
 
 	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->finddir)
 		return inode->ops->finddir(inode, name);

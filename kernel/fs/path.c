@@ -36,12 +36,12 @@ static inline int next_part(char *path, int *start, char *buffer)
 }
 
 
-int fs_lookup_dir(char *path, inode_t *start, inode_t **result)
+int fs_lookup_dir(char *path, struct inode *start, struct inode **result)
 {
 	return -1;
 }
 
-inode_t *fs_lookup(char *path, inode_t *start)
+struct inode *fs_lookup(char *path, struct inode *start)
 {
 	/* adjust absolut paths */
 	if (*path == '/') {
@@ -51,7 +51,7 @@ inode_t *fs_lookup(char *path, inode_t *start)
 	}
 
 	char part[FS_MAX_NAME];
-	inode_t *ino = start;
+	struct inode *ino = start;
 	int  pidx  = 0;
 	int symc = 0;
 

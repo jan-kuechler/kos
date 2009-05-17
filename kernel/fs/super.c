@@ -4,10 +4,10 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 
-int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
+int fs_mount(struct inode *ino, struct fstype *type, char *device, int flags)
 {
-	kassert(ino);
-	kassert(type);
+	if (!ino) return -EINVAL;
+	if (!type) return -EINVAL;
 
 	if (bisset(type->flags, FST_NEED_DEV) && !device) {
 		return -EINVAL;
@@ -17,7 +17,7 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 		return -EINVAL;
 	}
 
-	superblock_t *sb = kmalloc(sizeof(superblock_t));
+	struct superblock *sb = kmalloc(sizeof(struct superblock));
 	int err = type->get_sb(sb, device, flags);
 	if (err != 0)
 		return err;
@@ -28,7 +28,7 @@ int fs_mount(inode_t *ino, fstype_t *type, char *device, int flags)
 	return 0;
 }
 
-int fs_umount(superblock_t *sb)
+int fs_umount(struct superblock *sb)
 {
 	kassert(sb);
 	if (!sb->ops->remount)

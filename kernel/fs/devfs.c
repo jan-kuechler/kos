@@ -5,10 +5,10 @@
 #include "mm/kmalloc.h"
 #include "util/list.h"
 
-static fstype_t devfs;
+static struct fstype devfs;
 
-static inode_ops_t iops;
-static inode_t  devfs_root = {
+static struct inode_ops iops;
+static struct inode devfs_root = {
 	.name = "dev",
 	.flags = FS_DIR,
 	.ops = &iops,
@@ -17,7 +17,7 @@ static sb_ops_t sbops;
 
 static list_t *devices;
 
-static int get_sb(superblock_t *sb, char *dev, int flags)
+static int get_sb(struct superblock *sb, char *dev, int flags)
 {
 	// ignore any device or flags
 	sb->root = &devfs_root;
@@ -27,7 +27,7 @@ static int get_sb(superblock_t *sb, char *dev, int flags)
 	return 0;
 }
 
-static dirent_t *readdir(inode_t *ino, dword index)
+static struct dirent *readdir(struct inode *ino, dword index)
 {
 	if (ino != &devfs_root)
 		return NULL;
@@ -37,11 +37,11 @@ static dirent_t *readdir(inode_t *ino, dword index)
 
 	int i=0;
 	list_entry_t *pos;
-	dirent_t *dirent = kmalloc(sizeof(dirent_t));
+	struct dirent *dirent = kmalloc(sizeof(struct dirent));
 
 	list_iterate(pos, devices) {
 		if (index == i) {
-			inode_t *dev = pos->data;
+			struct inode *dev = pos->data;
 			strcpy(dirent->name, dev->name);
 			dirent->inode = (dword)dev;
 			return dirent;
@@ -52,7 +52,7 @@ static dirent_t *readdir(inode_t *ino, dword index)
 	return NULL;
 }
 
-static inode_t *finddir(inode_t *ino, char *name)
+static struct inode *finddir(struct inode *ino, char *name)
 {
 	if (ino != &devfs_root)
 		return NULL;
@@ -60,7 +60,7 @@ static inode_t *finddir(inode_t *ino, char *name)
 	list_entry_t *pos;
 
 	list_iterate(pos, devices) {
-		inode_t *dev = pos->data;
+		struct inode *dev = pos->data;
 		if (strcmp(dev->name, name) == 0)
 			return dev;
 	}
@@ -68,20 +68,20 @@ static inode_t *finddir(inode_t *ino, char *name)
 	return NULL;
 }
 
-int devfs_register(inode_t *file)
+int devfs_register(struct inode *ino)
 {
 	file->sb = devfs_root.sb;
-	list_add_back(devices, file);
+	list_add_back(devices, ino);
 
 	return 0;
 }
 
-int devfs_unregister(inode_t *file)
+int devfs_unregister(struct inode *ino)
 {
 	list_entry_t *pos;
 
 	list_iterate(pos, devices) {
-		if (file == pos->data) {
+		if (ino == pos->data) {
 			list_del_entry(devices, pos);
 			return 0;
 		}

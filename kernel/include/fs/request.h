@@ -2,6 +2,7 @@
 #define REQUEST_H
 
 #include "pm.h"
+#include "fs/types.h"
 
 typedef struct request {
 	proc_t *proc;
@@ -11,23 +12,24 @@ typedef struct request {
 
 	void 	 *buffer;
 	dword   buflen;
-} request_t;
+
+	fscallback_t func;
+} struct request;
 
 /**
- *  rq_create(buffer, buflen, proc)
+ *  rq_create(inode, buffer, buflen)
  *
  * Creates a new request and fills in some information.
- * If proc is NULL cur_proc is used.
  * The created request must be destroyed using rq_finish.
  */
-request_t *rq_create(void *buffer, dword buflen, proc_t *proc);
+struct request *rq_create(struct inode *inode, void *buffer, dword buflen);
 
 /**
  *  rq_block(rq)
  *
  * Blocks the requesting process.
  */
-void rq_block(request_t *rq);
+void rq_block(struct request *rq);
 
 /**
  *  rq_finish(rq)
@@ -37,6 +39,6 @@ void rq_block(request_t *rq);
  * This function destroys the request, do not use it after
  * a call to rq_finish.
  */
-void rq_finish(request_t *rq);
+void rq_finish(struct request *rq);
 
 #endif /*REQUEST_H*/
