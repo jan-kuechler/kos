@@ -13,26 +13,72 @@ struct superblock;
 struct dirent;
 
 /*
- * Operations that can be done on an inode
+ * file operations
  */
-typedef struct inode_ops
+struct file_ops
 {
-	int (*open)(struct inode* inode, dword flags);
-	int (*close)(struct inode* inode);
+	int (*open)(struct inode *ino, struct file *file, dword flags);
+	int (*close)(struct file *file);
 
-	int (*read)(struct inode* inode, dword offset, void *buffer, dword size);
-	int (*write)(struct inode* inode, dword offset, void *buffer, dword size);
+	int (*read)(struct file *file, void *buffer, dword size);
+	int (*write)(struct file *file, void *buffer, dword size);
 
-	int (*mknod)(struct inode* inode, char *name, dword flags);
-	struct dirent* (*readdir)(struct inode *inode, dword index);
-	struct inode*  (*finddir)(struct inode *inode, char *name);
+	int (*mknod)(struct file *file, char *name, dword flags);
+	struct dirent *(*readdir)(struct file *file, dword index);
+	struct file *(*finddir)(struct file *file, char *name);
+};
 
-} inode_ops_t;
+/*
+ * Info for file type inodes
+ */
+struct file
+{
+	struct inode *inode;
+
+	dword pos;
+
+	struct file_ops fops;
+};
+
+/*
+ * Block device operations
+ */
+struct blockdev_ops
+{
+	int (*open)(struct inode *ino, struct blockdev *dev, dword flags);
+	int (*close)(struct blockdev *dev);
+
+	int (*read)(struct blockdev *dev, void *buffer, dword size, dword offset);
+	int (*write)(struct blockdev *dev, void *buffer, dword size, dword offset);
+};
+
+/*
+ * Info for block device type inodes
+ */
+struct blockdev
+{
+	struct inode *inode;
+
+	dword bsize;
+
+	struct blockdev_ops bops;
+};
+
+
+/*
+ * Operations that can be done on every inode
+ */
+struct inode_ops
+{
+	int (*create)(struct inode *ino, dword flags);
+
+	int (*seek)(struct inode *ino, dword index, dword offset);
+};
 
 /*
  * Any inode data comes here
  */
-typedef struct inode
+struct inode
 {
 	char *name;
 	dword flags;
@@ -45,42 +91,47 @@ typedef struct inode
 
 	dword impl;
 
+	union {
+		struct file *file;
+		struct blockdev *bdev;
+	} type;
+
 	struct inode *link;
 
-	inode_ops_t *ops;
+	struct inode_ops ops;
 	struct superblock *sb;
-} inode_t;
+};
 
-typedef struct sb_ops
+struct sb_ops
 {
-	void (*read_inode)(inode_t *inode);
-	void (*write_inode)(inode_t *inode);
-	void (*release_inode)(inode_t *inode);
+	void (*read_inode)(struct inode *inode);
+	void (*write_inode)(struct inode *inode);
+	void (*release_inode)(struct inode *inode);
 
 	void (*write_super)(struct superblock *sb);
 	void (*release_super)(struct superblock *sb);
 
 	int  (*remount)(struct superblock *sb, dword flags);
-} sb_ops_t;
+};
 
-typedef struct superblock
+struct superblock
 {
-	inode_t *root;
+	struct inode *root;
 
-	sb_ops_t *ops;
-} superblock_t;
+	struct sb_ops *ops;
+};
 
-typedef struct fstype
+struct fstype
 {
 	char  *name;
 	dword flags;
-	int (*get_sb)(superblock_t *sb, char *device, int flags);
-} fstype_t;
+	int (*get_sb)(struct superblock *sb, char *device, int flags);
+};
 
-typedef struct dirent
+struct dirent
 {
 	char name[FS_MAX_NAME];
 	dword inode;
-} dirent_t;
+};
 
 #endif /*FS_TYPES_H*/
