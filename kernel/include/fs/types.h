@@ -132,7 +132,7 @@ struct fstype
 struct dirent
 {
 	char name[FS_MAX_NAME];
-	dword inode;
+	struct inode *inode;
 };
 
 #endif /*FS_TYPES_H*/

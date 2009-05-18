@@ -5,7 +5,7 @@
 
 struct request *rq_create(struct inode *inode, void *buffer, dword buflen)
 {
-	struct request *rq = kmalloc(sizeof(struct request));
+	struct request *rq = kmalloc(sizeof(*rq));
 
 	rq->inode  = inode;
 	rq->buffer = buffer;

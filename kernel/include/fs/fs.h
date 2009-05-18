@@ -89,13 +89,20 @@ struct inode *lookup(char *path, struct inode *start);
 
 int fs_open(struct inode *inode, dword flags);
 int fs_close(struct inode *inode);
-int fs_read(struct inode *inode, void *buffer, dword size, dword offset);
-int fs_write(struct inode *inode, void *buffer, dword size, dword offset);
-int fs_read_async(struct inode *inode, void *buffer, dword size, dword offset, fscallback_t func);
-int fs_write_async(struct inode *inode, void *buffer, dword size, dword offset, fscallback_t func);
-int fs_mknod(struct inode *inode, char *name, dword flags);
-struct dirent *fs_readdir(struct inode *inode, dword index);
-struct inode *fs_finddir(struct inode *inode, char *name);
+
+int fs_read(struct file *file, void *buffer, dword size, dword offset);
+int fs_write(struct file *file, void *buffer, dword size, dword offset);
+int fs_read_async(struct file *file, void *buffer, dword size, dword offset, fscallback_t func);
+int fs_write_async(struct file *file, void *buffer, dword size, dword offset, fscallback_t func);
+
+int fs_readblk(struct blockdev *dev, void *buffer, dword size, dword offset);
+int fs_writeblk(struct blockdev *dev, void *buffer, dword size, dword offset);
+int fs_readblk_async(struct blockdev *dev, void *buffer, dword size, dword offset, fscallback_t func);
+int fs_writeblk_async(struct blockdev *dev, void *buffer, dword size, dword offset, fscallback_t func);
+
+int fs_mknod(struct file *file, char *name, dword flags);
+struct dirent *fs_readdir(struct file *file, dword index);
+struct inode *fs_finddir(struct file *file, char *name);
 
 void init_fs(void);
 
