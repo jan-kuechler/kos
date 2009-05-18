@@ -1,0 +1,59 @@
+Typen:
+------
+
+inode:
+- Datei/Ordner/Pipe/Device/Link
+- einmal vorhanden
+
+file:
+- einmal pro geöffneter inode
+
+superblock:
+- hauptdaten eines dateisystems
+- einmal pro gerät vorhanden
+
+fstype:
+- dateisystemtreiber
+
+===========================================================
+
+Funktionen:
+-----------
+
+indode:
+- create(dir, name, flags)
+	* erstellt eine neue inode in einem ordner
+- unlink(inode)
+	* löscht eine inode
+- open(inode, file, mode)
+	* öffnet eine inode und füllt die informationen in file aus
+
+file:
+- close(file)
+	* schließt die datei
+- read(file, buffer, count, pos)
+	* liest count bytes der datei beginnend bei pos in buffer
+- write(file, buffer, count, pos)
+	* schreibt count bytes in die datei beginnend bei pos
+- seek(file, offset, index)
+	* 
+- readdir(file, n)
+	* gibt die daten des nten eintrags in einem ordner zurück
+- finddir(file, name)
+	* gibt die inode mit dem namen name zurück
+	
+superblock:
+- remount(sb, flags)
+	* remounted den superblock
+	
+===========================================================
+  
+Eigenschaften:
+--------------
+
+inode:
+
+file:
+
+superblock:
+
