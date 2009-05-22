@@ -5,7 +5,7 @@
 #include <types.h>
 #include "keymap.h"
 #include "pm.h"
-#include "fs/fs.h"
+#include "fs/types.h"
 #include "util/list.h"
 
 #define NUM_TTYS 8
@@ -22,7 +22,7 @@ typedef struct tty
 {
 	int   id;
 
-	inode_t inode;
+	struct inode inode;
 
 	char  inbuf[TTY_INBUF_SIZE];
 	dword incount;

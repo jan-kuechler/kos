@@ -41,7 +41,7 @@ void kinit()
 	kout_puts("Initializing FS:");
 	init_fs();
 	init_devfs();
-	fs_mount(fs_root, fs_find_type("devfs"), NULL, FSM_READ | FSM_WRITE);
+	vfs_mount(vfs_gettype("devfs"), fs_root, NULL, FSM_READ | FSM_WRITE);
 
 	init_tty();
 	tty_register_keymap("de", keymap_de);

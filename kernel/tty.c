@@ -19,6 +19,8 @@
 
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
+#define GET_TTY(file) (&ttys[file->inode->impl])
+
 static char *names[NUM_TTYS] = {
 	"tty0", "tty1",	"tty2",	"tty3",
 	"tty4", "tty5", "tty6", "tty7"
@@ -48,16 +50,26 @@ static struct {
 	byte numlock;
 } modifiers;
 
-static int tty_open(inode_t *inode, dword flags);
-static int tty_close(inode_t *inode);
-static int tty_read(inode_t *inode, dword offset, void *buffer, dword size);
-static int tty_write(inode_t *inode, dword offset, void *buffer, dword size);
+static int tty_open(struct inode *ino, struct file *file, dword flags);
 
-static inode_ops_t tty_ops = {
-	.open  = tty_open,
+static int tty_close(struct file *file);
+static int tty_read(struct file *file, void *buffer, dword count, dword offset);
+static int tty_write(struct file *file, void *buffer, dword count, dword offset);
+static int tty_read_async(struct request *rq);
+static int tty_write_async(struct request *rq);
+static int tty_seek(struct file *file, dword offset, dword index);
+
+static struct inode_ops tty_ino_ops = {
+	.open = tty_open,
+};
+
+static struct file_ops tty_file_ops = {
 	.close = tty_close,
 	.read  = tty_read,
 	.write = tty_write,
+	.read_async = tty_read_async,
+	.write_async = tty_write_async,
+	.seek = tty_seek,
 };
 
 /**
@@ -228,7 +240,7 @@ static byte can_answer_rq(tty_t *tty)
 		return 0;
 	}
 
-	return enough_data(tty, ((request_t*)list_front(tty->requests))->buflen);
+	return enough_data(tty, ((struct request*)list_front(tty->requests))->buflen);
 }
 
 /**
@@ -273,7 +285,7 @@ static inline void remove_data(tty_t *tty, dword count)
 static void answer_rq(tty_t *tty)
 {
 	dbg_vprintf(DBG_TTY, "answer_rq for %d\n", tty->id);
-	request_t *rq = list_del_front(tty->requests);
+	struct request *rq = list_del_front(tty->requests);
 
 	dword count = copy_data(tty, rq->buffer, rq->buflen);
 	dbg_vprintf(DBG_TTY, "  %d bytes copied.\n", count);
@@ -287,45 +299,63 @@ static void answer_rq(tty_t *tty)
 	dbg_vprintf(DBG_TTY, "  finished request.\n");
 }
 
-static int tty_open(inode_t *inode, dword flags)
+static int tty_open(struct inode *ino, struct file *file, dword flags)
+{
+	file->pos = 0;
+	file->fops = &tty_file_ops;
+
+	return 0;
+}
+
+static int tty_close(struct file *file)
 {
 	return 0;
 }
 
-static int tty_close(inode_t *inode)
+static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 {
-	return 0;
-}
+	tty_t *tty = GET_TTY(file);
 
-static int tty_read(inode_t *inode, dword offset, void *buffer, dword size)
-{
-	tty_t *tty = &ttys[inode->impl];
-
-	if (enough_data(tty, size)) {
-		dword count = copy_data(tty, buffer, size);
-		remove_data(tty, count);
-		return count;
+	if (enough_data(tty, count)) {
+		dword num = copy_data(tty, buffer, count);
+		remove_data(tty, num);
+		return num;
 	}
 	else {
-		request_t *rq = rq_create(buffer, size, NULL);
+		struct request *rq = rq_create(file, buffer, count);
 		list_add_back(tty->requests, rq);
 		rq_block(rq);
 		return -EAGAIN;
 	}
 }
 
-static int tty_write(inode_t *inode, dword offset, void *buffer, dword size)
+static int tty_write(struct file *file, void *buffer, dword count, dword offset)
 {
-	tty_t *tty = &ttys[inode->impl];
+	tty_t *tty = GET_TTY(file);
 
 	char *buf = buffer;
 
 	int i=0;
-	for (; i < size; ++i) {
+	for (; i < count; ++i) {
 		putc(tty, buf[i]);
 	}
 
-	return size;
+	return count;
+}
+
+static int tty_read_async(struct request *rq)
+{
+	return -ENOSYS;
+}
+
+static int tty_write_async(struct request *rq)
+{
+	return -ENOSYS;
+}
+
+static int tty_seek(struct file *file, dword offset, dword index)
+{
+	return -ENOSYS;
 }
 
 /**
@@ -633,15 +663,11 @@ static inline void init(tty_t *tty, int id, int early)
 {
 	tty->id = id;
 
+	memset(&tty->inode, 0, sizeof(tty->inode));
 	tty->inode.name   = names[id];
 	tty->inode.flags  = FS_CHARDEV;
-	tty->inode.mask   = 0;
-	tty->inode.length = 0;
-	tty->inode.uid    = 0;
-	tty->inode.gid    = 0;
 	tty->inode.impl   = id;
-	tty->inode.link   = NULL;
-	tty->inode.ops    = &tty_ops;
+	tty->inode.ops    = &tty_ino_ops;
 
 	tty->incount = 0;
 	tty->status  = 0x07;

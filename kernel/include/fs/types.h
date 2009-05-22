@@ -26,7 +26,7 @@ struct file_ops
 	int (*read_async)(struct request *rq);
 	int (*write_async)(struct request *rq);
 
-	int (*seek)(struct inode *ino, dword index, dword offset);
+	int (*seek)(struct inode *ino, dword offset, dword index);
 };
 
 /*

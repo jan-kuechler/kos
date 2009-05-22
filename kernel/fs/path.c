@@ -1,4 +1,5 @@
 #include <bitop.h>
+#include <errno.h>
 #include <string.h>
 #include "debug.h"
 #include "mm/kmalloc.h"
@@ -90,7 +91,7 @@ struct inode *vfs_lookup(char *path, struct inode *start)
 			ino = ino->link;
 		}
 		else if (bnotset(ino->flags, FS_DIR)) {
-			ret_null_and_err(-ENODIR);
+			ret_null_and_err(-ENOENT);
 		}
 
 		ino = vfs_finddir(ino, part);

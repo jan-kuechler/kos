@@ -7,17 +7,17 @@
 
 static struct fstype devfs;
 
-static struct inode_ops iops;
+static struct inode_ops iops = {};
 static struct inode devfs_root = {
 	.name = "dev",
 	.flags = FS_DIR,
 	.ops = &iops,
 };
-static sb_ops_t sbops;
+static struct sb_ops sbops = {};
 
 static list_t *devices;
 
-static int get_sb(struct superblock *sb, char *dev, int flags)
+static int mount(struct superblock *sb, char *dev, int flags)
 {
 	// ignore any device or flags
 	sb->root = &devfs_root;
@@ -43,7 +43,7 @@ static struct dirent *readdir(struct inode *ino, dword index)
 		if (index == i) {
 			struct inode *dev = pos->data;
 			strcpy(dirent->name, dev->name);
-			dirent->inode = (dword)dev;
+			dirent->inode = dev;
 			return dirent;
 		}
 		i++;
@@ -70,7 +70,7 @@ static struct inode *finddir(struct inode *ino, char *name)
 
 int devfs_register(struct inode *ino)
 {
-	file->sb = devfs_root.sb;
+	ino->sb = devfs_root.sb;
 	list_add_back(devices, ino);
 
 	return 0;
@@ -93,7 +93,7 @@ void init_devfs()
 {
 	devfs.name   = "devfs";
 	devfs.flags  = 0;
-	devfs.get_sb = get_sb;
+	devfs.mount  = mount;
 
 	memset(&sbops, 0, sizeof(sbops));
 
@@ -103,5 +103,5 @@ void init_devfs()
 
 	devices = list_create();
 
-	fs_register(&devfs);
+	vfs_register(&devfs);
 }
