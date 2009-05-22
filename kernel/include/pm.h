@@ -66,8 +66,8 @@ typedef struct proc {
 
 	regs_t *sc_regs;
 
-	inode_t *cwd;
-	inode_t *fds[PROC_NUM_FDS];
+	struct inode *cwd;
+	struct file  *fds[PROC_NUM_FDS];
 	dword  numfds;
 
 	char *cmdline;

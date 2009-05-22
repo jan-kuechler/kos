@@ -3,67 +3,138 @@
 #include "debug.h"
 #include "fs/fs.h"
 
-int fs_open(struct inode *inode, dword flags)
-{
-	if (!inode) return -EINVAL;
+#define ret_null_and_err(err) do { fs_error = err; return NULL; } while (0);
 
-	if (inode->ops && inode->ops->open)
-		return inode->ops->open(inode, flags);
-	return -EINVAL;
+#define inode_has_op(ino, op) ((ino)->oos && (ino)->ops->op)
+#define file_has_op(file, op) ((file)->fops && (file)->fops->op)
+
+struct inode *vfs_create(struct inode *dir, char *name, dword flags)
+{
+	if (!inode || !name)
+		ret_null_and_err(-EINVAL);
+
+	if (bnotset(inode->flags, FS_DIR))
+		ret_null_and_err(-ENODIR);
+
+	if (inode->ops && inode->ops->create)
+		return inode->ops->create(dir, name, flags);
+
+	ret_null_and_err(-ENOSYS);
 }
 
-int fs_close(struct inode *inode)
+int vfs_unlink(struct inode *ino)
 {
-	if (!inode) return -EINVAL;
+	if (!ino)
+		return -EINVAL;
 
-	if (inode->ops && inode->ops->close)
-		return inode->ops->close(inode);
-	return -EINVAL;
+	if (ino->opencount)
+		return -EAGAIN;
+
+	if (ino->ops && ino->ops->unlink)
+		return ino->ops->unlink(ino);
+
+	return -ENOSYS;
 }
 
-int fs_read(struct file *file, void *buffer, dword size, dword offset)
+struct file *vfs_open(struct inode *ino, dword flags)
 {
-	if (!file) return -EINVAL;
+	if (!ino)
+		ret_null_and_err(-EINVAL);
 
-	if (inode->ops && inode->ops->read)
-		inode->ops->read(inode, offset, buffer, size);
-	return -EINVAL;
+	struct file *file = kmalloc(sizeof(*file));
+	memset(file, 0, sizeof(*file));
+
+	if (ino->ops && ino->ops->open) {
+		int status = ino->ops->open(ino, file, flags);
+		if (status != 0) {
+			kfree(file);
+			ret_null_and_err(status);
+		}
+		return file;
+	}
+
+	ret_null_and_err(-EINVAL);
 }
 
-int fs_write(struct file *file, void *buffer, dword size, dword offset)
+int vfs_close(struct file *file)
 {
-	if (!file) return -EINVAL;
+	if (!file)
+		return -EINVAL;
 
-	if (inode->ops && inode->ops->write)
-		inode->ops->write(inode, offset, buffer, size);
-	return -EINVAL;
+	int status = -ENOSYS;
+	if (file_has_op(file, close)) {
+		status = file->fops->close(file);
+		if (status == 0)
+			kfree(file);
+	}
+	return status;
 }
 
-int fs_mknod(struct file *file, char *name, dword flags)
+int vfs_read(struct file *file, void *buffer, dword count, dword offset)
 {
-	if (!file) return -EINVAL;
+	if (!file)
+		return -EINVAL;
 
-	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->mknod)
-		return inode->ops->mknod(inode, name, flags);
-	return -EINVAL;
+	if (file_has_op(file, read))
+		file->fops->read(file, buffer, count, offset);
+	return -ENOSYS;
 }
 
-struct dirent *fs_readdir(struct file *file, dword index)
+int vfs_write(struct file *file, void *buffer, dword count, dword offset)
 {
-	if (!file) return -EINVAL;
+	if (!file)
+		return -EINVAL;
 
-	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->readdir)
-		return inode->ops->readdir(inode, index);
-
-	return NULL;
+	if (file_has_op(file, write))
+		file->fops->write(file, buffer, count, offset);
+	return -ENOSYS;
 }
 
-struct inode *fs_finddir(struct file *file, char *name)
+int vfs_read_async(struct request *rq)
 {
-	if (!file) return -EINVAL;
+	if (!rq || ! rq->file)
+		return -EINVAL;M
 
-	if (bisset(inode->flags, FS_DIR) && inode->ops && inode->ops->finddir)
-		return inode->ops->finddir(inode, name);
+	if (file_has_op(rq->file, read_async))
+		return rq->file->fops->read_async(rq);
+	return -ENOSYS;
+}
 
-	return NULL;
+int vfs_write_async(struct request *rq)
+{
+	if (!rq || ! rq->file)
+		return -EINVAL;M
+
+	if (file_has_op(rq->file, write_async))
+		return rq->file->fops->write_async(rq);
+	return -ENOSYS;
+
+}
+
+struct dirent *vfs_readdir(struct inode *ino, dword index)
+{
+	if (!file)
+		ret_null_and_err(-EINVAL);
+
+	if (bnotset(ino->flags, FS_DIR))
+		ret_null_and_err(-EINVAL);
+
+	if (inode_has_op(ino, readdir))
+		return ino->ops->readdir(ino, index);
+
+	ret_null_and_err(-ENOSYS);
+}
+
+struct inode *vfs_finddir(struct inode *ino, char *name)
+{
+	if (!ino)
+		ret_null_and_err(-EINVAL);
+
+	if (bnotset(ino->flags, FS_DIR))
+		ret_null_and_err(-EINVAL);
+
+	if (inode_has_op(ino, finddir))
+		return ino->ops->finddir(ino, name);
+
+	ret_null_and_err(-ENOSYS);
 }

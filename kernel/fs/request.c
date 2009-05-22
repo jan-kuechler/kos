@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <string.h>
 #include "syscall.h"
 #include "fs/request.h"
 #include "mm/kmalloc.h"
@@ -6,6 +7,7 @@
 struct request *rq_create(struct inode *inode, void *buffer, dword buflen)
 {
 	struct request *rq = kmalloc(sizeof(*rq));
+	memset(rq, 0, sizeof(*rq));
 
 	rq->inode  = inode;
 	rq->buffer = buffer;

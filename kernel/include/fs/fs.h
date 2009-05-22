@@ -41,68 +41,32 @@
 
 /* The root of the file system */
 extern struct inode *fs_root;
+extern int fs_error;
 
-/**
- *  fs_register(type)
- *
- * Registers a new filesystem type.
- */
-int fs_register(struct fstype *type);
+int vfs_geterr();
 
-/**
- *  fs_unregister(type)
- *
- * Unregisters a previously registered filesystem type.
- */
-int fs_unregister(struct fstype *type);
+int vfs_register(struct fstype *type);
+int vfs_unregister(struct fstype *type);
+struct fstype *vfs_gettype(char *name);
 
-/**
- *  fs_find_type(name)
- *
- * Returns the filesystem type with the given name or 0.
- */
-struct fstype *fs_find_type(char *name);
+int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flags);
+int vfs_umount(struct inode *point);
 
-/**
- *  fs_mount(ino, type, device, flags)
- *
- * Mounts a filesystem specified by type to a device.
- */
-int fs_mount(struct inode *ino, struct fstype *type, char *device, int flags);
-int fs_umount(struct superblock *sb);
+struct inode *vfs_lookup(char *path, struct inode *start);
+struct dirent *vfs_lookup_dir(char *path, struct inode *start);
 
-/**
- *  lookup_dir(path, start)
- *
- * Returns the inode for the last directory
- * in the given path.
- */
-int fs_lookup_dir(char *path, struct inode *start, struct inode **result);
+struct inode *vfs_create(struct inode *dir, char *name, dword flags);
+int vfs_unlink(struct inode *ino);
+struct file *vfs_open(struct inode *ino, dword flags);
+int vfs_close(struct file *file);
 
-/**
- *  lookup(path, start)
- *
- * This function returns the inode for a path.
- * It handles mountpoints and (soon) symlinks.
- */
-struct inode *lookup(char *path, struct inode *start);
+int vfs_read(struct file *file, void *buffer, dword count, dword offset);
+int vfs_write(struct file *file, void *buffer, dword count, dword offset);
+int vfs_read_async(struct request *rq);
+int vfs_write_async(struct request *rq);
 
-int fs_open(struct inode *inode, dword flags);
-int fs_close(struct inode *inode);
-
-int fs_read(struct file *file, void *buffer, dword size, dword offset);
-int fs_write(struct file *file, void *buffer, dword size, dword offset);
-int fs_read_async(struct file *file, void *buffer, dword size, dword offset, fscallback_t func);
-int fs_write_async(struct file *file, void *buffer, dword size, dword offset, fscallback_t func);
-
-int fs_readblk(struct blockdev *dev, void *buffer, dword size, dword offset);
-int fs_writeblk(struct blockdev *dev, void *buffer, dword size, dword offset);
-int fs_readblk_async(struct blockdev *dev, void *buffer, dword size, dword offset, fscallback_t func);
-int fs_writeblk_async(struct blockdev *dev, void *buffer, dword size, dword offset, fscallback_t func);
-
-int fs_mknod(struct file *file, char *name, dword flags);
-struct dirent *fs_readdir(struct file *file, dword index);
-struct inode *fs_finddir(struct file *file, char *name);
+struct dirent *vfs_readdir(struct inode *ino, dword index);
+struct inode *vfs_finddir(struct inode *ino, char *name);
 
 void init_fs(void);
 

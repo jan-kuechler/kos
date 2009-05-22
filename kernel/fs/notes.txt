@@ -15,6 +15,12 @@ superblock:
 fstype:
 - dateisystemtreiber
 
+request:
+- hält daten für einen asynchronen read/write request
+
+fscallback_t:
+- callback funktion
+
 ===========================================================
 
 Funktionen:
@@ -46,14 +52,83 @@ superblock:
 - remount(sb, flags)
 	* remounted den superblock
 	
+fstype:
+- mount(sb, device, flags)
+	* mounted das system auf einem device mit dem treiber
+	
 ===========================================================
   
 Eigenschaften:
 --------------
 
 inode:
+- name
+- flags (FILE, DIR, PIPE, CHARDEV, BLOCKDEV, SYMLINK, MOUNTPOINT)
+- permissions (RWX for Owner,Group,Other)
+- length
+- uid
+- gid
+- impl
+- opencount
+- link
+- iops
+- sb
 
 file:
+- inode
+- pos
+- fops
 
 superblock:
+- root
+- flags (READ, WRITE, EXECUTE, 
+- sbops
 
+fstype:
+- name
+- flags (NEED_DEV)
+
+request:
+- file
+- buffer
+- buflen
+- proc
+- blocked
+- func
+- result
+
+===========================================================
+
+VFS Funktionen:
+---------------
+
+- err = vfs_geterror()
+
+- err = vfs_register(type)
+- err = vfs_unregister(type)
+- type = vfs_gettype(name>)
+
+- err = vfs_mount(type, inode, device, flags)
+- err = vfs_unmount(inode)
+
+- inode = vfs_lookup(path, start_inode)
+- dirent = vfs_lookup_dir(path, start_inode)
+
+- inode = vfs_create(dir, name, flags)
+- file = vfs_open(inode, flags)
+- err  = vfs_close(file)
+
+- count = vfs_read(file, buffer, count, pos)
+- count = vfs_write(file, buffer, count, pos)
+- err = vfs_read_async(request)
+- err = vfs_write_async(request)
+
+- dirent = vfs_readdir(file, index)
+- inode = vfs_finddir(file, name)
+
+===========================================================
+
+Syscalls:
+---------
+
+- 

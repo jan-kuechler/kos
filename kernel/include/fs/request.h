@@ -5,6 +5,7 @@
 #include "fs/types.h"
 
 typedef struct request {
+	struct file *file;
 	proc_t *proc;
 	int     blocked;
 

@@ -4,35 +4,35 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 
-int fs_mount(struct inode *ino, struct fstype *type, char *device, int flags)
+int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flags)
 {
-	if (!ino) return -EINVAL;
-	if (!type) return -EINVAL;
-
-	if (bisset(type->flags, FST_NEED_DEV) && !device) {
+	if (!type || !point || bnotset(point->flags, FS_DIR))
 		return -EINVAL;
-	}
 
-	if (bnotset(ino->flags, FS_DIR )) {
+	if (bisset(type->flags, FST_NEED_DEV) && !device)
 		return -EINVAL;
-	}
 
-	struct superblock *sb = kmalloc(sizeof(struct superblock));
-	int err = type->get_sb(sb, device, flags);
-	if (err != 0)
+	struct superblock *sb = kmalloc(sizeof(*sb));
+	int err = type->mount(sb, device, flags);
+	if (err != 0) {
+		kfree(sb);
 		return err;
+	}
 
-	bset(ino->flags, FS_MOUNTP);
+	bset(point->flags, FS_MOUNTP);
 	ino->link = sb->root;
 
 	return 0;
 }
 
-int fs_umount(struct superblock *sb)
+int vfs_umount(struct inode *ino)
 {
-	kassert(sb);
-	if (!sb->ops->remount)
+	if (!ino || bnotset(ino->flags, FS_MOUNTP) || !ino->link)
 		return -EINVAL;
+
+	struct superblock *sb = ino->link->sb;
+	if (!sb->ops || !sb->ops->remount)
+		return -ENOSYS;
 
 	int err = sb->ops->remount(sb, FSM_UMOUNT);
 
@@ -40,5 +40,9 @@ int fs_umount(struct superblock *sb)
 		return err;
 
 	kfree(sb);
+
+	bclr(ino->flags, FS_MOUNTP);
+	ino->link = NULL;
+
 	return 0;
 }

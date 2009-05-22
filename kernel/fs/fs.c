@@ -14,8 +14,14 @@ static struct inode root = {
 	.flags = FS_DIR,
 };
 struct inode *fs_root = &root;
+int fs_error = 0;
 
-int fs_register(struct fstype *type)
+int vfs_geterror()
+{
+	return fs_error;
+}
+
+int vfs_register(struct fstype *type)
 {
 	if (!type)
 		return -EINVAL;
@@ -28,7 +34,7 @@ int fs_register(struct fstype *type)
 	return 0;
 }
 
-int fs_unregister(struct fstype *type)
+int vfs_unregister(struct fstype *type)
 {
 	if (!type)
 		return -EINVAL;
@@ -43,7 +49,7 @@ int fs_unregister(struct fstype *type)
 	return -EINVAL;
 }
 
-struct fstype *fs_find_type(char *name)
+struct fstype *vfs_gettype(char *name)
 {
 	if (!name)
 		return -EINVAL;
@@ -57,21 +63,7 @@ struct fstype *fs_find_type(char *name)
 	return 0;
 }
 
-// FIXME: please please fix me!
-static inline char *safe_path(dword addr)
-{
-	char *name = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)addr, 1024);
-	return name;
-}
-
-// FIXME: please please fix me!
-static inline char *safe_name(dword addr)
-{
-	char *name = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)addr, 1024);
-	return name;
-}
-
-static inline struct inode *inode_from_fd(dword fd)
+static inline struct file *fd2file(dword fd)
 {
 	if (fd >= cur_proc->numfds)
 		return NULL;

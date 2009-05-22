@@ -4,7 +4,7 @@
 #include "mm/kmalloc.h"
 #include "fs/fs.h"
 
-// TODO: permissions
+#define ret_null_and_err(err) do { fs_error = err; return NULL; } while (0);
 
 /**
  *  next_part(path, start)
@@ -35,20 +35,38 @@ static inline int next_part(char *path, int *start, char *buffer)
 	return 1;
 }
 
-
-int fs_lookup_dir(char *path, struct inode *start, struct inode **result)
+static int advance_root(char **path)
 {
-	return -1;
+	char *p = *path;
+	if (*p == '/') {
+		while (*(++p) == '/')
+			;
+		*path = p;
+	}
+	return 0;
 }
 
-struct inode *fs_lookup(char *path, struct inode *start)
+
+struct dirent *vfs_lookup_dir(char *path, struct inode *start)
+{
+	if (advance_root(&path))
+		start = fs_root;
+
+	// TODO
+
+	return NULL;
+}
+
+struct inode *vfs_lookup(char *path, struct inode *start)
 {
 	/* adjust absolut paths */
-	if (*path == '/') {
+	//if (*path == '/') {
+	//	start = fs_root;
+	//	while (*(++path) == '/')
+	//		;
+	//}
+	if (advance_root(&path))
 		start = fs_root;
-		while (*(++path) == '/')
-			;
-	}
 
 	char part[FS_MAX_NAME];
 	struct inode *ino = start;
@@ -64,6 +82,7 @@ struct inode *fs_lookup(char *path, struct inode *start)
 			ino = ino->link;
 
 			if (++symc >= FS_MAX_SYMLOOP) {
+				ret_null_and_err(-ELOOP);
 				return NULL;
 			}
 		}
@@ -71,10 +90,10 @@ struct inode *fs_lookup(char *path, struct inode *start)
 			ino = ino->link;
 		}
 		else if (bnotset(ino->flags, FS_DIR)) {
-			return NULL;
+			ret_null_and_err(-ENODIR);
 		}
 
-		ino = fs_finddir(ino, part);
+		ino = vfs_finddir(ino, part);
 	}
 
 	return ino;
