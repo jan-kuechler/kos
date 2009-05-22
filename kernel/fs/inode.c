@@ -1,23 +1,26 @@
 #include <bitop.h>
 #include <errno.h>
+#include <string.h>
 #include "debug.h"
 #include "fs/fs.h"
+#include "fs/request.h"
+#include "mm/kmalloc.h"
 
 #define ret_null_and_err(err) do { fs_error = err; return NULL; } while (0);
 
-#define inode_has_op(ino, op) ((ino)->oos && (ino)->ops->op)
+#define inode_has_op(ino, op) ((ino)->ops && (ino)->ops->op)
 #define file_has_op(file, op) ((file)->fops && (file)->fops->op)
 
 struct inode *vfs_create(struct inode *dir, char *name, dword flags)
 {
-	if (!inode || !name)
+	if (!dir || !name)
 		ret_null_and_err(-EINVAL);
 
-	if (bnotset(inode->flags, FS_DIR))
-		ret_null_and_err(-ENODIR);
+	if (bnotset(dir->flags, FS_DIR))
+		ret_null_and_err(-EINVAL);
 
-	if (inode->ops && inode->ops->create)
-		return inode->ops->create(dir, name, flags);
+	if (inode_has_op(dir, create))
+		return dir->ops->create(dir, name, flags);
 
 	ret_null_and_err(-ENOSYS);
 }
@@ -61,13 +64,13 @@ int vfs_close(struct file *file)
 	if (!file)
 		return -EINVAL;
 
-	int status = -ENOSYS;
+	int err = -ENOSYS;
 	if (file_has_op(file, close)) {
-		status = file->fops->close(file);
-		if (status == 0)
+		err = file->fops->close(file);
+		if (!err)
 			kfree(file);
 	}
-	return status;
+	return err;
 }
 
 int vfs_read(struct file *file, void *buffer, dword count, dword offset)
@@ -93,7 +96,7 @@ int vfs_write(struct file *file, void *buffer, dword count, dword offset)
 int vfs_read_async(struct request *rq)
 {
 	if (!rq || ! rq->file)
-		return -EINVAL;M
+		return -EINVAL;
 
 	if (file_has_op(rq->file, read_async))
 		return rq->file->fops->read_async(rq);
@@ -103,7 +106,7 @@ int vfs_read_async(struct request *rq)
 int vfs_write_async(struct request *rq)
 {
 	if (!rq || ! rq->file)
-		return -EINVAL;M
+		return -EINVAL;
 
 	if (file_has_op(rq->file, write_async))
 		return rq->file->fops->write_async(rq);
@@ -113,7 +116,7 @@ int vfs_write_async(struct request *rq)
 
 struct dirent *vfs_readdir(struct inode *ino, dword index)
 {
-	if (!file)
+	if (!ino)
 		ret_null_and_err(-EINVAL);
 
 	if (bnotset(ino->flags, FS_DIR))

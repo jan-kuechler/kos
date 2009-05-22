@@ -4,12 +4,12 @@
 #include "fs/request.h"
 #include "mm/kmalloc.h"
 
-struct request *rq_create(struct inode *inode, void *buffer, dword buflen)
+struct request *rq_create(struct file *file, void *buffer, dword buflen)
 {
 	struct request *rq = kmalloc(sizeof(*rq));
 	memset(rq, 0, sizeof(*rq));
 
-	rq->inode  = inode;
+	rq->file   = file;
 	rq->buffer = buffer;
 	rq->buflen = buflen;
 
@@ -34,7 +34,7 @@ void rq_finish(struct request *rq)
 		sc_late_result(rq->proc, rq->result);
 	}
 	else if (rq->func) {
-		rq->func(rq->inode, rq->result, rq->buffer, rq->buflen);
+		rq->func(rq->file, rq->result, rq->buffer, rq->buflen);
 	}
 	kfree(rq);
 }

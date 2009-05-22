@@ -20,7 +20,7 @@ int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flag
 	}
 
 	bset(point->flags, FS_MOUNTP);
-	ino->link = sb->root;
+	point->link = sb->root;
 
 	return 0;
 }

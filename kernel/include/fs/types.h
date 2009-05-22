@@ -8,13 +8,11 @@
  */
 #define FS_MAX_NAME 255
 
+struct file;
+struct inode;
 struct request;
 
-struct inode;
-struct superblock;
-struct dirent;
-
-typedef void (*fscallback_t)(struct inode *, dword, void *, dword);
+typedef void (*fscallback_t)(struct file *, dword, void *, dword);
 
 /*
  * file operations
@@ -40,7 +38,7 @@ struct file
 
 	dword pos;
 
-	struct file_ops fops;
+	struct file_ops *fops;
 };
 
 /*
@@ -48,7 +46,7 @@ struct file
  */
 struct inode_ops
 {
-	int (*create)(struct inode *dir, char *name, dword flags);
+	struct inode* (*create)(struct inode *dir, char *name, dword flags);
 	int (*open)(struct inode *ino, struct file *file, dword flags);
 	int (*unlink)(struct inode *ino);
 
@@ -76,7 +74,7 @@ struct inode
 
 	struct inode *link;
 
-	struct inode_ops ops;
+	struct inode_ops *ops;
 	struct superblock *sb;
 };
 

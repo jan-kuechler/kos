@@ -4,7 +4,7 @@
 #include "pm.h"
 #include "fs/types.h"
 
-typedef struct request {
+struct request {
 	struct file *file;
 	proc_t *proc;
 	int     blocked;
@@ -15,7 +15,7 @@ typedef struct request {
 	dword   buflen;
 
 	fscallback_t func;
-} struct request;
+};
 
 /**
  *  rq_create(inode, buffer, buflen)
@@ -23,7 +23,7 @@ typedef struct request {
  * Creates a new request and fills in some information.
  * The created request must be destroyed using rq_finish.
  */
-struct request *rq_create(struct inode *inode, void *buffer, dword buflen);
+struct request *rq_create(struct file *file, void *buffer, dword buflen);
 
 /**
  *  rq_block(rq)
