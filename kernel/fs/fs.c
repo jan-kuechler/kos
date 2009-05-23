@@ -4,6 +4,7 @@
 #include "debug.h"
 #include "syscall.h"
 #include "fs/fs.h"
+#include "mm/util.h"
 #include "util/list.h"
 
 /* A list of all registered filesystems */
@@ -63,6 +64,8 @@ struct fstype *vfs_gettype(char *name)
 	return 0;
 }
 
+/* FS Syscalls */
+
 static inline struct file *fd2file(dword fd)
 {
 	if (fd >= cur_proc->numfds)
@@ -71,89 +74,100 @@ static inline struct file *fd2file(dword fd)
 	return cur_proc->fds[fd];
 }
 
-dword sys_open(dword calln, dword fname, dword flags, dword arg2)
+int sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
-	char *name = safe_name(fname);
+	size_t namelen = 0;
+	char *name = vm_map_string(cur_proc->pagedir, fname, &namelen);
+	int result = -1;
 
-	struct inode *inode = fs_lookup(name, cur_proc->cwd);
+	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
 
-	if (!inode)
-		return -ENOENT;
+	if (!inode) {
+		result = vfs_geterror();
+		goto end;
+	}
 
-	if (cur_proc->numfds >= PROC_NUM_FDS)
-		return -EMFILE;
+	if (cur_proc->numfds >= PROC_NUM_FDS) {
+		result = -EMFILE;
+		goto end;
+	}
 
-	int res = fs_open(inode, flags);
-	if (res < 0)
-		return res;
+	struct file *fíle = vfs_open(inode, flags);
+	if (!file) {
+		result = vfs_geterror();
+		goto end;
+	}
 
-	cur_proc->fds[cur_proc->numfds] = inode;
-
-	return cur_proc->numfds++;
+	cur_proc->fds[cur_proc->numfds] = file;
+	result = cur_proc->numfds++;
+end:
+	km_free_addr(name, namelen);
+	return result;
 }
 
-dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
+int sys_close(dword calln, dword fd, dword arg1, dword arg2)
 {
-	struct inode *inode = inode_from_fd(fd);
+	struct file *file = fd2file(fd);
 
-	if (!inode)
-		return -ENOENT;
+	if (!file)
+		return -ENOENTM
 
-	return fs_close(inode);
+	int err = vfs_close(file);
+	if (!err) {
+		cur_proc->fds[fd] = NULL;
+	}
+
+	return err;
 }
 
-dword sys_read(dword calln, dword fd, dword buffer, dword size)
+int sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 {
-	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
+	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, count);
+	struct file *file = fd2file(fd);
+	int result = -ENOSYS;
 
-	struct inode *inode = inode_from_fd(fd);
+	if (!file) {
+		result = -ENOENT;
+		goto end;
+	}
 
-	if (!inode)
-		return -ENOENT;
-
-	return fs_read(inode, 0, kbuf, size);
+	result = (calln == SC_READ ? vfs_read : vfs_write)(file, kbuf, count, file->pos);
+end:
+	km_free_addr(kbuf, count);
+	return result;
 }
 
-dword sys_write(dword calln, dword fd, dword buffer, dword size)
+int sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
-	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, size);
+	size_t namelen = 0;
+	char *name = vm_map_string(cur_proc->pagedir, fname, &namelen);
+	size_t buflen = 0;
+	char *buf = vm_map_string(cur_proc->pagedir, buffer, &buflen);
+	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
+	int status = -ENOSYS;
 
-	struct inode *inode = inode_from_fd(fd);
+	if (!inode) {
+		status = -ENOENT;
+		goto end;
+	}
 
-	if (!inode)
-		return -ENOENT;
+	struct inode *entry = vfs_readdir(inode, index);
 
-	return fs_write(inode, 0, kbuf, size);
+	if (!entry) {
+		status = -ENOENT;
+		goto end;
+	}
+
+	strncpy(buf, entry->name, buflen);
+	buf[buflen] = '\0';
+	status = 0;
+end:
+	km_free_addr(name, namelen);
+	km_free_addr(buf, buflen);
+	return status;
 }
 
-dword sys_mknod(dword calln, dword fname, dword flags, dword arg2)
-{
-	return -ENOSYS;
-
-	//char *name = safe_path(fname);
-
-	//struct inode *inode = fs_lookup_dir(name, cur_proc->cwd);
-	//char *file = last_part(name);
-
-	//if (!inode)
-	//	return -ENOENT;
-
-	//return fs_mknod(inode, file, flags);
-}
-
-dword sys_readdir(dword calln, dword fname, dword index, dword arg2)
-{
-	char *name = safe_path(fname);
-
-	struct inode *inode = fs_lookup(name, cur_proc->cwd);
-
-	if (!inode)
-		return -ENOENT;
-
-	return fs_readdir(inode, index);
-}
-
-dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
+int sys_mount(dword calln, dword mountp, dword ftype, dword device)
 {
 	if (!mountp || ! ftype)
 		return -EINVAL;
@@ -182,7 +196,6 @@ void init_fs(void)
 	syscall_register(SC_CLOSE, sys_close);
 	syscall_register(SC_READ,  sys_read);
 	syscall_register(SC_WRITE, sys_write);
-	syscall_register(SC_MKNOD, sys_mknod);
 	syscall_register(SC_READDIR, sys_readdir);
 	syscall_register(SC_MOUNT, sys_mount);
 
