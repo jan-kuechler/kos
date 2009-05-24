@@ -1,7 +1,7 @@
 #ifndef KOS_STRPARAM_H
 #define KOS_STRPARAM_H
 
-struct string_param
+struct strparam
 {
 	unsigned int len;
 	char *ptr;

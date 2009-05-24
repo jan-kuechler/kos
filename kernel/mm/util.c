@@ -42,7 +42,7 @@ vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length)
 
 	vaddr_t str = km_alloc_addr(info->ptr, VM_COMMON_FLAGS, info->len + 1);
 	if (length)
-		*length = len;
+		*length = info->len;
 	km_free_addr(info_addr, sizeof(struct strparam));
 
 	return str;

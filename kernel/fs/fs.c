@@ -52,8 +52,10 @@ int vfs_unregister(struct fstype *type)
 
 struct fstype *vfs_gettype(char *name)
 {
-	if (!name)
-		return -EINVAL;
+	if (!name) {
+		fs_error = -EINVAL;
+		return NULL;
+	}
 
 	list_entry_t *e;
 	list_iterate(e, fslist) {
@@ -61,7 +63,8 @@ struct fstype *vfs_gettype(char *name)
 		if (strcmp(type->name, name) == 0)
 			return type;
 	}
-	return 0;
+	fs_error = -ENOENT;
+	return NULL;
 }
 
 /* FS Syscalls */
@@ -74,10 +77,10 @@ static inline struct file *fd2file(dword fd)
 	return cur_proc->fds[fd];
 }
 
-int sys_open(dword calln, dword fname, dword flags, dword arg2)
+dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->pagedir, fname, &namelen);
+	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
 	int result = -1;
 
 	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
@@ -92,7 +95,7 @@ int sys_open(dword calln, dword fname, dword flags, dword arg2)
 		goto end;
 	}
 
-	struct file *fíle = vfs_open(inode, flags);
+	struct file *file = vfs_open(inode, flags);
 	if (!file) {
 		result = vfs_geterror();
 		goto end;
@@ -102,25 +105,25 @@ int sys_open(dword calln, dword fname, dword flags, dword arg2)
 	result = cur_proc->numfds++;
 end:
 	km_free_addr(name, namelen);
-	return result;
+	return (dword)result;
 }
 
-int sys_close(dword calln, dword fd, dword arg1, dword arg2)
+dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 {
 	struct file *file = fd2file(fd);
 
 	if (!file)
-		return -ENOENTM
+		return (dword)-ENOENT;
 
 	int err = vfs_close(file);
 	if (!err) {
 		cur_proc->fds[fd] = NULL;
 	}
 
-	return err;
+	return (dword)err;
 }
 
-int sys_readwrite(dword calln, dword fd, dword buffer, dword count)
+dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 {
 	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, count);
 	struct file *file = fd2file(fd);
@@ -134,15 +137,15 @@ int sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 	result = (calln == SC_READ ? vfs_read : vfs_write)(file, kbuf, count, file->pos);
 end:
 	km_free_addr(kbuf, count);
-	return result;
+	return (dword)result;
 }
 
-int sys_readdir(dword calln, dword fname, dword index, dword buffer)
+dword sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->pagedir, fname, &namelen);
+	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
 	size_t buflen = 0;
-	char *buf = vm_map_string(cur_proc->pagedir, buffer, &buflen);
+	char *buf = vm_map_string(cur_proc->pagedir, (vaddr_t)buffer, &buflen);
 	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
 	int status = -ENOSYS;
 
@@ -151,51 +154,64 @@ int sys_readdir(dword calln, dword fname, dword index, dword buffer)
 		goto end;
 	}
 
-	struct inode *entry = vfs_readdir(inode, index);
+	struct dirent *entry = vfs_readdir(inode, index);
 
 	if (!entry) {
 		status = -ENOENT;
 		goto end;
 	}
 
-	strncpy(buf, entry->name, buflen);
-	buf[buflen] = '\0';
+	size_t len = buflen < FS_MAX_NAME ? buflen : FS_MAX_NAME;
+	strncpy(buf, entry->name, len);
+	buf[len] = '\0';
 	status = 0;
 end:
 	km_free_addr(name, namelen);
 	km_free_addr(buf, buflen);
-	return status;
+	return (dword)status;
 }
 
-int sys_mount(dword calln, dword mountp, dword ftype, dword device)
+dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
 {
-	if (!mountp || ! ftype)
-		return -EINVAL;
+	if (!mountp || !ftype)
+		return (dword)-EINVAL;
 
+	size_t pathlen = 0;
+	char *path = vm_map_string(cur_proc->pagedir, (vaddr_t)mountp, &pathlen);
+	size_t typelen = 0;
+	char *type = vm_map_string(cur_proc->pagedir, (vaddr_t)ftype, &typelen);
 
-	char *path = safe_path(mountp);
-	char *type = safe_name(ftype);
-
+	size_t devlen = 0;
 	char *dev  = NULL;
 	if (device != 0)
-		dev = safe_path(device);
+		dev = vm_map_string(cur_proc->pagedir, (vaddr_t)device, &devlen);
 
-	struct fstype *driver = fs_find_type(type);
+	struct fstype *driver = vfs_gettype(type);
+	struct inode *inode = vfs_lookup(path, cur_proc->cwd);
 
-	struct inode *inode = fs_lookup(path);
+	int err = 0;
 
-	if (!driver || !inode)
-		return -EINVAL;
+	if (!driver || !inode) {
+		err = -EINVAL;
+		goto end;
+	}
 
-	return fs_mount(inode, type, device, 0);
+	err = vfs_mount(driver, inode, dev, 0);
+
+end:
+	km_free_addr(path, pathlen);
+	km_free_addr(type, typelen);
+	if (dev)
+		km_free_addr(dev, devlen);
+	return (dword)err;
 }
 
 void init_fs(void)
 {
 	syscall_register(SC_OPEN,  sys_open);
 	syscall_register(SC_CLOSE, sys_close);
-	syscall_register(SC_READ,  sys_read);
-	syscall_register(SC_WRITE, sys_write);
+	syscall_register(SC_READ,  sys_readwrite);
+	syscall_register(SC_WRITE, sys_readwrite);
 	syscall_register(SC_READDIR, sys_readdir);
 	syscall_register(SC_MOUNT, sys_mount);
 

@@ -8,6 +8,7 @@
 #include "pm.h"
 #include "syscall.h"
 #include "tss.h"
+#include "fs/fs.h"
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 
@@ -69,7 +70,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].msg_tail = procs[id].msg_buffer;
 	procs[id].msg_count = 0;
 
-	procs[id].cwd = "/";
+	procs[id].cwd = fs_root;
 	procs[id].numfds = 0;
 
 	procs[id].wakeup = 0;
