@@ -13,6 +13,7 @@ struct request {
 
 	void 	 *buffer;
 	dword   buflen;
+	int     free_buffer;
 
 	fscallback_t func;
 };

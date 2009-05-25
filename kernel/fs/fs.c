@@ -79,9 +79,13 @@ static inline struct file *fd2file(dword fd)
 
 dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
+	dbg_vprintf(DBG_FS, "sys_open(%d, %d) \n", fname, flags);
+
 	size_t namelen = 0;
 	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
 	int result = -1;
+
+	dbg_vprintf(DBG_FS, "name is '%s' (len: %d)\n", name, namelen);
 
 	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
 
@@ -134,9 +138,14 @@ dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 		goto end;
 	}
 
-	result = (calln == SC_READ ? vfs_read : vfs_write)(file, kbuf, count, file->pos);
+	if (calln == SC_READ)
+		result = vfs_read(file, kbuf, count, file->pos);
+	else
+		result = vfs_write(file, kbuf, count, file->pos);
+
 end:
-	km_free_addr(kbuf, count);
+	if (result != -EAGAIN)
+		km_free_addr(kbuf, count);
 	return (dword)result;
 }
 
@@ -208,12 +217,16 @@ end:
 
 void init_fs(void)
 {
+	dbg_printf(DBG_FS, "\nRegistering fs syscalls... ");
+
 	syscall_register(SC_OPEN,  sys_open);
 	syscall_register(SC_CLOSE, sys_close);
 	syscall_register(SC_READ,  sys_readwrite);
 	syscall_register(SC_WRITE, sys_readwrite);
 	syscall_register(SC_READDIR, sys_readdir);
 	syscall_register(SC_MOUNT, sys_mount);
+
+	dbg_printf(DBG_FS, "done\n");
 
 	//init_devfs();
 }

@@ -15,6 +15,7 @@
 #define DBG_MM        'r' // RAM
 #define DBG_PM        'p'
 #define DBG_SC        's'
+#define DBG_FS        'f'
 
 #ifdef CONF_DEBUG
 #include "kernel.h"

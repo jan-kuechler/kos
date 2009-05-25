@@ -31,19 +31,32 @@ pdir_t mm_create_pagedir()
  *
  * Maps a string from user to kernel space and returns it's new virtual
  * addr. Length can be a pointer to a size_t and will be filled with the
- * string's length if it is not NULL.
+ * string's length including the '\0' postfix if it is not NULL.
  */
 vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length)
 {
+	dbg_vprintf(DBG_VM, "vm_map_string: \n");
+	dbg_vprintf(DBG_VM, "  vaddr = %p\n", vaddr);
+
 	paddr_t info_addr = vm_resolve_virt(pdir, vaddr);
+	dbg_vprintf(DBG_VM, "  info_addr = %p\n", info_addr);
+
 	struct strparam *info =
 		(struct strparam *)km_alloc_addr(info_addr, VM_COMMON_FLAGS,
 		                                 sizeof(struct strparam));
 
+	dbg_vprintf(DBG_VM, "  info = %p\n", info);
+	dbg_vprintf(DBG_VM, "  info->ptr = %p\n", info->ptr);
+	dbg_vprintf(DBG_VM, "  info->len = %d\n", info->len);
+
 	vaddr_t str = km_alloc_addr(info->ptr, VM_COMMON_FLAGS, info->len + 1);
-	if (length)
-		*length = info->len;
-	km_free_addr(info_addr, sizeof(struct strparam));
+	dbg_vprintf(DBG_VM, "  str = %p -> '%s'\n", str, str);
+
+	if (length) {
+		dbg_vprintf(DBG_VM, "  assigning length + 1\n");
+		*length = info->len + 1;
+	}
+	km_free_addr(info, sizeof(struct strparam));
 
 	return str;
 };

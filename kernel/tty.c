@@ -287,6 +287,7 @@ static void answer_rq(tty_t *tty)
 	dbg_vprintf(DBG_TTY, "answer_rq for %d\n", tty->id);
 	struct request *rq = list_del_front(tty->requests);
 
+	dbg_vprintf(DBG_TTY, "  copy %d bytes to %p\n", rq->buflen, rq->buffer);
 	dword count = copy_data(tty, rq->buffer, rq->buflen);
 	dbg_vprintf(DBG_TTY, "  %d bytes copied.\n", count);
 	remove_data(tty, count);
@@ -323,6 +324,7 @@ static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 	}
 	else {
 		struct request *rq = rq_create(file, buffer, count);
+		rq->free_buffer = 1;
 		list_add_back(tty->requests, rq);
 		rq_block(rq);
 		return -EAGAIN;

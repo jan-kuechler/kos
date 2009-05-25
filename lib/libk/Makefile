@@ -11,6 +11,8 @@ CC_FLAGS=$(CC_INCL) -O3 -static -g -ffreestanding -nostdlib -nostartfiles -nodef
 
 all: objs archive install clean
 
+.PHONY: objs archive clean
+
 objs:
 	echo OBJS= *.c | sed -e 's/\.c/\.o/g' > obj.rules
 	

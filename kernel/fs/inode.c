@@ -53,6 +53,7 @@ struct file *vfs_open(struct inode *ino, dword flags)
 			kfree(file);
 			ret_null_and_err(status);
 		}
+		file->inode = ino;
 		return file;
 	}
 
@@ -79,7 +80,7 @@ int vfs_read(struct file *file, void *buffer, dword count, dword offset)
 		return -EINVAL;
 
 	if (file_has_op(file, read))
-		file->fops->read(file, buffer, count, offset);
+		return file->fops->read(file, buffer, count, offset);
 	return -ENOSYS;
 }
 
@@ -89,7 +90,7 @@ int vfs_write(struct file *file, void *buffer, dword count, dword offset)
 		return -EINVAL;
 
 	if (file_has_op(file, write))
-		file->fops->write(file, buffer, count, offset);
+		return file->fops->write(file, buffer, count, offset);
 	return -ENOSYS;
 }
 
@@ -111,7 +112,6 @@ int vfs_write_async(struct request *rq)
 	if (file_has_op(rq->file, write_async))
 		return rq->file->fops->write_async(rq);
 	return -ENOSYS;
-
 }
 
 struct dirent *vfs_readdir(struct inode *ino, dword index)

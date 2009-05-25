@@ -13,6 +13,8 @@ struct request *rq_create(struct file *file, void *buffer, dword buflen)
 	rq->buffer = buffer;
 	rq->buflen = buflen;
 
+	rq->proc   = cur_proc;
+
 	rq->blocked = 0;
 	rq->result  = -EINVAL;
 

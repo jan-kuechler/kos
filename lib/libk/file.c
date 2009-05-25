@@ -11,7 +11,9 @@ int open(const char *file, dword flags, ...)
 		mode = (dword)*args;
 	}
 
-	return SYSCALL3(SC_OPEN, (dword)file, flags, mode);
+	STR_PARAM(f, file);
+
+	return SYSCALL3(SC_OPEN, f, flags, mode);
 }
 
 int close(int fd)
@@ -27,4 +29,13 @@ int read(int fd, char *buf, dword size)
 int write(int fd, const char *buf, dword size)
 {
 	return SYSCALL3(SC_WRITE, fd, (dword)buf, size);
+}
+
+int mount(const char *mountp, const char *type, const char *device)
+{
+	STR_PARAM(mp, mountp);
+	STR_PARAM(t, type);
+	STR_PARAM(dev, device);
+
+	return SYSCALL3(SC_MOUNT, mp, t, dev);
 }

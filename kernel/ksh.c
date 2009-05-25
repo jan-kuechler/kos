@@ -90,7 +90,7 @@ static void run_cmd(const char *cmd)
 
 void ksh(void)
 {
-	stdin  = open("/tty7", 0, 0);
+	stdin = open("/tty7", 0, 0);
 	if (stdin < 0) {
 		kout_printf("Cannot open stdin.\n");
 		exit(0);
