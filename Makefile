@@ -48,6 +48,10 @@ version:
 	$(CC)  -v
 	$(LD)  -v
 	
+check:
+	@cppcheck $(INC_DIR) -a -s -v kernel 2> check.txt
+	cat check.txt
+	
 ## Makefile generation ##
 prepare: targets objlist
 

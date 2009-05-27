@@ -191,7 +191,6 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 
 	char tmp[65];
 	char *end = tmp + 64;
-	int rem;
 
 	if (base < 2 || base > 36)
 		return;
@@ -199,7 +198,7 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 	*end-- = 0;
 
 	do {
-		rem = num % base;
+		int rem = num % base;
 		num = num / base;
 		*end-- = digits[rem];
 		pad--;
