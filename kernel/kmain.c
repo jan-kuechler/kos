@@ -19,6 +19,7 @@
 #include "mm/virt.h"
 #include "fs/fs.h"
 #include "fs/devfs.h"
+#include "fs/initrd.h"
 
 multiboot_info_t multiboot_info;
 
@@ -40,6 +41,7 @@ void kinit()
 
 	kout_puts("Initializing FS:");
 	init_fs();
+	init_initrd();
 	init_devfs();
 	vfs_mount(vfs_gettype("devfs"), fs_root, NULL, FSM_READ | FSM_WRITE);
 

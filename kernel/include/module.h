@@ -2,7 +2,9 @@
 #define MODULE_H
 
 void init_mod();
-void mod_load(int n);
+int mod_load(int n, void **module, char **params);
+
+void mod_exec(int n);
 void mod_load_all();
 
 #endif /*MODULE_H*/

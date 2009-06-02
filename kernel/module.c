@@ -19,7 +19,7 @@ void init_mod()
 	memset(loaded, 0, multiboot_info.mods_count);
 }
 
-void mod_load(int n)
+void mod_exec(int n)
 {
 	if (n >= multiboot_info.mods_count || n < 0) {
 		panic("mod_load: module #%d does not exist.", n);
@@ -47,10 +47,25 @@ void mod_load(int n)
 	loaded[n] = 1;
 }
 
-void mod_load_all()
+int mod_load(int n, void **module, char **params)
 {
-	int i=0;
-	for (; i < multiboot_info.mods_count; ++i) {
-		mod_load(i);
+	if (n >= multiboot_info.mods_count || n < 0) {
+		panic("mod_load: module #%d does not exist.", n);
 	}
+
+	dbg_printf(DBG_MODULE, "Loading module %d.\n", n);
+
+	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr + n * sizeof(multiboot_mod_t);
+
+	if (module) {
+		dbg_vprintf(DBG_MODULE, "  Mapping module: 0x%08x\n", mod->mod_start);
+		*module = km_alloc_addr((paddr_t)mod->mod_start, VM_COMMON_FLAGS, mod->mod_end - mod->mod_start);
+ 	}
+
+	if (params) {
+		dbg_vprintf(DBG_MODULE, "  Mapping cmdline: 0x%08x\n", mod->cmdline);
+		*params = (char*)km_alloc_addr((paddr_t)mod->cmdline, VM_COMMON_FLAGS, 1024);
+	}
+
+	return mod->mod_end - mod->mod_start;
 }

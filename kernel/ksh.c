@@ -2,6 +2,8 @@
 #include <kos/syscall.h>
 #include "acpi.h"
 #include "kbc.h"
+#include "module.h"
+#include "tty.h"
 
 #define PROMPT "ksh# "
 
@@ -58,7 +60,7 @@ static void int3()
 
 static void test()
 {
-	mod_load(0);
+	mod_exec(1);
 }
 
 static void help()
