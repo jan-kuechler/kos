@@ -13,11 +13,11 @@
  */
 #define FS_FILE     0x01
 #define FS_DIR      0x02
-#define FS_CHARDEV  0x03
-#define FS_BLOCKDEV 0x04
-#define FS_PIPE     0x05
-#define FS_SYMLINK  0x06
-#define FS_MOUNTP   0x08
+#define FS_CHARDEV  0x04
+#define FS_BLOCKDEV 0x08
+#define FS_PIPE     0x10
+#define FS_SYMLINK  0x20
+#define FS_MOUNTP   0x40
 
 /*
  * Fstype flags
@@ -43,7 +43,7 @@
 extern struct inode *fs_root;
 extern int fs_error;
 
-int vfs_geterr();
+int vfs_geterror();
 
 int vfs_register(struct fstype *type);
 int vfs_unregister(struct fstype *type);

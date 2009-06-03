@@ -12,7 +12,7 @@ struct file;
 struct inode;
 struct request;
 
-typedef void (*fscallback_t)(struct file *, dword, void *, dword);
+typedef void (*fscallback_t)(struct file *, int, void *, dword);
 
 /*
  * file operations
@@ -26,7 +26,7 @@ struct file_ops
 	int (*read_async)(struct request *rq);
 	int (*write_async)(struct request *rq);
 
-	int (*seek)(struct inode *ino, dword offset, dword index);
+	int (*seek)(struct file *file, dword offset, dword index);
 };
 
 /*

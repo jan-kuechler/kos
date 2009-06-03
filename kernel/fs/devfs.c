@@ -49,6 +49,7 @@ static struct dirent *readdir(struct inode *ino, dword index)
 		i++;
 	}
 
+	kfree(dirent);
 	return NULL;
 }
 

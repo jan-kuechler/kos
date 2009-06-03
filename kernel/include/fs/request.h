@@ -9,7 +9,9 @@ struct request {
 	proc_t *proc;
 	int     blocked;
 
-	dword   result;
+	int     result;
+
+	dword   offset;
 
 	void 	 *buffer;
 	dword   buflen;

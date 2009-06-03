@@ -43,7 +43,22 @@ void kinit()
 	init_fs();
 	init_initrd();
 	init_devfs();
-	vfs_mount(vfs_gettype("devfs"), fs_root, NULL, FSM_READ | FSM_WRITE);
+
+	int err = vfs_mount(vfs_gettype("initrd"), fs_root, NULL, FSM_READ);
+	if (err != 0) {
+		kout_printf("Error mounting initrd: %d\n", err);
+	}
+
+	struct inode *dev = vfs_lookup("/dev", fs_root);
+	if (!dev) {
+		kout_printf("/dev was not created... (%d)\n", vfs_geterror());
+	}
+	else {
+		err = vfs_mount(vfs_gettype("devfs"), vfs_lookup("/dev", fs_root), NULL, FSM_READ | FSM_WRITE);
+		if (err != 0) {
+			kout_printf("Error mounting devfs: %d\n", err);
+		}
+	}
 
 	init_tty();
 	tty_register_keymap("de", keymap_de);

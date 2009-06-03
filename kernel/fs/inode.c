@@ -53,6 +53,7 @@ struct file *vfs_open(struct inode *ino, dword flags)
 			kfree(file);
 			ret_null_and_err(status);
 		}
+		ino->opencount++;
 		file->inode = ino;
 		return file;
 	}
@@ -68,8 +69,10 @@ int vfs_close(struct file *file)
 	int err = -ENOSYS;
 	if (file_has_op(file, close)) {
 		err = file->fops->close(file);
-		if (!err)
+		if (!err) {
+			file->inode->opencount--;
 			kfree(file);
+		}
 	}
 	return err;
 }

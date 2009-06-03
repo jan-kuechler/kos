@@ -43,6 +43,7 @@ static int advance_root(char **path)
 		while (*(++p) == '/')
 			;
 		*path = p;
+		return 1;
 	}
 	return 0;
 }
@@ -66,8 +67,12 @@ struct inode *vfs_lookup(char *path, struct inode *start)
 	//	while (*(++path) == '/')
 	//		;
 	//}
-	if (advance_root(&path))
+
+	dbg_vprintf(DBG_FS, "vfs_lookup('%s', inode: '%s')\n", path, start->name);
+	if (advance_root(&path)) {
+		dbg_vprintf(DBG_FS, " was root, path is now '%s'\n", path);
 		start = fs_root;
+	}
 
 	char part[FS_MAX_NAME];
 	struct inode *ino = start;
@@ -75,26 +80,34 @@ struct inode *vfs_lookup(char *path, struct inode *start)
 	int symc = 0;
 
 	while (next_part(path, &pidx, part)) {
+		dbg_vprintf(DBG_FS, " part: '%s'\n", part);
+
 		if (!ino) {
+			dbg_vprintf(DBG_FS, " prev parts inode was not found, returning...\n");
 			return NULL;
 		}
 
 		if (bisset(ino->flags, FS_SYMLINK)) {
+			dbg_vprintf(DBG_FS, " symlink\n");
 			ino = ino->link;
 
 			if (++symc >= FS_MAX_SYMLOOP) {
+				dbg_vprintf(DBG_FS, " symloop!\n");
 				ret_null_and_err(-ELOOP);
 				return NULL;
 			}
 		}
 		else if (bisset(ino->flags, FS_MOUNTP)) {
+			dbg_vprintf(DBG_FS, " mountpoint\n");
 			ino = ino->link;
 		}
 		else if (bnotset(ino->flags, FS_DIR)) {
+			dbg_vprintf(DBG_FS, " not a directory\n");
 			ret_null_and_err(-ENOENT);
 		}
 
 		ino = vfs_finddir(ino, part);
+
 	}
 
 	return ino;

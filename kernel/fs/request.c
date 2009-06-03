@@ -33,7 +33,7 @@ void rq_finish(struct request *rq)
 		if (rq->blocked)
 			pm_unblock(rq->proc);
 
-		sc_late_result(rq->proc, rq->result);
+		sc_late_result(rq->proc, (dword)rq->result);
 	}
 	else if (rq->func) {
 		rq->func(rq->file, rq->result, rq->buffer, rq->buflen);
