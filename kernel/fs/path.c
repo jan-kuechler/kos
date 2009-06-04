@@ -87,6 +87,8 @@ struct inode *vfs_lookup(char *path, struct inode *start)
 			return NULL;
 		}
 
+		dbg_vprintf(DBG_FS, " ino->flags: %8b\n", ino->flags);
+
 		if (bisset(ino->flags, FS_SYMLINK)) {
 			dbg_vprintf(DBG_FS, " symlink\n");
 			ino = ino->link;
@@ -106,6 +108,7 @@ struct inode *vfs_lookup(char *path, struct inode *start)
 			ret_null_and_err(-ENOENT);
 		}
 
+		dbg_vprintf(DBG_FS, " finddir:\n");
 		ino = vfs_finddir(ino, part);
 
 	}

@@ -133,14 +133,22 @@ struct dirent *vfs_readdir(struct inode *ino, dword index)
 
 struct inode *vfs_finddir(struct inode *ino, char *name)
 {
-	if (!ino)
-		ret_null_and_err(-EINVAL);
+	dbg_vprintf(DBG_FS, "vfs_finddir(inode: '%s', '%s')\n", ino->name, name);
 
-	if (bnotset(ino->flags, FS_DIR))
+	if (!ino) {
+		dbg_vprintf(DBG_FS, " no inode\n");
 		ret_null_and_err(-EINVAL);
+	}
 
-	if (inode_has_op(ino, finddir))
+	if (bnotset(ino->flags, FS_DIR)) {
+		dbg_vprintf(DBG_FS, "  no directory\n");
+		ret_null_and_err(-EINVAL);
+	}
+
+	if (inode_has_op(ino, finddir)) {
+		dbg_vprintf(DBG_FS, " calling inodes finddir...\n");
 		return ino->ops->finddir(ino, name);
+	}
 
 	ret_null_and_err(-ENOSYS);
 }

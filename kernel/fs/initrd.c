@@ -122,15 +122,20 @@ static struct dirent *id_readdir(struct inode *ino, dword index)
 
 static struct inode *id_finddir(struct inode *ino, char *name)
 {
+	dbg_vprintf(DBG_FS, "id_finddir(inode: '%s', '%s')\n", ino->name, name);
 	list_t *entries = (list_t*)ino->impl;
 
 	list_entry_t *pos;
 	list_iterate(pos, entries) {
 		struct inode *e = pos->data;
-		if (strcmp(e->name, name) == 0)
+		dbg_vprintf(DBG_FS, " comparing '%s' with '%s'\n", e->name, name);
+		if (strcmp(e->name, name) == 0) {
 			return e;
+		}
+
 	}
 
+	dbg_vprintf(DBG_FS, " nothing found )-:\n");
 	return NULL;
 }
 
@@ -185,7 +190,8 @@ static struct inode *new_inode(struct id_entry *e, void *disk)
 static struct inode *parse_file(struct id_entry *file, void *disk)
 {
 	struct inode *ino = new_inode(file, disk);
-	ino->impl = (dword)id_get(file, content, disk);
+	ino->flags = FS_FILE;
+	ino->impl  = (dword)id_get(file, content, disk);
 	return ino;
 }
 
@@ -196,6 +202,7 @@ static struct inode *parse_dir(struct id_entry *dir, void *disk)
 	}
 
 	struct inode *ino = new_inode(dir, disk);
+	ino->flags = FS_DIR;
 	list_t *entries = list_create();
 	ino->impl = (dword)entries;
 

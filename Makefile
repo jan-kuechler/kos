@@ -102,6 +102,10 @@ iso:
 	@./cpyfiles.sh iso
 	@mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
 	@rm -rf tmp
+
+.PHONY: initrd
+initrd:
+	./mkid initrd $(BIN)/initrd
 	
 run:
 	@qemu -m 16 -L ../tools/qemu -fda img/kos.img

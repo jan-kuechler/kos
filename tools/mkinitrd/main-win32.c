@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 		id_write("dummy");
 	#else
 		printf("Scanning...");
-		scan_dir(argv[1], "/");
+		scan_dir(argv[1], "initrd-root");
 		printf("\t\tdone\n");
 
 		printf("Writing InitRD...");

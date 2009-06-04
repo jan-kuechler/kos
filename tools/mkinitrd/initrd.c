@@ -220,7 +220,7 @@ static int write_dir(struct entry *dir, FILE *out, int offset)
 
 	int type = 1;
 	int count = dir->count;
-	int namelen = strlen(dir->name);
+	int namelen = strlen(dir->name) + 1;
 	int namepos = offset + 20;
 	int datapos = namepos + namelen;
 	int nextpos = 0; /* still not known */
