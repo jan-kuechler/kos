@@ -1,146 +1,108 @@
-#include <stdlib.h>
-#include <kos/error.h>
-#include "fs/devfs.h"
+#include <errno.h>
+#include <string.h>
+
 #include "fs/fs.h"
-#include "fs/request.h"
 #include "mm/kmalloc.h"
+#include "util/list.h"
 
-typedef struct
+static struct fstype devfs;
+
+static struct inode_ops iops = {};
+static struct inode devfs_root = {
+	.name = "dev",
+	.flags = FS_DIR,
+	.ops = &iops,
+};
+static struct sb_ops sbops = {};
+
+static list_t *devices;
+
+static int mount(struct superblock *sb, char *dev, int flags)
 {
-	fs_file_t file;
-	dword     index;
-} devfs_file_holder_t;
+	// ignore any device or flags
+	sb->root = &devfs_root;
+	sb->ops  = &sbops;
 
-#define FINDEX(f) ((devfs_file_holder_t*)f)->index
+	devfs_root.sb = sb;
+	return 0;
+}
 
-static fs_driver_t devfs;
-static fs_filesystem_t fs;
-
-static fs_devfile_t **devfiles;
-static fs_file_t    **files;
-static dword          numfiles;
-
-static fs_filesystem_t *mount(fs_driver_t *driver, const char *path, const char *dev, dword flags)
+static struct dirent *readdir(struct inode *ino, dword index)
 {
-	if (fs.path)
+	if (ino != &devfs_root)
 		return NULL;
 
-	char *copy = kmalloc(strlen(path) + 1);
-	strcpy(copy, path);
-	fs.path = copy;
-	return &fs;
-}
+	if (index >= list_size(devices))
+		return NULL;
 
-static int umount(fs_filesystem_t *fs)
-{
-	kfree(fs->path);
-	fs->path = 0;
-	return OK;
-}
-
-static fs_file_t *open(fs_filesystem_t *fs, const char *path)
-{
-	dword index = -1;
 	int i=0;
-	for (; i < numfiles; ++i) {
-		if (strcmp(devfiles[i]->path, path) == 0) {
-			index = i;
-			break;
+	list_entry_t *pos;
+	struct dirent *dirent = kmalloc(sizeof(struct dirent));
+
+	list_iterate(pos, devices) {
+		if (index == i) {
+			struct inode *dev = pos->data;
+			strcpy(dirent->name, dev->name);
+			dirent->inode = dev;
+			return dirent;
 		}
+		i++;
 	}
-	if (index == -1) {
+
+	kfree(dirent);
+	return NULL;
+}
+
+static struct inode *finddir(struct inode *ino, char *name)
+{
+	if (ino != &devfs_root)
 		return NULL;
+
+	list_entry_t *pos;
+
+	list_iterate(pos, devices) {
+		struct inode *dev = pos->data;
+		if (strcmp(dev->name, name) == 0)
+			return dev;
 	}
 
-	if (files[index])
-		return files[index];
-
-	devfs_file_holder_t *file = kmalloc(sizeof(devfs_file_holder_t));
-	files[index] = &file->file;
-
-	memset(&file->file, 0, sizeof(fs_file_t));
-	file->file.fs = fs;
-	file->index   = index;
-
-	return files[index];
+	return NULL;
 }
 
-static int query(fs_filesystem_t *fs, fs_request_t *rq)
+int devfs_register(struct inode *ino)
 {
-	switch (rq->type) {
-	case RQ_OPEN:
-		{
-			rq->file = open(fs, rq->buf);
-			if (!rq->file) {
-				rq->status = E_NOT_FOUND;
-				rq->result = -1;
-			}
-			else {
-				dword findex = FINDEX(rq->file);
-				devfiles[findex]->query(devfiles[findex], rq);
-			}
-			fs_finish_rq(rq);
+	ino->sb = devfs_root.sb;
+	list_add_back(devices, ino);
 
-			return OK;
-		}
-	case RQ_CLOSE:
-		{
-			dword findex = FINDEX(rq->file);
-			devfiles[findex]->query(devfiles[findex], rq);
-			fs_finish_rq(rq);
+	return 0;
+}
 
-			return OK;
-		}
-	default:
-		{
-			dword findex = FINDEX(rq->file);
-			if (!devfiles[findex]->query) {
-				return E_NOT_SUPPORTED;
-			}
-			return devfiles[findex]->query(devfiles[findex], rq);
+int devfs_unregister(struct inode *ino)
+{
+	list_entry_t *pos;
+
+	list_iterate(pos, devices) {
+		if (ino == pos->data) {
+			list_del_entry(devices, pos);
+			return 0;
 		}
 	}
-
-	return E_UNKNOWN;
+	return -ENOENT;
 }
 
-/**
- *  fs_create_dev(file)
- *
- * Creates a device file
- */
-int fs_create_dev(fs_devfile_t *file)
+void init_devfs()
 {
-	devfiles = krealloc(devfiles, ++numfiles * sizeof(fs_devfile_t*));
-	files    = krealloc(files, numfiles * sizeof(fs_file_t*));
-	devfiles[numfiles-1] = file;
-	files[numfiles-1]    = 0;
+	devfs.name   = "devfs";
+	devfs.flags  = 0;
+	devfs.mount  = mount;
 
-	return OK;
-}
+	memset(&sbops, 0, sizeof(sbops));
 
-/**
- *  fs_destroy_dev(file)
- *
- * Destroys a device file
- */
-int fs_destroy_dev(fs_devfile_t *file)
-{
-	return E_NOT_IMPLEMENTED;
-}
+	memset(&iops, 0, sizeof(iops));
+	iops.readdir = readdir;
+	iops.finddir = finddir;
 
-/**
- *  init_devfs()
- */
-void init_devfs(void)
-{
-	memset(&fs, 0, sizeof(fs));
-	fs.driver = &devfs;
-	fs.umount = umount;
-	fs.query  = query;
+	devices = list_create();
 
-	devfs.flags = FS_DRV_SINGLE | FS_DRV_NOMOUNT | FS_DRV_NODATA;
-	devfs.mount = mount;
-
-	fs_register_driver(&devfs, "devfs");
+	vfs_register(&devfs);
 }

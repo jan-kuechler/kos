@@ -2,6 +2,7 @@
 #include <ports.h>
 
 #include "idt.h"
+#include "syscall.h"
 #include "timer.h"
 
 dword timer_ticks; // timer ticks since system start
@@ -59,6 +60,12 @@ void timer_sleep(proc_t *proc, dword msec)
 	}
 }
 
+dword sys_sleep(dword calln, dword msec, dword arg1, dword arg2)
+{
+	timer_sleep(cur_proc, msec);
+	return 0;
+}
+
 /**
  *  init_timer()
  */
@@ -66,6 +73,8 @@ void init_timer(void)
 {
 	timer_ticks = 0;
 	next_wakeup = 0xFFFFFFFF;
+
+	syscall_register(SC_SLEEP, sys_sleep);
 
 	int div = TIMER_DEFAULT / TIMER_HZ;
 	outb(TIMER_DATA, 0x36);

@@ -2,10 +2,11 @@
 #define PM_H
 
 #include <types.h>
+#include <kos/config.h>
 #include <kos/msg.h>
 
-#include "config.h"
 #include "regs.h"
+#include "fs/types.h"
 #include "mm/virt.h"
 
 #define MAX_PROCS 256
@@ -53,7 +54,7 @@ typedef struct proc {
 
 	proc_status_t  status;
 	block_reason_t block;
-	msg_t        **msg_wait_buffer;
+	msg_t         *msg_wait_buffer;
 	dword          wakeup;
 
 	dword  kstack;
@@ -65,12 +66,11 @@ typedef struct proc {
 
 	regs_t *sc_regs;
 
-	struct fs_handle *fds[PROC_NUM_FDS];
+	struct inode *cwd;
+	struct file  *fds[PROC_NUM_FDS];
 	dword  numfds;
 
-	const char *cmdline;
-
-	const char *cwd;
+	char *cmdline;
 
 	dword  ticks_left;
 

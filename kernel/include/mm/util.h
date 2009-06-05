@@ -5,6 +5,8 @@
 
 pdir_t mm_create_pagedir();
 
+vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length);
+
 vaddr_t vm_user_to_kernel(pdir_t pdir, vaddr_t vaddr, size_t size);
 vaddr_t vm_kernel_to_user(pdir_t pdir, vaddr_t vaddr, size_t size);
 

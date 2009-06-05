@@ -162,7 +162,7 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 			      "\t           xxxG0DACWURP\n"
 			      "\tNew flags: %012b\n"
 			      "\tOld flags: %012b\n",
-			      vaddr, getaddr(pte), paddr, flags, getflags(pte));
+			      vaddr, paddr, getaddr(pte), flags, getflags(pte));
 		}
 		/* ignore the rest */
 	}

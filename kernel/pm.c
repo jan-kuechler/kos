@@ -6,7 +6,9 @@
 #include "idt.h"
 #include "kernel.h"
 #include "pm.h"
+#include "syscall.h"
 #include "tss.h"
+#include "fs/fs.h"
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 
@@ -68,7 +70,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].msg_tail = procs[id].msg_buffer;
 	procs[id].msg_count = 0;
 
-	procs[id].cwd = "/";
+	procs[id].cwd = fs_root;
 	procs[id].numfds = 0;
 
 	procs[id].wakeup = 0;
@@ -79,7 +81,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
-	vm_map_range(procs[id].pagedir, ustack, USER_STACK_ADDR - usize,
+	vm_map_range(procs[id].pagedir, ustack, (vaddr_t)(USER_STACK_ADDR - usize),
 	             VM_USER_FLAGS, NUM_PAGES(usize));
 
 	procs[id].ustack = (dword)ustack;
@@ -329,6 +331,29 @@ void pm_unblock(proc_t *proc)
 	pm_activate(proc);
 }
 
+dword sys_exit(dword calln, dword status, dword arg1, dword arg2)
+{
+	pm_destroy(cur_proc);
+	pm_schedule();
+	return 0;
+}
+
+dword sys_yield(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	pm_schedule();
+	return 0;
+}
+
+dword sys_get_pid(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	return cur_proc->pid;
+}
+
+dword sys_get_uid(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	return 0; // not implemented
+}
+
 /**
  *  init_pm
  *
@@ -344,6 +369,11 @@ void init_pm(void)
 
 	plist_head = 0;
 	plist_tail = 0;
+
+	syscall_register(SC_EXIT,    sys_exit);
+	syscall_register(SC_YIELD,   sys_yield);
+	syscall_register(SC_GET_PID, sys_get_pid);
+	syscall_register(SC_GET_UID, sys_get_uid);
 
 #ifdef CONF_DEBUG
 	proc_debug = 0;

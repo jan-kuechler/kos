@@ -3,71 +3,71 @@
 
 #include <types.h>
 #include "pm.h"
+#include "fs/types.h"
 
-struct fs_request;
+#define FS_MAX_SYMLOOP 20
 
-struct proc_t;
+/*
+ * Inode type flags.
+ * Note: FS_MOUNTP and FS_DIR can be or'd together
+ */
+#define FS_FILE     0x01
+#define FS_DIR      0x02
+#define FS_CHARDEV  0x04
+#define FS_BLOCKDEV 0x08
+#define FS_PIPE     0x10
+#define FS_SYMLINK  0x20
+#define FS_MOUNTP   0x40
 
-typedef struct fs_filesystem
-{
-	char *path; // path at which this filesystem is mounted
+/*
+ * Fstype flags
+ */
+#define FST_NEED_DEV 0x01
 
-	struct fs_handle *device; // device for this filesystem
-	struct fs_driver *driver; // driver for this filesystem
+/*
+ * Mount flags
+ */
+#define FSM_READ   0x01
+#define FSM_WRITE  0x02
+#define FSM_EXEC   0x03
+#define FSM_UMOUNT 0x08
 
-	int (*umount)(struct fs_filesystem *fs); // callback for unmounting
+/*
+ * Open flags
+ */
+#define FSO_READ   0x01
+#define FSO_WRITE  0x02
 
-	int (*query)(struct fs_filesystem *fs, struct fs_request *request); // callback for requests
-} fs_filesystem_t;
 
-typedef struct fs_driver
-{
-	byte flags;
+/* The root of the file system */
+extern struct inode *fs_root;
+extern int fs_error;
 
-	fs_filesystem_t* (*mount)(struct fs_driver *driver, const char *path, const char *dev, dword flags);
+int vfs_geterror();
 
-} fs_driver_t;
+int vfs_register(struct fstype *type);
+int vfs_unregister(struct fstype *type);
+struct fstype *vfs_gettype(char *name);
 
-typedef struct fs_file
-{
-	dword refs;
-	fs_filesystem_t *fs;
-} fs_file_t;
+int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flags);
+int vfs_umount(struct inode *point);
 
-typedef struct fs_handle
-{
-	fs_file_t *file;
-	dword      pos;
-	dword      flags;
-} fs_handle_t;
+struct inode *vfs_lookup(char *path, struct inode *start);
+struct dirent *vfs_lookup_dir(char *path, struct inode *start);
 
-#define FS_DRV_SINGLE  0x1 /* Driver can only create 1 filesystem */
-#define FS_DRV_NOMOUNT 0x2 /* Cannot be mounted manually */
-#define FS_DRV_NODATA  0x4 /* Does not need any data source */
+struct inode *vfs_create(struct inode *dir, char *name, dword flags);
+int vfs_unlink(struct inode *ino);
+struct file *vfs_open(struct inode *ino, dword flags);
+int vfs_close(struct file *file);
 
-#define FS_READ 0
-#define FS_WRITE 1
+int vfs_read(struct file *file, void *buffer, dword count, dword offset);
+int vfs_write(struct file *file, void *buffer, dword count, dword offset);
+int vfs_read_async(struct request *rq);
+int vfs_write_async(struct request *rq);
+
+struct dirent *vfs_readdir(struct inode *ino, dword index);
+struct inode *vfs_finddir(struct inode *ino, char *name);
 
 void init_fs(void);
-
-int fs_register_driver(fs_driver_t *driver, const char *name);
-int fs_unregister_driver(fs_driver_t *driver);
-
-fs_driver_t *fs_get_driver(const char *name);
-
-int fs_mount(fs_driver_t *driver, const char *path, const char *device, dword flags);
-int fs_umount(const char *path);
-
-fs_handle_t *fs_open(const char *name, dword mode);
-fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc);
-
-int fs_close(fs_handle_t *file);
-int fs_mknod(const char *name, dword mode);
-
-int fs_readwrite(fs_handle_t *file, char *buf, int size, int mode);
-
-int fs_seek(fs_handle_t *file, dword offs, int orig);
-
-
 
 #endif /*FS_H*/

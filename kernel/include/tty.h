@@ -5,9 +5,8 @@
 #include <types.h>
 #include "keymap.h"
 #include "pm.h"
-#include "fs/devfs.h"
-#include "fs/fs.h"
-#include "fs/request.h"
+#include "fs/types.h"
+#include "util/list.h"
 
 #define NUM_TTYS 8
 
@@ -21,9 +20,9 @@
 
 typedef struct tty
 {
-	fs_devfile_t file; // this _must_ be the first entry in the struct! (see query in tty.c)
-
 	int   id;
+
+	struct inode inode;
 
 	char  inbuf[TTY_INBUF_SIZE];
 	dword incount;
@@ -36,8 +35,7 @@ typedef struct tty
 
 	byte  flags;
 
-	fs_request_t **rqs;
-	int            rqcount;
+	list_t *requests;
 
 	int    opencount;
 	proc_t *owner;
@@ -49,7 +47,7 @@ void init_kout(void);
 void kout_puts(const char *str);
 void kout_putn(int num, int base);
 void kout_aprintf(const char *fmt, va_list args);
-void kout_printf(const char *fmt, ...)  __attribute__((format(printf, 1, 2)));
+void kout_printf(const char *fmt, ...);
 byte kout_set_status(byte status);
 void kout_select(void);
 void kout_clear(void);

@@ -15,8 +15,10 @@
 #define DBG_MM        'r' // RAM
 #define DBG_PM        'p'
 #define DBG_SC        's'
+#define DBG_FS        'f'
 
 #ifdef CONF_DEBUG
+#include "kernel.h"
 #define kassert(exp)                                 \
 	do {                                               \
 		if (!(exp))                                      \
@@ -24,7 +26,7 @@
 			      __FILE__, __func__, __LINE__);           \
 	} while (0);
 #else
-#  define kassert(exp)
+#  define kassert(exp) do {} while (0);
 #endif
 
 #ifdef CONF_DEBUG
@@ -44,8 +46,8 @@ extern pid_t dbg_lsc_proc;
 	} while (0);
 
 #  define dbg_print_last_syscall()        \
-	kout_printf("Last syscall: %d"          \
-	            "(0x%08x, 0x%08x, 0x%08x)"  \
+	kout_printf("Last syscall: %d "         \
+	            "(0x%08x, 0x%08x, 0x%08x) " \
 	            "by %d\n",                  \
 	            dbg_lsc_calln, dbg_lsc_arg0,\
 	            dbg_lsc_arg1, dbg_lsc_arg2, \
@@ -60,5 +62,8 @@ int dbg_check(char flag);
 int dbg_verbose(char flag);
 void dbg_printf(char flag, const char *msg, ...);
 void dbg_vprintf(char flag, const char *msg, ...);
+
+void init_stack_backtrace(void);
+void dbg_stack_backtrace(void);
 
 #endif /*DEBUG_H*/

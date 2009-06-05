@@ -1,213 +1,233 @@
-#include <stdlib.h>
-#include <types.h>
-#include <kos/error.h>
-#include "pm.h"
+#include <errno.h>
+#include <string.h>
+#include <kos/syscalln.h>
+#include "debug.h"
+#include "syscall.h"
 #include "fs/fs.h"
-#include "fs/request.h"
-#include "mm/kmalloc.h"
+#include "mm/util.h"
+#include "util/list.h"
 
-#include "tty.h"
+/* A list of all registered filesystems */
+static list_t *fslist = NULL;
 
+static struct inode root = {
+	.name = "/",
+	.flags = FS_DIR,
+};
+struct inode *fs_root = &root;
+int fs_error = 0;
 
-typedef struct fs_driver_entry
+int vfs_geterror()
 {
-	const char  *name;
-	fs_driver_t *driver;
-	byte         active;
-} fs_drent_t;
-
-static fs_drent_t *drivers;
-static dword       num_drivers;
-
-static fs_filesystem_t **filesystems;
-static dword       num_filesystems;
-
-static fs_filesystem_t *filesys_from_path(const char *path, dword *match)
-{
-	int i=0;
-	int matched = 0;
-	fs_filesystem_t *fs = NULL;
-	fs_filesystem_t *tmp;
-
-	for (; i < num_filesystems; ++i) {
-		tmp = filesystems[i];
-
-		dword len = strlen(tmp->path);
-		if (len  <= matched)
-			continue;
-
-		if (strncmp(tmp->path, path, len) == 0) {
-			matched = len;
-			fs = tmp;
-		}
-	}
-
-	*match = matched;
-
-	return fs;
+	return fs_error;
 }
 
-/**
- *  fs_register_driver(driver, name)
- *
- * Registers a driver with fs.
- */
-int fs_register_driver(fs_driver_t *driver,  const char *name)
+int vfs_register(struct fstype *type)
 {
-	drivers = krealloc(drivers, ++num_drivers * sizeof(fs_driver_t));
-	drivers[num_drivers-1].driver = driver;
-	drivers[num_drivers-1].name   = name;
-	drivers[num_drivers-1].active = 1;
-	return OK;
+	if (!type)
+		return -EINVAL;
+
+	if (!fslist)
+		fslist = list_create();
+
+	list_add_back(fslist, type);
+
+	return 0;
 }
 
-/**
- *  fs_unregister_driver(driver)
- *
- * Unregisters a driver from fs.
- */
-int fs_unregister_driver(fs_driver_t *driver)
+int vfs_unregister(struct fstype *type)
 {
-	/* TODO: free the memory */
-	int i=0;
-	for (; i < num_drivers; ++i) {
-		if (drivers[i].driver == driver) {
-			drivers[i].active = 0;
-			return OK;
+	if (!type)
+		return -EINVAL;
+
+	list_entry_t *e;
+	list_iterate(e, fslist) {
+		if (e->data == type) {
+			list_del_entry(fslist, e);
+			return 0;
 		}
 	}
-	return E_NOT_FOUND;
+	return -EINVAL;
 }
 
-/**
- *  fs_get_driver(name)
- *
- * Returns the driver with the given name.
- */
-fs_driver_t *fs_get_driver(const char *name)
+struct fstype *vfs_gettype(char *name)
 {
-	int i=0;
-	for (; i < num_drivers; ++i) {
-		if (strcmp(drivers[i].name, name) == 0) {
-			return drivers[i].driver;
-		}
+	if (!name) {
+		fs_error = -EINVAL;
+		return NULL;
 	}
 
+	list_entry_t *e;
+	list_iterate(e, fslist) {
+		struct fstype *type = e->data;
+		if (strcmp(type->name, name) == 0)
+			return type;
+	}
+	fs_error = -ENOENT;
 	return NULL;
 }
 
-/**
- *  fs_mount(driver, path, dev, flags)
- *
- * Mounts a device to the given path using the given driver.
- */
-int fs_mount(fs_driver_t *driver, const char *path, const char *dev, dword flags)
+/* FS Syscalls */
+
+static inline struct file *fd2file(dword fd)
 {
-	if (!driver) return E_INVALID_ARG;
+	if (fd >= cur_proc->numfds)
+		return NULL;
 
-	fs_filesystem_t *fs = driver->mount(driver, path, dev, flags);
-	if (!fs) return E_UNKNOWN;
-
-	filesystems = krealloc(filesystems, ++num_filesystems * sizeof(fs_filesystem_t));
-	filesystems[num_filesystems-1] = fs;
-
-	return OK;
+	return cur_proc->fds[fd];
 }
 
-/**
- *  fs_umount(path)
- *
- * Unmounts a path
- */
-int fs_umount(const char *path)
+dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
-	return E_NOT_IMPLEMENTED;
+	dbg_vprintf(DBG_FS, "sys_open(%d, %d) \n", fname, flags);
+
+	size_t namelen = 0;
+	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
+	int result = -1;
+
+	dbg_vprintf(DBG_FS, "name is '%s' (len: %d)\n", name, namelen);
+
+	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
+
+	if (!inode) {
+		result = vfs_geterror();
+		goto end;
+	}
+
+	if (cur_proc->numfds >= PROC_NUM_FDS) {
+		result = -EMFILE;
+		goto end;
+	}
+
+	struct file *file = vfs_open(inode, flags);
+	if (!file) {
+		result = vfs_geterror();
+		goto end;
+	}
+
+	cur_proc->fds[cur_proc->numfds] = file;
+	result = cur_proc->numfds++;
+end:
+	km_free_addr(name, namelen);
+	return (dword)result;
 }
 
-/**
- *  fs_open(name, mode)
- */
-fs_handle_t *fs_open(const char *name, dword mode)
+dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 {
-	return fs_open_as_proc(name, mode, cur_proc);
+	struct file *file = fd2file(fd);
+
+	if (!file)
+		return (dword)-ENOENT;
+
+	int err = vfs_close(file);
+	if (!err) {
+		cur_proc->fds[fd] = NULL;
+	}
+
+	return (dword)err;
 }
 
-/**
- *  fs_open_as_proc(name, mode, proc)
- */
-fs_handle_t *fs_open_as_proc(const char *name, dword mode, proc_t *proc)
+dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 {
-	dword matched = 0;
-	fs_filesystem_t *fs = filesys_from_path(name, &matched);
-	name += matched;
+	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, count);
+	struct file *file = fd2file(fd);
+	int result = -ENOSYS;
 
-	fs_request_t rq;
-	memset(&rq, 0, sizeof(rq));
+	if (!file) {
+		result = -ENOENT;
+		goto end;
+	}
 
-	rq.type   = RQ_OPEN;
-	rq.fs     = fs;
-	rq.buflen = strlen(name) + 1;
-	rq.buf    = (void*)name;
-	rq.flags  = mode;
+	if (calln == SC_READ)
+		result = vfs_read(file, kbuf, count, file->pos);
+	else
+		result = vfs_write(file, kbuf, count, file->pos);
 
-	int status = fs_query_rq(&rq, 1, proc);
-	if (status != OK) return NULL;
-
-	if (rq.status != OK || rq.result != OK) return NULL;
-
-	fs_handle_t *fh = kmalloc(sizeof(fs_handle_t));
-	fh->file  = rq.file;
-	fh->pos   = 0;
-	fh->flags = mode;
-
-	return fh;
+end:
+	if (result != -EAGAIN)
+		km_free_addr(kbuf, count);
+	return (dword)result;
 }
 
-/**
- *  fs_close(handle)
- */
-int fs_close(fs_handle_t *handle)
+dword sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
-	return E_NOT_IMPLEMENTED;
+	size_t namelen = 0;
+	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
+	size_t buflen = 0;
+	char *buf = vm_map_string(cur_proc->pagedir, (vaddr_t)buffer, &buflen);
+	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
+	int status = -ENOSYS;
+
+	if (!inode) {
+		status = -ENOENT;
+		goto end;
+	}
+
+	struct dirent *entry = vfs_readdir(inode, index);
+
+	if (!entry) {
+		status = -ENOENT;
+		goto end;
+	}
+
+	size_t len = buflen < FS_MAX_NAME ? buflen : FS_MAX_NAME;
+	strncpy(buf, entry->name, len);
+	buf[len] = '\0';
+	status = 0;
+end:
+	km_free_addr(name, namelen);
+	km_free_addr(buf, buflen);
+	return (dword)status;
 }
 
-/**
- *
- */
-int fs_readwrite(fs_handle_t *handle, char *buf, int size, int mode)
+dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
 {
-	if (!handle)
-		return E_INVALID_ARG;
+	if (!mountp || !ftype)
+		return (dword)-EINVAL;
 
-	fs_request_t rq;
-	memset(&rq, 0, sizeof(fs_request_t));
-	rq.type = mode == FS_READ ? RQ_READ : RQ_WRITE;
-	rq.fs   = handle->file->fs;
-	rq.file = handle->file;
-	rq.buflen = size;
-	rq.buf  = buf;
-	rq.offs = handle->pos;
+	size_t pathlen = 0;
+	char *path = vm_map_string(cur_proc->pagedir, (vaddr_t)mountp, &pathlen);
+	size_t typelen = 0;
+	char *type = vm_map_string(cur_proc->pagedir, (vaddr_t)ftype, &typelen);
 
-	int status = fs_query_rq(&rq, 1, cur_proc);
+	size_t devlen = 0;
+	char *dev  = NULL;
+	if (device != 0)
+		dev = vm_map_string(cur_proc->pagedir, (vaddr_t)device, &devlen);
 
-	if (status != OK) return -1;
-	if (rq.status != OK) return -1;
+	struct fstype *driver = vfs_gettype(type);
+	struct inode *inode = vfs_lookup(path, cur_proc->cwd);
 
-	handle->pos += rq.result;
-	return rq.result;
+	int err = 0;
+
+	if (!driver || !inode) {
+		err = -EINVAL;
+		goto end;
+	}
+
+	err = vfs_mount(driver, inode, dev, 0);
+
+end:
+	km_free_addr(path, pathlen);
+	km_free_addr(type, typelen);
+	if (dev)
+		km_free_addr(dev, devlen);
+	return (dword)err;
 }
 
-
-/**
- *  init_fs()
- *
- * Initializes internal fs structures.
- */
 void init_fs(void)
 {
-	drivers = NULL;
-	num_drivers = 0;
+	dbg_printf(DBG_FS, "\nRegistering fs syscalls... ");
 
-	filesystems = NULL;
-	num_filesystems = 0;
+	syscall_register(SC_OPEN,  sys_open);
+	syscall_register(SC_CLOSE, sys_close);
+	syscall_register(SC_READ,  sys_readwrite);
+	syscall_register(SC_WRITE, sys_readwrite);
+	syscall_register(SC_READDIR, sys_readdir);
+	syscall_register(SC_MOUNT, sys_mount);
+
+	dbg_printf(DBG_FS, "done\n");
+
+	//init_devfs();
 }
+

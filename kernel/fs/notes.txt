@@ -1,0 +1,134 @@
+Typen:
+------
+
+inode:
+- Datei/Ordner/Pipe/Device/Link
+- einmal vorhanden
+
+file:
+- einmal pro geöffneter inode
+
+superblock:
+- hauptdaten eines dateisystems
+- einmal pro gerät vorhanden
+
+fstype:
+- dateisystemtreiber
+
+request:
+- hält daten für einen asynchronen read/write request
+
+fscallback_t:
+- callback funktion
+
+===========================================================
+
+Funktionen:
+-----------
+
+indode:
+- create(dir, name, flags)
+	* erstellt eine neue inode in einem ordner
+- unlink(inode)
+	* löscht eine inode
+- open(inode, file, mode)
+	* öffnet eine inode und füllt die informationen in file aus
+
+file:
+- close(file)
+	* schließt die datei
+- read(file, buffer, count, pos)
+	* liest count bytes der datei beginnend bei pos in buffer
+- write(file, buffer, count, pos)
+	* schreibt count bytes in die datei beginnend bei pos
+- seek(file, offset, index)
+	* 
+- readdir(file, n)
+	* gibt die daten des nten eintrags in einem ordner zurück
+- finddir(file, name)
+	* gibt die inode mit dem namen name zurück
+	
+superblock:
+- remount(sb, flags)
+	* remounted den superblock
+	
+fstype:
+- mount(sb, device, flags)
+	* mounted das system auf einem device mit dem treiber
+	
+===========================================================
+  
+Eigenschaften:
+--------------
+
+inode:
+- name
+- flags (FILE, DIR, PIPE, CHARDEV, BLOCKDEV, SYMLINK, MOUNTPOINT)
+- permissions (RWX for Owner,Group,Other)
+- length
+- uid
+- gid
+- impl
+- opencount
+- link
+- iops
+- sb
+
+file:
+- inode
+- pos
+- fops
+
+superblock:
+- root
+- flags (READ, WRITE, EXECUTE, 
+- sbops
+
+fstype:
+- name
+- flags (NEED_DEV)
+
+request:
+- file
+- buffer
+- buflen
+- proc
+- blocked
+- func
+- result
+
+===========================================================
+
+VFS Funktionen:
+---------------
+
+- err = vfs_geterror()
+
+- err = vfs_register(type)
+- err = vfs_unregister(type)
+- type = vfs_gettype(name>)
+
+- err = vfs_mount(type, inode, device, flags)
+- err = vfs_unmount(inode)
+
+- inode = vfs_lookup(path, start_inode)
+- dirent = vfs_lookup_dir(path, start_inode)
+
+- inode = vfs_create(dir, name, flags)
+- file = vfs_open(inode, flags)
+- err  = vfs_close(file)
+
+- count = vfs_read(file, buffer, count, pos)
+- count = vfs_write(file, buffer, count, pos)
+- err = vfs_read_async(request)
+- err = vfs_write_async(request)
+
+- dirent = vfs_readdir(file, index)
+- inode = vfs_finddir(file, name)
+
+===========================================================
+
+Syscalls:
+---------
+
+- 

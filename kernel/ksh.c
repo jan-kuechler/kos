@@ -2,6 +2,8 @@
 #include <kos/syscall.h>
 #include "acpi.h"
 #include "kbc.h"
+#include "module.h"
+#include "tty.h"
 
 #define PROMPT "ksh# "
 
@@ -26,6 +28,7 @@ static void shutdown();
 static void restart();
 static void help();
 static void test();
+static void file();
 static void int3();
 
 static cmd_t cmds[] = {
@@ -33,6 +36,7 @@ static cmd_t cmds[] = {
 	{"restart",  "Restarts the computer.", restart},
 	{"int3", "Generates a debug interrupt.", int3},
 	{"test", "Starts the test module.", test},
+	{"file", "Print /test's content.", file},
 	{"help", "Prints this list.", help},
 };
 static int num_cmds = sizeof(cmds) / sizeof(cmd_t);
@@ -58,7 +62,28 @@ static void int3()
 
 static void test()
 {
-	mod_load(0);
+	mod_exec(1);
+}
+
+static void file()
+{
+	int f = open("/test", 0, 0);
+
+	if (f < 0) {
+		print(stderr, "could not open /test\n");
+		return;
+	}
+
+	char buf[256] = {0};
+	int len = 0;
+	while ((len = read(f, buf, 256))> 0) {
+		buf[len] = 0;
+		print(stdout, buf);
+	}
+
+	print(stderr, "== EOF ==\n");
+
+	close(f);
 }
 
 static void help()
@@ -90,9 +115,22 @@ static void run_cmd(const char *cmd)
 
 void ksh(void)
 {
-	stdin  = open("/dev/tty7", 0, 0);
+	stdin = open("/dev/tty7", 0, 0);
+	if (stdin < 0) {
+		kout_printf("Cannot open stdin.\n");
+		exit(0);
+	}
+
 	stdout = open("/dev/tty7", 0, 0);
+	if (stdout < 0) {
+		kout_printf("Cannot open stdout.\n");
+		exit(0);
+	}
 	stderr = open("/dev/tty7", 0, 0);
+	if (stderr < 0) {
+		kout_printf("Cannot open stderr.\n");
+		exit(0);
+	}
 
 	char buffer[512] = {0};
 	int len = 0;

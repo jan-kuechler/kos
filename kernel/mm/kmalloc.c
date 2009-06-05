@@ -104,6 +104,8 @@ void *kmallocu(size_t size)
 
 void *kmalloc(size_t size)
 {
+	if (size < 1) return NULL;
+
 	void *ptr = kmallocu(size);
 
 #ifdef CONF_SAFE_KMALLOC

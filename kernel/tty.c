@@ -1,10 +1,10 @@
 #include <bitop.h>
+#include <errno.h>
 #include <ports.h>
 #include <stdlib.h>
 #include <string.h>
-#include <kos/error.h>
 
-#include "acpi.h"
+//#include "acpi.h"
 #include "debug.h"
 #include "idt.h"
 #include "kbc.h"
@@ -12,10 +12,14 @@
 #include "keycode.h"
 #include "keymap.h"
 #include "tty.h"
+#include "fs/devfs.h"
+#include "fs/request.h"
 #include "mm/kmalloc.h"
-
+#include "util/list.h"
 
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
+
+#define GET_TTY(file) (&ttys[file->inode->impl])
 
 static char *names[NUM_TTYS] = {
 	"tty0", "tty1",	"tty2",	"tty3",
@@ -45,6 +49,28 @@ static struct {
 	byte capslock;
 	byte numlock;
 } modifiers;
+
+static int tty_open(struct inode *ino, struct file *file, dword flags);
+
+static int tty_close(struct file *file);
+static int tty_read(struct file *file, void *buffer, dword count, dword offset);
+static int tty_write(struct file *file, void *buffer, dword count, dword offset);
+static int tty_read_async(struct request *rq);
+static int tty_write_async(struct request *rq);
+static int tty_seek(struct file *file, dword offset, dword index);
+
+static struct inode_ops tty_ino_ops = {
+	.open = tty_open,
+};
+
+static struct file_ops tty_file_ops = {
+	.close = tty_close,
+	.read  = tty_read,
+	.write = tty_write,
+	.read_async = tty_read_async,
+	.write_async = tty_write_async,
+	.seek = tty_seek,
+};
 
 /**
  *  scroll(tty, lines)
@@ -165,7 +191,6 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 
 	char tmp[65];
 	char *end = tmp + 64;
-	int rem;
 
 	if (base < 2 || base > 36)
 		return;
@@ -173,7 +198,7 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 	*end-- = 0;
 
 	do {
-		rem = num % base;
+		int rem = num % base;
 		num = num / base;
 		*end-- = digits[rem];
 		pad--;
@@ -189,22 +214,63 @@ static void putn(tty_t *tty, int num, int base, int pad, char pc)
 }
 
 /**
- *  can_answer_rq(tty, gotrq)
+ *  enough_data(tty, wanted)
  *
- * Returns 1 if there is a request that can be answered
+ * Returns true if the tty has enough data.
  */
-static byte can_answer_rq(tty_t *tty, int gotrq)
+static int enough_data(tty_t *tty, dword wanted)
 {
-	if (!gotrq && !tty->rqcount) {
-		return 0;
-	}
-
 	if (tty->flags & TTY_RAW) {
-		return (tty->incount >= tty->rqs[0]->buflen);
+		return (tty->incount >= wanted);
 	}
 	else {
 		return (tty->eotcount > 0);
 	}
+}
+
+/**
+ *  can_answer_rq(tty, gotrq)
+ *
+ * Returns 1 if there is a request that can be answered
+ */
+static byte can_answer_rq(tty_t *tty)
+{
+	if (list_size(tty->requests) <= 0) {
+		return 0;
+	}
+
+	return enough_data(tty, ((struct request*)list_front(tty->requests))->buflen);
+}
+
+/**
+ *  copy_data(tty, buffer, size)
+ *
+ * Copy up to size bytes of data from the tty to the buffer.
+ */
+static inline dword copy_data(tty_t *tty, void *buffer, dword size)
+{
+	if (bisset(tty->flags, TTY_RAW)) {
+		memcpy(buffer, tty->inbuf, size);
+		return size;
+	}
+	else {
+		strcpy(buffer, tty->inbuf);
+		return strlen(tty->inbuf) + 1; // include the trailing 0
+	}
+}
+
+/**
+ *  remove_data(tty, count)
+ *
+ * Remove count bytes from the tty inbuffer.
+ */
+static inline void remove_data(tty_t *tty, dword count)
+{
+	memmove(tty->inbuf, tty->inbuf + count, TTY_INBUF_SIZE - count);
+	tty->incount -= count;
+
+	if (bnotset(tty->flags, TTY_RAW))
+		tty->eotcount--;
 }
 
 /**
@@ -215,145 +281,82 @@ static byte can_answer_rq(tty_t *tty, int gotrq)
  * Note: This function does not check anything.
  *       Be sure you know what you're doing!
  */
-static void answer_rq(tty_t *tty, fs_request_t *rq)
+static void answer_rq(tty_t *tty)
 {
-	byte remove_rq = 0;
+	dbg_vprintf(DBG_TTY, "answer_rq for %d\n", tty->id);
+	struct request *rq = list_del_front(tty->requests);
 
-	dbg_vprintf(DBG_TTY, "answer_rq...\n");
+	dbg_vprintf(DBG_TTY, "  copy %d bytes to %p\n", rq->buflen, rq->buffer);
+	dword count = copy_data(tty, rq->buffer, rq->buflen);
+	dbg_vprintf(DBG_TTY, "  %d bytes copied.\n", count);
+	remove_data(tty, count);
+	dbg_vprintf(DBG_TTY, "  old data removed.\n");
 
-	if (!rq) {
-		dbg_vprintf(DBG_TTY, "  using request waitbuffer\n");
-		rq = tty->rqs[0];
-		remove_rq = 1;
-		dbg_vprintf(DBG_TTY, "  got rq[0]: 0x%x\n", (char*)rq);
-	}
+	rq->result = count;
 
-	dbg_vprintf(DBG_TTY, "  answer_rq: Buffer: 0x%x\n", (char*)rq->buf);
+	dbg_vprintf(DBG_TTY, "  rq-proc blocked? %s\n", rq->blocked ? "yes" : "no");
+	rq_finish(rq);
+	dbg_vprintf(DBG_TTY, "  finished request.\n");
+}
 
-	byte len = 0, offs = 0;
-	/* copy the data to the buffer */
-	if (tty->flags & TTY_RAW) {
-		memcpy(rq->buf, tty->inbuf, rq->buflen);
-		len  = rq->buflen;
-		offs = rq->buflen;
+static int tty_open(struct inode *ino, struct file *file, dword flags)
+{
+	file->pos = 0;
+	file->fops = &tty_file_ops;
+
+	return 0;
+}
+
+static int tty_close(struct file *file)
+{
+	return 0;
+}
+
+static int tty_read(struct file *file, void *buffer, dword count, dword offset)
+{
+	tty_t *tty = GET_TTY(file);
+
+	if (enough_data(tty, count)) {
+		dword num = copy_data(tty, buffer, count);
+		remove_data(tty, num);
+		return num;
 	}
 	else {
-		len  = strlen(tty->inbuf); // eot is marked by a \0
-		strcpy(rq->buf, tty->inbuf);
-		offs = len + 1;
-	}
-
-	/* update the inbuffer */
-	//int num = tty->incount - offs;
-	//if (num > 0) {
-	//	memmove(tty->inbuf, tty->inbuf + offs, tty->incount - offs);
-	//}
-	memmove(tty->inbuf, tty->inbuf + offs, TTY_INBUF_SIZE - len);
-	tty->incount -= offs;
-	/* and finish the rq */
-	rq->result = len;
-
-	fs_finish_rq(rq);
-
-	if (remove_rq) {
-		memmove(tty->rqs, tty->rqs + 1, (tty->rqcount - 1) * sizeof(fs_request_t*));
-		tty->rqcount--;
-		tty->rqs = krealloc(tty->rqs, tty->rqcount * sizeof(fs_request_t*));
-	}
-
-	if (!(tty->flags & TTY_RAW)) {
-		tty->eotcount--;
+		struct request *rq = rq_create(file, buffer, count);
+		rq->free_buffer = 1;
+		list_add_back(tty->requests, rq);
+		rq_block(rq);
+		return -EAGAIN;
 	}
 }
 
-
-/**
- *  open(tty, rq)
- */
-static void open(tty_t *tty, fs_request_t *rq)
+static int tty_write(struct file *file, void *buffer, dword count, dword offset)
 {
-	if (!tty->owner && !tty->opencount)
-		tty->owner = rq->proc;
+	tty_t *tty = GET_TTY(file);
 
-	if (tty->owner == rq->proc)
-		tty->opencount++;
+	char *buf = buffer;
 
-	fs_finish_rq(rq);
-}
-
-/**
- *  close(tty, rq)
- */
-static void close(tty_t *tty, fs_request_t *rq)
-{
-	if (tty->owner == rq->proc)
-		tty->opencount--;
-
-	if (!tty->opencount)
-		tty->owner = 0;
-
-	fs_finish_rq(rq);
-}
-
-/**
- *  read(tty, rq)
- */
-static void read(tty_t *tty, fs_request_t *rq)
-{
-	if (can_answer_rq(tty, 1)) { /* fullfill request */
-		answer_rq(tty, rq);
-	}
-	else { /* store request */
-		tty->rqs = krealloc(tty->rqs, sizeof(fs_request_t*) * (++tty->rqcount));
-		tty->rqs[tty->rqcount-1] = rq;
-	}
-}
-
-/**
- *  write(tty, rq)
- */
-static void write(tty_t *tty, fs_request_t *rq)
-{
 	int i=0;
-	char *buffer = rq->buf;
-	for (; i < rq->buflen; ++i) {
-		putc(tty, buffer[i]);
+	for (; i < count; ++i) {
+		putc(tty, buf[i]);
 	}
 
-	rq->result = rq->buflen;
-	fs_finish_rq(rq);
+	return count;
 }
 
-/**
- *  query(file, rq)
- */
-static int query(fs_devfile_t *file, fs_request_t *rq)
+static int tty_read_async(struct request *rq)
 {
-	tty_t *tty = (tty_t*)file; // the file is just the first position in the tty_t struct
+	return -ENOSYS;
+}
 
-	switch (rq->type) {
-	case RQ_OPEN:
-		open(tty, rq);
-		break;
+static int tty_write_async(struct request *rq)
+{
+	return -ENOSYS;
+}
 
-	case RQ_CLOSE:
-		close(tty, rq);
-		break;
-
-	case RQ_READ:
-		read(tty, rq);
-		break;
-
-	case RQ_WRITE:
-		write(tty, rq);
-		break;
-
-	default:
-		fs_finish_rq(rq);
-		return E_NOT_SUPPORTED;
-	}
-
-	return OK;
+static int tty_seek(struct file *file, dword offset, dword index)
+{
+	return -ENOSYS;
 }
 
 /**
@@ -389,7 +392,7 @@ static void tty_dbg_info(tty_t *tty)
 	putc(tty, '\n');
 
 	puts(tty, "   RQs:       ");
-	putc(tty, tty->rqcount + '0');
+	putc(tty, list_size(tty->requests) + '0');
 	putc(tty, '\n');
 
 	puts(tty, "   EOTs:      ");
@@ -554,9 +557,9 @@ static inline void handle_input(byte code)
 	cur_tty->inbuf[cur_tty->incount++] = c;
 
 input_end:
-	while (can_answer_rq(cur_tty, 0)) {
+	while (can_answer_rq(cur_tty)) {
 		dbg_vprintf(DBG_TTY, "can_answer_rq!\n");
-		answer_rq(cur_tty, 0);
+		answer_rq(cur_tty);
 	}
 
 }
@@ -631,10 +634,10 @@ int tty_select_keymap(const char *name)
 	for (; i < nummaps; ++i) {
 		if (strcmp(keymaps[i].name, name) == 0) {
 			cur_map = keymaps[i].map;
-			return OK;
+			return 0;
 		}
 	}
-	return E_NOT_FOUND;
+	return -ENOENT;
 }
 
 /**
@@ -657,6 +660,26 @@ void tty_putn(int num, int base)
 	putn(cur_tty, num, base, 0, ' ');
 }
 
+static inline void init(tty_t *tty, int id, int early)
+{
+	tty->id = id;
+
+	memset(&tty->inode, 0, sizeof(tty->inode));
+	tty->inode.name   = names[id];
+	tty->inode.flags  = FS_CHARDEV;
+	tty->inode.impl   = id;
+	tty->inode.ops    = &tty_ino_ops;
+
+	tty->incount = 0;
+	tty->status  = 0x07;
+	tty->flags   = TTY_ECHO;
+
+	if (!early)
+		tty->requests = list_create();
+
+	clear(tty);
+}
+
 /**
  *  init_tty()
  */
@@ -666,24 +689,14 @@ void init_tty(void)
 	for (; i < NUM_TTYS - 1; ++i) { // spare the kout_tty
 		tty_t *tty = &ttys[i];
 
-		tty->id = i;
-		tty->file.path  = names[i];
-		tty->file.query = query;
+		init(tty, i, 0);
 
-		tty->incount = 0;
-		tty->status  = 0x07;
-		tty->flags   = TTY_ECHO;
-
-		tty->rqs     = 0;
-		tty->rqcount = 0;
-
-		clear(tty);
-
-		fs_create_dev(&tty->file);
+		devfs_register(&tty->inode);
 	}
 
-	// anything else for tty7 is done in init_kout
-	fs_create_dev(&kout_tty->file);
+	// anything else for kout_tty is done in init_kout
+	kout_tty->requests = list_create();
+	devfs_register(&kout_tty->inode);
 
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;
@@ -704,18 +717,7 @@ void init_kout(void)
 {
 	kout_tty = &ttys[kout_id];
 
-	kout_tty->id = kout_id;
-	kout_tty->file.path  = names[kout_id];
-	kout_tty->file.query = query;
-
-	kout_tty->incount = 0;
-	kout_tty->status  = 0x07;
-	kout_tty->flags   = TTY_ECHO;
-
-	kout_tty->rqs     = 0;
-	kout_tty->rqcount = 0;
-
-	clear(kout_tty);
+	init(kout_tty, kout_id, 1);
 
 	cur_tty = kout_tty;
 }
@@ -772,7 +774,7 @@ void kout_aprintf(const char *fmt, va_list args)
 
 			switch (*fmt) {
 			case 'c':
-				putc(kout_tty, va_arg(args, char));
+				putc(kout_tty, va_arg(args, int));
 				break;
 
 			case 'b':

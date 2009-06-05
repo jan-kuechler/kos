@@ -8,8 +8,10 @@
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
+#include "ipc.h"
 #include "kernel.h"
 #include "keymap.h"
+#include "module.h"
 #include "pm.h"
 #include "timer.h"
 #include "tty.h"
@@ -17,7 +19,7 @@
 #include "mm/virt.h"
 #include "fs/fs.h"
 #include "fs/devfs.h"
-
+#include "fs/initrd.h"
 
 multiboot_info_t multiboot_info;
 
@@ -39,23 +41,40 @@ void kinit()
 
 	kout_puts("Initializing FS:");
 	init_fs();
+	init_initrd();
 	init_devfs();
-	fs_mount(fs_get_driver("devfs"), "/dev/", 0, 0);
+
+	int err = vfs_mount(vfs_gettype("initrd"), fs_root, NULL, FSM_READ);
+	if (err != 0) {
+		kout_printf("Error mounting initrd: %d\n", err);
+	}
+
+	struct inode *dev = vfs_lookup("/dev", fs_root);
+	if (!dev) {
+		kout_printf("/dev was not created... (%d)\n", vfs_geterror());
+	}
+	else {
+		err = vfs_mount(vfs_gettype("devfs"), vfs_lookup("/dev", fs_root), NULL, FSM_READ | FSM_WRITE);
+		if (err != 0) {
+			kout_printf("Error mounting devfs: %d\n", err);
+		}
+	}
+
 	init_tty();
 	tty_register_keymap("de", keymap_de);
 	kout_puts("\tdone!\n");
 
-	int stdout = kos_open("/dev/tty0", 0, 0);
-	if (stdout == -1) {
-		kout_puts("Error opening tty0");
-	}
+	//int stdout = open("/dev/tty0", 0, 0);
+	//if (stdout == -1) {
+	//	kout_puts("Error opening tty0");
+	//}
 
-	write(stdout, "This is /dev/tty0\n", 18);
+	//write(stdout, "This is /dev/tty0\n", 18);
 
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
-	kos_exit(0);
+	exit(0);
 }
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)
@@ -91,6 +110,9 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	dbg_printf(DBG_LOAD, "* Setting up timer...\n");
 	init_timer();
+
+	dbg_printf(DBG_LOAD, "* Setting up IPC...\n");
+	init_ipc();
 
 	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
 	init_mod();
@@ -174,7 +196,7 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_select();
 
 	kout_set_status(0x04); /* white on red */
-	kout_puts("Panic: ");
+	kout_puts("Kernel Panic!\n");
 	kout_aprintf(fmt, args);
 	kout_puts("\n");
 

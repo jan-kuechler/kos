@@ -23,6 +23,7 @@ KERNEL_INC=$(KERNEL_DIR)/include
 
 FS_DIR=$(KERNEL_DIR)/fs
 MM_DIR=$(KERNEL_DIR)/mm
+UTIL_DIR=$(KERNEL_DIR)/util
 
 ASM=nasm
 ASM_FLAGS=-felf
@@ -47,6 +48,10 @@ version:
 	$(CC)  -v
 	$(LD)  -v
 	
+check:
+	@cppcheck $(INC_DIR) -a -s -v kernel 2> check.txt
+	cat check.txt
+	
 ## Makefile generation ##
 prepare: targets objlist
 
@@ -55,7 +60,8 @@ targets:
 	@for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	@for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
 	@for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	
+	@for F in $(UTIL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
+		
 .PHONY: objlist
 objlist:
 	@rm -f .objlist
@@ -96,6 +102,10 @@ iso:
 	@./cpyfiles.sh iso
 	@mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
 	@rm -rf tmp
+
+.PHONY: initrd
+initrd:
+	./mkid initrd $(BIN)/initrd
 	
 run:
 	@qemu -m 16 -L ../tools/qemu -fda img/kos.img

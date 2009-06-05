@@ -2,7 +2,9 @@
 #include <string.h>
 #include <kos/error.h>
 #include "ipc.h"
-#include "pm.h"
+#include "syscall.h"
+#include "mm/util.h"
+#include "mm/virt.h"
 
 // FIXME: does not handle user space!
 
@@ -67,7 +69,8 @@ int ipc_send(proc_t *from, proc_t *to, msg_t *msg)
 
 	// if the target was blocked by waiting for a message wake it up
 	if (pm_is_blocked_for(to, BR_RECEIVING)) {
-		receive(to, *to->msg_wait_buffer);
+		receive(to, to->msg_wait_buffer);
+		km_free_addr(to->msg_wait_buffer, sizeof(msg_t));
 		to->msg_wait_buffer = (void*)0;
 		pm_unblock(to);
 	}
@@ -89,10 +92,41 @@ int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 	// if there's no message to receive and we
 	//   should block, disable the process
 	if (status == E_TRY_AGAIN && block) {
-		proc->msg_wait_buffer = &msg;
+		proc->msg_wait_buffer = msg;
 		pm_block(proc, BR_RECEIVING);
 		return OK;
 	}
+	else if (status == OK) {
+		km_free_addr(msg, sizeof(msg_t));
+	}
 
 	return status;
+}
+
+dword sys_send(dword calln, dword target, dword msgptr, dword arg2)
+{
+	proc_t *proc = pm_get_proc(target);
+	msg_t  *msg  = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)msgptr,
+	                                 sizeof(msg_t));
+
+	dword result = ipc_send(cur_proc, proc, msg);
+
+	km_free_addr(msg, sizeof(msg_t));
+
+	return result;
+}
+
+dword sys_receive(dword calln, dword msgptr, dword block, dword arg2)
+{
+	msg_t *msg = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)msgptr,
+	                               sizeof(msg_t));
+
+	// receive has to free the address
+	return ipc_receive(cur_proc, msg, block);
+}
+
+void init_ipc(void)
+{
+	syscall_register(SC_SEND, sys_send);
+	syscall_register(SC_RECEIVE, sys_receive);
 }
