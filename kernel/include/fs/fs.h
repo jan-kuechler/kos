@@ -52,8 +52,8 @@ struct fstype *vfs_gettype(char *name);
 int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flags);
 int vfs_umount(struct inode *point);
 
-struct inode *vfs_lookup(char *path, struct inode *start);
-struct dirent *vfs_lookup_dir(char *path, struct inode *start);
+struct inode *vfs_lookup(const char *path, struct inode *start);
+struct dirent *vfs_lookup_dir(const char *path, struct inode *start);
 
 struct inode *vfs_create(struct inode *dir, char *name, dword flags);
 int vfs_unlink(struct inode *ino);

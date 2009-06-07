@@ -2,9 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
+#include <windows.h>
 #include "initrd.h"
+
+static inline void space(FILE *f, int c) { while(c--) fprintf(f, " "); }
+
+#define LOG(...) do { space(log, idt); fprintf(log, __VA_ARGS__); } while (0)
+
+#define LOFFS() do { space(log, idt); fprintf(log, "~ File offset is %d\n", ftell(out)); } while (0)
 
 struct entry
 {
@@ -14,6 +19,12 @@ struct entry
 	struct entry *files, *pdir;
 	struct entry *next;
 	struct entry *last_entry;
+};
+
+struct id_header
+{
+	char magic[3];
+	char version;
 };
 
 struct id_entry
@@ -93,63 +104,6 @@ void id_end_dir(void)
 		cur_entry = cur_dir->last_entry;
 }
 
-static void spaces(int c)
-{
-	while (c--)
-		printf(" ");
-}
-
-static void dummy(struct entry *dir)
-{
-	static int ident = 0;
-
-	struct entry *cur = dir->files;
-
-	spaces(ident * 2);
-	printf("[D] %s (%d) %s\n", dir->name, dir->count, dir->next ? "has_next" : "");
-	ident++;
-	while (cur) {
-		if (cur->path) {
-			spaces(ident * 2);
-			printf("[F] %s - %s\n", cur->name, cur->path);
-		}
-		else {
-			dummy(cur);
-		}
-		struct entry *old = cur;
-		cur = cur->next;
-		free(old);
-	}
-	ident--;
-}
-
-
-#ifdef LINUX
-static int file_size(const char *file)
-{
-	struct stat info;
-	int err = stat(file, &info);
-
-	if (!err)
-		return info.st_size;
-
-#define ERR(code) case code: printf(#code "\n"); break
-	switch (errno) {
-	ERR(EACCES);
-	ERR(EBADF);
-	ERR(EFAULT);
-	ERR(ENAMETOOLONG);
-	ERR(ENOENT);
-	ERR(ENOMEM);
-	ERR(ENOTDIR);
-	default:
-		printf("%d - huh?\n", err);
-	};
-	return 0;
-}
-#else
-#include <windows.h>
-
 static int file_size(const char *file)
 {
 	HANDLE f = CreateFile(file, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -170,69 +124,88 @@ static int file_size(const char *file)
 
 	return size;
 }
-#endif
 
-static int write_file(struct entry *file, FILE *out, int offset)
+static int write_file(struct entry *file, FILE *out, int offset, FILE *log, int idt)
 {
+	LOG("~ Offset is  %d\n", offset);
+	LOG("~ Filepos is %d\n", ftell(out));
+
 	int count = file_size(file->path);
-	int namelen = strlen(file->name) + 1; /* including \0 */
-	int namepos = offset + 20;
+	int namelen = strlen(file->name) + 1; /* including '\0' */
+	int namepos = offset + sizeof(struct id_entry);
 	int datapos = namepos + namelen;
 	int newoffs = datapos + count;
 
 	struct id_entry entry;
-	entry.type = 0;
-	entry.name = namepos;
-	entry.count = count;
+	entry.type    = 0;
+	entry.name    = namepos;
+	entry.count   = count;
 	entry.content = datapos;
-	entry.next = file->next ? newoffs : 0;
+	entry.next    = file->next ? newoffs : 0;
 
+	LOG("* Writing file at offset %d:\n", offset);
+	LOG("|- Type:        %d\n", entry.type);
+	LOG("|- NameOffs:    %d\n", entry.name);
+	LOG("|- Count:       %d\n", entry.count);
+	LOG("|- ContentOffs: %d\n", entry.content);
+	LOG("|- NextOffs:    %d\n", entry.next);
 
 	fwrite(&entry, sizeof(entry), 1, out);
 
-	/*fwrite(&type,    4, 1, out);
-	fwrite(&namepos, 4, 1, out);
-	fwrite(&count  , 4, 1, out);
-	fwrite(&datapos, 4, 1, out);
-	fwrite(&nextpos, 4, 1, out);*/
-
 	/* next is name and content */
+	LOG("|- Writing name: '%s' with length %d\n", file->name, namelen);
 	fwrite(file->name, 1, namelen, out);
+	LOFFS();
 
 	char *buffer = malloc(count);
-	FILE *f = fopen(file->path, "r");
-	fread(buffer, 1, count, f);
+	FILE *f = fopen(file->path, "rb");
+	fread(buffer, count, 1, f);
 	fclose(f);
 
-	fwrite(buffer, 1, count, out);
+	LOG("|- Writing content with length %d\n", count);
+	LOG("|- New offset should be %d\n", ftell(out) + count);
+	int written = fwrite(buffer, count, 1, out);
+	if (written != count) {
+		fprintf(stderr, "fwrite has written %d of %d bytes => %d\n", written, count, count - written);
+		fprintf(stderr, "Errno: %d => %s\n", ferror(out), strerror(errno));
+	}
 	free(buffer);
+	LOFFS();
 
+	LOG("`- New offset is %d\n", newoffs);
 
 	return newoffs;
 }
 
-static int write_dir(struct entry *dir, FILE *out, int offset)
+static int write_dir(struct entry *dir, FILE *out, int offset, FILE *log, int idt)
 {
-#ifdef DUMMY
-	dummy(dir);
-	return;
-#endif
+	LOG("~ Offset is  %d\n", offset);
+	LOG("~ Filepos is %d\n", ftell(out));
 
-	int type = 1;
-	int count = dir->count;
-	int namelen = strlen(dir->name) + 1;
-	int namepos = offset + 20;
+	int namelen = strlen(dir->name) + 1; /* including '\0' */
+	int namepos = offset + sizeof(struct id_entry);
 	int datapos = namepos + namelen;
-	int nextpos = 0; /* still not known */
 
-	fwrite(&type,    4, 1, out);
-	fwrite(&namepos, 4, 1, out);
-	fwrite(&count  , 4, 1, out);
-	fwrite(&datapos, 4, 1, out);
+	struct id_entry entry;
+	entry.type    = 1;
+	entry.name    = namepos;
+	entry.count   = dir->count;
+	entry.content = datapos;
+	entry.next    = 0; /* still not known */
 
-	long next_posinfile = ftell(out);
-	fwrite(&nextpos, 4, 1, out);  /* dummy, change this later! */
+	LOG("* Writing directory at offset %d:\n", offset);
+	LOG("|- Type:        %d\n", entry.type);
+	LOG("|- NameOffs:    %d\n", entry.name);
+	LOG("|- Count:       %d\n", entry.count);
+	LOG("|- ContentOffs: %d\n", entry.content);
+	LOG("|- NextOffs:    <still unknown>\n");
 
+	fwrite(&entry, sizeof(entry), 1, out);
+
+	long next_posinfile = ftell(out) - 4;
+	LOG("|- Pos of next is %d\n", next_posinfile);
+
+	LOG("|- Writing name: '%s' with length %d\n", dir->name, namelen);
 	fwrite(dir->name, 1, namelen, out);
 
 	struct entry *cur = dir->files;
@@ -240,10 +213,10 @@ static int write_dir(struct entry *dir, FILE *out, int offset)
 	int offs = datapos;
 	while (cur) {
 		if (cur->path) {
-			offs = write_file(cur, out, offs);
+			offs = write_file(cur, out, offs, log, idt + 1);
 		}
 		else {
-			offs = write_dir(cur, out, offs);
+			offs = write_dir(cur, out, offs, log, idt + 1);
 		}
 		cur = cur->next;
 	}
@@ -253,17 +226,37 @@ static int write_dir(struct entry *dir, FILE *out, int offset)
 		fseek(out, next_posinfile, SEEK_SET);
 		fwrite(&offs, 4, 1, out);
 		fseek(out, cur_pos, SEEK_SET);
+		LOG("|- Next offset changed to %d\n", offs);
+		LOG("|- File pos is %d, was %d\n", ftell(out), cur_pos);
 	}
+	else {
+		LOG("|- No next offset needed.\n");
+	}
+
+	LOG("`- New offset is %d\n", offs);
 	return offs;
 }
 
-void id_write(const char *file)
+static int write_header(FILE *f, FILE *log)
 {
-	FILE *f = fopen(file, "w");
-	if (!f)
-		fprintf(stderr, "Could not open file '%s': %s\n", file, strerror(errno));
-	char header[4] = {'k', 'I', 'D', 0};
-	fwrite(header, 1, 4, f);
-	write_dir(root, f, 4);
+	int idt = 0;
+	LOG("* Writing Header at offset 0\n");
+	struct id_header header = { {'k', 'I', 'D'}, 0 };
+	fwrite(&header, sizeof(header), 1, f);
+	return sizeof(header);
+}
+
+void id_write(const char *file, const char *logfile)
+{
+	FILE *f = fopen(file, "wb");
+	FILE *log = fopen(logfile, "w");
+	if (!f || !log) {
+		fprintf(stderr, "Could not open file '%s' or '%s': %s\n", file, logfile, strerror(errno));
+		return;
+	}
+
+	int offs = write_header(f, log);
+	write_dir(root, f, offs, log, 0);
 	fclose(f);
+	fclose(log);
 }

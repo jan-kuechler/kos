@@ -176,19 +176,23 @@ static struct inode *new_inode(struct id_entry *e, void *disk)
 	struct inode *ino = kmalloc(sizeof(*ino));
 	memset(ino, 0, sizeof(*ino));
 
-	ino->name = (char*)id_get(e, name, disk);
+	char *n = (char*)id_get(e, name, disk);
+	if (!n)
+		n = "<no name>";
+	ino->name = n;
 	ino->length = e->count;
 
 	ino->sb = &super;
 	ino->ops = &iops;
 
-	dbg_vprintf(DBG_FS, " created new inode: %s\n", ino->name);
+	dbg_vprintf(DBG_FS, " created new inode: %s\n", n);
 
 	return ino;
 }
 
 static struct inode *parse_file(struct id_entry *file, void *disk)
 {
+	dbg_vprintf(DBG_FS, "creating file...\n");
 	struct inode *ino = new_inode(file, disk);
 	ino->flags = FS_FILE;
 	ino->impl  = (dword)id_get(file, content, disk);
@@ -200,6 +204,8 @@ static struct inode *parse_dir(struct id_entry *dir, void *disk)
 	if (dir->type != ID_TYPE_DIR) {
 		panic("Tried to parse %s as a dir, but it's a file.\n", (char*)id_get(dir, name, disk));
 	}
+
+	dbg_vprintf(DBG_FS, "creating dir...\n");
 
 	struct inode *ino = new_inode(dir, disk);
 	ino->flags = FS_DIR;
@@ -224,6 +230,8 @@ static struct inode *parse_dir(struct id_entry *dir, void *disk)
 
 		entry = id_get(entry, next, disk);
 	}
+
+	dbg_vprintf(DBG_FS, "dir done!\n");
 
 	return ino;
 }

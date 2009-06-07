@@ -13,7 +13,7 @@
  * Returns the next part of the path starting from a
  * given index.
  */
-static inline int next_part(char *path, int *start, char *buffer)
+static inline int next_part(const char *path, int *start, char *buffer)
 {
 	int end = *start;
 	while (path[end] && path[end] != '/') {
@@ -36,9 +36,9 @@ static inline int next_part(char *path, int *start, char *buffer)
 	return 1;
 }
 
-static int advance_root(char **path)
+static int advance_root(const char **path)
 {
-	char *p = *path;
+	const char *p = *path;
 	if (*p == '/') {
 		while (*(++p) == '/')
 			;
@@ -49,7 +49,7 @@ static int advance_root(char **path)
 }
 
 
-struct dirent *vfs_lookup_dir(char *path, struct inode *start)
+struct dirent *vfs_lookup_dir(const char *path, struct inode *start)
 {
 	if (advance_root(&path))
 		start = fs_root;
@@ -59,7 +59,7 @@ struct dirent *vfs_lookup_dir(char *path, struct inode *start)
 	return NULL;
 }
 
-struct inode *vfs_lookup(char *path, struct inode *start)
+struct inode *vfs_lookup(const char *path, struct inode *start)
 {
 	/* adjust absolut paths */
 	//if (*path == '/') {

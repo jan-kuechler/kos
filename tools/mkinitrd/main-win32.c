@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 		printf("\t\tdone\n");
 
 		printf("Writing InitRD...");
-		id_write(argv[2]);
+		id_write(argv[2], argc > 3 ? argv[3] : "mkid.log");
 		printf("\tdone\n");
 	#endif
 

@@ -2,6 +2,7 @@
 #include <kos/syscall.h>
 #include "acpi.h"
 #include "kbc.h"
+#include "loader.h"
 #include "module.h"
 #include "tty.h"
 
@@ -62,15 +63,17 @@ static void int3()
 
 static void test()
 {
-	mod_exec(1);
+	//mod_exec(1);
+	if (!exec_file("/bin/test", "/bin/test testarg", 2))
+		print(stderr, "Cannot execute /bin/test\n");
 }
 
 static void file()
 {
-	int f = open("/test", 0, 0);
+	int f = open("/file", 0, 0);
 
 	if (f < 0) {
-		print(stderr, "could not open /test\n");
+		print(stderr, "could not open /file\n");
 		return;
 	}
 
