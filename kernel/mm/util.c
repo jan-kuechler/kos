@@ -26,6 +26,30 @@ pdir_t mm_create_pagedir()
 	return pdir;
 }
 
+struct addrspace *vm_create_addrspace()
+{
+	struct addrspace *as = kmalloc(sizeof(*as));
+	as->phys = mm_alloc_page();
+	as->pdir = km_alloc_addr(as->phys, VM_COMMON_FLAGS, PAGE_SIZE);
+
+	memcpy(as->pdir, kernel_pdir, PAGE_SIZE);
+
+	return as;
+}
+
+void vm_select_addrspace(struct addrspace *as)
+{
+	/* cr3 contains the phys addr of the page directory! */
+	asm volatile("mov %0, %%cr3" : : "r"(as->phys));
+}
+
+void vm_destroy_addrspace(struct addrspace *as)
+{
+	km_free_addr(as->pdir, PAGE_SIZE);
+	mm_free_page(as->phys);
+	kfree(as);
+}
+
 /**
  *  vm_map_string(pdir, vaddr, length)
  *

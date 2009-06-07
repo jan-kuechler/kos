@@ -5,6 +5,10 @@
 
 pdir_t mm_create_pagedir();
 
+struct addrspace *vm_create_addrspace();
+void vm_select_addrspace(struct addrspace *as);
+void vm_destroy_addrspace(struct addrspace *as);
+
 vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length);
 
 vaddr_t vm_user_to_kernel(pdir_t pdir, vaddr_t vaddr, size_t size);
