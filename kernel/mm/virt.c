@@ -182,11 +182,6 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 				panic("vm_map_page: Overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
 		}
 	}
-
-	if (vaddr == (vaddr_t)0x43000) {
-		dbg_vprintf(DBG_VM, "!! mapped %p => 0x43000\n", paddr);
-		dbg_stack_backtrace();
-	}
 }
 
 /**

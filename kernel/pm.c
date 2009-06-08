@@ -26,13 +26,6 @@ void idle()
 	for (;;) { }
 }
 
-#ifdef CONF_DEBUG
-int proc_debug;
-#define dbg(proc, ...) if (proc->debug) { dbg_printf(DBG_PM, __VA_ARGS__); }
-#else
-#define dbg(proc, ...) do { } while (0);
-#endif
-
 /**
  *  pm_create(entry, cmdline, parent)
  *
@@ -74,10 +67,11 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].numfds = 0;
 
 	procs[id].wakeup = 0;
-	procs[id].msg_wait_buffer = (void*)0;
+	procs[id].msg_wait_buffer = NULL;
 
-	procs[id].pagedir = mm_create_pagedir();
-	procs[id].pdrev   = kpdir_rev;
+	procs[id].as = vm_create_addrspace();
+	procs[id].pagedir = procs[id].as->pdir;
+	procs[id].pdrev = 0;
 
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
@@ -120,13 +114,6 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].kstack = (dword)kstack;
 	procs[id].esp    = (dword)kstack;
 
-#ifdef CONF_DEBUG
-	procs[id].debug = proc_debug;
-	proc_debug = 0;
-#endif
-
-	dbg((&procs[id]), "Debug Proc: created (%s)\n", cmdline);
-
 	if (status == PS_READY)
 		pm_activate(&procs[id]);
 
@@ -140,10 +127,10 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
  */
 void pm_destroy(proc_t *proc)
 {
-	dbg(proc, "Debug Proc: destroyed\n");
-
 	pm_deactivate(proc);
-	procs[proc->pid].status = PS_SLOT_FREE;
+	proc->status = PS_SLOT_FREE;
+
+	vm_destroy_addrspace(proc->as);
 }
 
 /**
@@ -179,8 +166,6 @@ void pm_activate(proc_t *proc)
 	plist_tail = proc;
 	proc->next = 0;
 
-	dbg(proc, "Debug Proc: activated\n");
-
 	enable_intr();
 }
 
@@ -208,8 +193,6 @@ void pm_deactivate(proc_t *proc)
 
 	if (proc == cur_proc)
 		pm_schedule();
-
-	dbg(proc, "Debug Proc: deactivated\n");
 
 	enable_intr();
 }
@@ -271,9 +254,8 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
-	cur_proc->pdrev = vm_switch_pdir(cur_proc->pagedir, cur_proc->pdrev);
-
-	dbg(cur_proc, "Debug Proc: picked\n");
+	//cur_proc->pdrev = vm_switch_pdir(cur_proc->pagedir, cur_proc->pdrev);
+	vm_select_addrspace(cur_proc->as);
 
 	*esp = cur_proc->esp;
 }
@@ -288,8 +270,6 @@ void pm_restore(dword *esp)
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
 		tss.esp0 = cur_proc->kstack;
-
-		dbg(cur_proc, "Debug Proc: restored\n");
 	}
 
 	//vm_switch_pdir(kernel_pdir, kpdir_rev);
@@ -309,8 +289,6 @@ byte pm_block(proc_t *proc, block_reason_t reason)
 	proc->status = PS_BLOCKED;
 	proc->block = reason;
 
-	dbg(proc, "Debug Proc: blocked (%d)\n", reason);
-
 	pm_deactivate(proc);
 
 	return 1;
@@ -325,8 +303,6 @@ void pm_unblock(proc_t *proc)
 {
 	proc->status = PS_READY;
 	proc->block  = BR_NOT_BLOCKED;
-
-	dbg(proc, "Debug Proc: unblocked\n");
 
 	pm_activate(proc);
 }
@@ -375,31 +351,10 @@ void init_pm(void)
 	syscall_register(SC_GET_PID, sys_get_pid);
 	syscall_register(SC_GET_UID, sys_get_uid);
 
-#ifdef CONF_DEBUG
-	proc_debug = 0;
-#endif
-
-
 	/* create special process 0: idle */
 	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
 	pm_activate(idle_proc); // Note: Does not unblock idle
 
 	cur_proc = idle_proc;
-
-#if 0
-	if (dbg_check(DBG_TESTTASKS)) {
-		extern void task1(void);
-		extern void task2(void);
-		extern void task3(void);
-		extern void task4(void);
-		extern void task5(void);
-
-		pm_create(task1, "task1", 0, 0, 1);
-		pm_create(task2, "task2", 0, 0, 1);
-		pm_create(task3, "task3", 0, 0, 1);
-		pm_create(task4, "task4", 0, 0, 1);
-		pm_create(task5, "task5", 0, 0, 1);
-	}
-#endif
 }
 

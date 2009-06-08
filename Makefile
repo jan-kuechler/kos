@@ -30,7 +30,7 @@ ASM_FLAGS=-felf
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC)
-CC_FLAGS=-O3 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
+CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
 
 LD=ld
 LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld

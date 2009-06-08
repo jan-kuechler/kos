@@ -61,8 +61,9 @@ typedef struct proc {
 	dword  ustack;
 	dword  esp;
 
-	pdir_t pagedir;
-	dword  pdrev;
+	struct addrspace *as;
+	pdir_t pagedir __attribute__((deprecated));
+	dword  pdrev __attribute__((deprecated));
 
 	regs_t *sc_regs;
 
@@ -78,21 +79,10 @@ typedef struct proc {
 	msg_t  *msg_head, *msg_tail;
 	byte   msg_count;
 
-#ifdef CONF_DEBUG
-	int    debug;
-#endif
-
 	struct proc *next;
 } proc_t;
 
 extern proc_t *cur_proc;
-
-#ifdef CONF_DEBUG
-extern int proc_debug;
-#define pm_set_debug() do { proc_debug = 1; } while (0);
-#else
-#define pm_set_debug() do { } while (0)
-#endif
 
 void init_pm(void);
 

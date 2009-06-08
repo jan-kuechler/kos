@@ -3,28 +3,10 @@
 #include <kos/strparam.h>
 #include "debug.h"
 #include "pm.h"
+#include "mm/kmalloc.h"
 #include "mm/mm.h"
 #include "mm/util.h"
 #include "mm/virt.h"
-
-/**
- *  mm_create_pagedir()
- *
- * Creates a page directory mapping the full kernel.
- */
-pdir_t mm_create_pagedir()
-{
-	dbg_vprintf(DBG_VM, "Creating new page directory...");
-
-	pdir_t pdir = mm_alloc_page();
-	km_identity_map(pdir, VM_COMMON_FLAGS, PAGE_SIZE);
-
-	memcpy(pdir, kernel_pdir, PAGE_SIZE);
-
-	dbg_vprintf(DBG_VM, "done (%p)\n", pdir);
-
-	return pdir;
-}
 
 struct addrspace *vm_create_addrspace()
 {
@@ -83,7 +65,7 @@ vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length)
 	km_free_addr(info, sizeof(struct strparam));
 
 	return str;
-};
+}
 
 /**
  *  vm_user_to_kernel(pdir, vaddr, size)
@@ -143,6 +125,25 @@ void vm_set_p(paddr_t dst, byte val, size_t size)
 	vaddr_t vdst = map(dst);
 	memset(vdst, val, size);
 	unmap(vdst);
+}
+
+/**
+ *  mm_create_pagedir()
+ *
+ * Creates a page directory mapping the full kernel.
+ */
+pdir_t mm_create_pagedir()
+{
+	dbg_vprintf(DBG_VM, "Creating new page directory...");
+
+	pdir_t pdir = mm_alloc_page();
+	km_identity_map(pdir, VM_COMMON_FLAGS, PAGE_SIZE);
+
+	memcpy(pdir, kernel_pdir, PAGE_SIZE);
+
+	dbg_vprintf(DBG_VM, "done (%p)\n", pdir);
+
+	return pdir;
 }
 
 dword vm_switch_pdir(pdir_t pdir, dword rev)
