@@ -19,7 +19,11 @@
 #define sc_arg2(r) (r->edx)
 #define sc_result(r, v)  do { r->eax = v; } while (0);
 
-syscall_t syscalls[SYSCALL_MAX] = {0};
+static int sys_testcall(int, int, int, int);
+
+syscall_t syscalls[SYSCALL_MAX] = {
+	sys_testcall, 0
+};
 
 void do_puts(regs_t *regs)
 {
@@ -80,6 +84,14 @@ void do_get_answer(regs_t *regs)
 void do_test(regs_t *regs)
 {
 	kout_printf("Test syscall from process %d (%s)\n", cur_proc->pid, cur_proc->cmdline);
+}
+
+int sys_testcall(int calln, int arg0, int arg1, int arg2)
+{
+	kout_printf("Test syscall from %s with args:\n1: %d\n2: 0x%x\n3: %p\n",
+	            cur_proc->cmdline, arg0, arg1, arg2);
+
+	return 0;
 }
 
 #define MAP(calln,func) case calln: func(regs); break;

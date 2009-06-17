@@ -12,6 +12,8 @@
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 
+static int koop_mode = 0;
+
 proc_t procs[MAX_PROCS];
 static proc_t *plist_head, *plist_tail;
 
@@ -204,13 +206,8 @@ void pm_deactivate(proc_t *proc)
  */
 void pm_update()
 {
-#ifdef CONF_KOOP_MULTITASKING
-	if (!cur_proc || cur_proc->status != PS_READY)
+	if (!cur_proc || cur_proc->status != PS_READY || (!koop_mode && (--cur_proc->ticks_left) <= 0))
 		pm_schedule();
-#else
-	if (!cur_proc || cur_proc->status != PS_READY || (--cur_proc->ticks_left) <= 0)
-		pm_schedule();
-#endif
 }
 
 /**
@@ -305,6 +302,16 @@ void pm_unblock(proc_t *proc)
 	proc->block  = BR_NOT_BLOCKED;
 
 	pm_activate(proc);
+}
+
+void pm_set_koop(int mode)
+{
+	koop_mode = mode;
+}
+
+int pm_get_koop()
+{
+	return koop_mode;
 }
 
 dword sys_exit(dword calln, dword status, dword arg1, dword arg2)

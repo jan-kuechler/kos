@@ -96,7 +96,7 @@ floppy:
 	@./cpyfiles.sh floppy
 	@bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
 	@cmd "/C makeboot.bat img\kos.img "
-	@rm -rf tmp
+	#@rm -rf tmp
 	
 iso:
 	@./cpyfiles.sh iso
@@ -105,7 +105,7 @@ iso:
 
 .PHONY: initrd
 initrd:
-	./mkid initrd $(BIN)/initrd
+	./mkid initrd $(BIN_DIR)/initrd
 	
 run:
 	@qemu -m 16 -L ../tools/qemu -fda img/kos.img

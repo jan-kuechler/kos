@@ -1,6 +1,10 @@
 #ifndef SYSCALLN_H
 #define SYSCALLN_H
 
+/*   IMPORTANT!
+ * Keep this the same as newlib/libc/sys/kos/syscalln.h !!
+ */
+
 #define SC_TEST          0
 
 #define SC_PUTS          1

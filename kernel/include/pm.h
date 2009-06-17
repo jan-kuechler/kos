@@ -100,6 +100,9 @@ void    pm_deactivate(proc_t *proc);
 byte    pm_block(proc_t *proc, block_reason_t reason);
 void    pm_unblock(proc_t *proc);
 
+void    pm_set_koop(int flag);
+int     pm_get_koop();
+
 static inline byte pm_is_blocked_for(proc_t *proc, block_reason_t reason)
 {
 	return (proc->status == PS_BLOCKED && proc->block == reason);

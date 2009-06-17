@@ -55,8 +55,9 @@ vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length)
 	dbg_vprintf(DBG_VM, "  info->ptr = %p\n", info->ptr);
 	dbg_vprintf(DBG_VM, "  info->len = %d\n", info->len);
 
-	vaddr_t str = km_alloc_addr(info->ptr, VM_COMMON_FLAGS, info->len + 1);
-	dbg_vprintf(DBG_VM, "  str = %p -> '%s'\n", str, str);
+	vaddr_t str = vm_user_to_kernel(pdir, info->ptr, info->len + 1);
+
+	dbg_vprintf(DBG_VM, "  str = %p - '%s'\n", str, str);
 
 	if (length) {
 		dbg_vprintf(DBG_VM, "  assigning length + 1\n");

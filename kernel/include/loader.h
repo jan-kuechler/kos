@@ -6,7 +6,7 @@
 enum exec_type
 {
 	ET_UNKNOWN,
-	ET_ELF_EXEC,
+	ET_ELF32_EXEC,
 };
 
 void init_loader(void);
@@ -18,6 +18,6 @@ pid_t exec_mem(void *mem, const char *args, pid_t parent);
 
 enum exec_type get_exec_type(void *mem);
 
-pid_t exec_elf_exec(void *mem, const char *args, pid_t parent);
+pid_t elf32_exec(void *mem, const char *args, pid_t parent);
 
 #endif /*LOADER_H*/
