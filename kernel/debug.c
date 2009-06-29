@@ -71,14 +71,14 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 		asm volatile("mov %%ebp, %0" : "=r"(stack_frame));
 	}
 
-	for (; vm_is_mapped(cur_proc->pagedir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_PRESENT);
+	for (; vm_is_mapped(cur_proc->as->pdir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_PRESENT);
 	       stack_frame = stack_frame->ebp)
 	{
 		print_sym((dword)stack_frame->ebp, stack_frame->eip);
 	}
 
-	if (stack_frame && !vm_is_mapped(cur_proc->pagedir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_USERMODE)) {
-		kout_puts("Stack broken!\n");
+	if (stack_frame && !vm_is_mapped(cur_proc->as->pdir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_USERMODE)) {
+		kout_puts("Stack corrupted!\n");
 	}
 }
 
@@ -91,7 +91,8 @@ void dbg_proc_backtrace(proc_t *proc)
 {
 	proc = proc ? proc : cur_proc;
 
-
+	regs_t *regs = (regs_t*)(proc->esp);
+	dbg_stack_backtrace_ex(regs->ebp, regs->eip);
 }
 
 void init_stack_backtrace(void)

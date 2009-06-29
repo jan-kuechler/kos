@@ -40,6 +40,7 @@ typedef enum block_reason
 	BR_SLEEPING,
 	BR_WAIT_FS,
 	BR_INIT,
+	BR_WAIT_PROC,
 } block_reason_t;
 
 typedef enum proc_mode
@@ -48,7 +49,7 @@ typedef enum proc_mode
 	PM_USER,
 } proc_mode_t;
 
-typedef struct proc {
+struct proc {
 	pid_t  pid;
 	pid_t  parent;
 
@@ -61,8 +62,9 @@ typedef struct proc {
 	dword  ustack;
 	dword  esp;
 
-	pdir_t pagedir;
-	dword  pdrev;
+	struct addrspace *as;
+	pdir_t pagedir __attribute__((deprecated));
+	dword  pdrev __attribute__((deprecated));
 
 	regs_t *sc_regs;
 
@@ -78,21 +80,15 @@ typedef struct proc {
 	msg_t  *msg_head, *msg_tail;
 	byte   msg_count;
 
-#ifdef CONF_DEBUG
-	int    debug;
-#endif
+	void   *ldata; // data for the procloader
+	void   (*cleanup)(struct proc*); // cleanup any loader specific data
 
 	struct proc *next;
-} proc_t;
+};
 
-extern proc_t *cur_proc;
+typedef struct proc proc_t; // __attribute__((deprecated));
 
-#ifdef CONF_DEBUG
-extern int proc_debug;
-#define pm_set_debug() do { proc_debug = 1; } while (0);
-#else
-#define pm_set_debug() do { } while (0)
-#endif
+extern struct proc *cur_proc;
 
 void init_pm(void);
 
@@ -109,6 +105,9 @@ void    pm_deactivate(proc_t *proc);
 
 byte    pm_block(proc_t *proc, block_reason_t reason);
 void    pm_unblock(proc_t *proc);
+
+void    pm_set_koop(int flag);
+int     pm_get_koop();
 
 static inline byte pm_is_blocked_for(proc_t *proc, block_reason_t reason)
 {

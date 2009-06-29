@@ -5,11 +5,12 @@
 #include <kos/config.h>
 
 #define DBG_LOAD      'l'
+#define DBG_PANICBT   'b'
 #define DBG_GDT       'g'
 #define DBG_IDT       'i'
 #define DBG_TESTTASKS 't'
 #define DBG_MODULE    'm'
-#define DBG_ELF       'e'
+#define DBG_LOADER    'x'
 #define DBG_TTY       'c' // console
 #define DBG_VM        'v'
 #define DBG_MM        'r' // RAM
@@ -65,5 +66,8 @@ void dbg_vprintf(char flag, const char *msg, ...);
 
 void init_stack_backtrace(void);
 void dbg_stack_backtrace(void);
+void dbg_stack_backtrace_ex(dword ebp, dword eip);
+void dbg_proc_backtrace(struct proc *proc);
+
 
 #endif /*DEBUG_H*/

@@ -200,7 +200,8 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_aprintf(fmt, args);
 	kout_puts("\n");
 
-	dbg_stack_backtrace();
+	if (dbg_check(DBG_PANICBT))
+		dbg_stack_backtrace();
 
 	dbg_print_last_syscall();
 

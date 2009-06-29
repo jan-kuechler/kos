@@ -79,10 +79,10 @@ static inline struct file *fd2file(dword fd)
 
 dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 {
-	dbg_vprintf(DBG_FS, "sys_open(%d, %d) \n", fname, flags);
+	dbg_vprintf(DBG_FS, "sys_open(%p, %d) \n", fname, flags);
 
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
+	char *name = vm_map_string(cur_proc->as->pdir, (vaddr_t)fname, &namelen);
 	int result = -1;
 
 	dbg_vprintf(DBG_FS, "name is '%s' (len: %d)\n", name, namelen);

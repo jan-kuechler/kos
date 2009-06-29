@@ -64,8 +64,12 @@ static void int3()
 static void test()
 {
 	//mod_exec(1);
-	if (!exec_file("/bin/test", "/bin/test testarg", 2))
+	//pm_set_koop(1);
+	pid_t pid = exec_file("/bin/test", "/bin/test testarg", 2);
+	//yield();
+	if (!pid)
 		print(stderr, "Cannot execute /bin/test\n");
+	//pm_set_koop(0);
 }
 
 static void file()

@@ -28,6 +28,8 @@ extern pdir_t kernel_pdir;
    as changes may have to be copied to process pdirs */
 extern dword  kpdir_rev;
 
+extern struct addrspace kernel_addrspace;
+
 void init_paging(void);
 
 void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags);

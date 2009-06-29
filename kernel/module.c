@@ -4,68 +4,60 @@
 #include "mm/kmalloc.h"
 #include "mm/virt.h"
 
-static byte *loaded;
+static size_t *size;
+static void  **addr;
+static char  **cmdline;
 
-void init_mod()
+void init_mod(void)
 {
 	if (!multiboot_info.mods_count)
 		return;
 
-	/* map the module list into the kernel pagedir */
+	dword count = multiboot_info.mods_count;
+
 	km_identity_map((paddr_t)multiboot_info.mods_addr, VM_COMMON_FLAGS,
-	                multiboot_info.mods_count * sizeof(multiboot_mod_t));
+	                count * sizeof(multiboot_mod_t));
 
-	loaded = kmalloc(multiboot_info.mods_count);
-	memset(loaded, 0, multiboot_info.mods_count);
+	size    = kmalloc(count * sizeof(size_t));
+	addr    = kmalloc(count * sizeof(void *));
+	cmdline = kmalloc(count * sizeof(char *));
+
+	memset(size,    0, count);
+	memset(addr,    0, count);
+	memset(cmdline, 0, count);
 }
 
-void mod_exec(int n)
+size_t mod_load(int n, void **module, char **params)
 {
 	if (n >= multiboot_info.mods_count || n < 0) {
 		panic("mod_load: module #%d does not exist.", n);
 	}
 
-	if (loaded[n])
-		return;
+	if (!size[n]) {
+		multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr +
+		                                         n * sizeof(multiboot_mod_t);
 
-	dbg_printf(DBG_MODULE, "Loading module %d.\n", n);
+		size[n] = mod->mod_end - mod->mod_start;
+		addr[n] = km_alloc_addr((paddr_t)mod->mod_start, VM_COMMON_FLAGS,
+		                        mod->mod_end - mod->mod_start);
+		cmdline[n] = (char*)km_alloc_addr((paddr_t)mod->cmdline,
+		                                  VM_COMMON_FLAGS, 1024);
+	}
 
-	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr + n * sizeof(multiboot_mod_t);
+	if (module)
+		*module = addr[n];
 
-	dbg_vprintf(DBG_MODULE, "  Mapping module: 0x%08x\n", mod->mod_start);
-	vaddr_t mod_start = km_alloc_addr((paddr_t)mod->mod_start, VM_COMMON_FLAGS, mod->mod_end - mod->mod_start);
-	dbg_vprintf(DBG_MODULE, "  Mapping cmdline: 0x%08x\n", mod->cmdline);
-	vaddr_t cmdline = km_alloc_addr((paddr_t)mod->cmdline, VM_COMMON_FLAGS, 1024);
+	if (params)
+		*params = cmdline[n];
 
-	dbg_vprintf(DBG_MODULE, "  Loading elf module\n");
-	elf_load(mod_start, (char*)cmdline, (pid_t)1);
-
-	dbg_vprintf(DBG_MODULE, "  Freeing module & cmdline...\n");
-	km_free_addr(mod_start, mod->mod_end - mod->mod_start);
-	km_free_addr(cmdline, 1024);
-
-	loaded[n] = 1;
+	return size[n];
 }
 
-int mod_load(int n, void **module, char **params)
+size_t mod_size(int n)
 {
 	if (n >= multiboot_info.mods_count || n < 0) {
-		panic("mod_load: module #%d does not exist.", n);
+		panic("mod_size: module #%d does not exist.", n);
 	}
 
-	dbg_printf(DBG_MODULE, "Loading module %d.\n", n);
-
-	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr + n * sizeof(multiboot_mod_t);
-
-	if (module) {
-		dbg_vprintf(DBG_MODULE, "  Mapping module: 0x%08x\n", mod->mod_start);
-		*module = km_alloc_addr((paddr_t)mod->mod_start, VM_COMMON_FLAGS, mod->mod_end - mod->mod_start);
- 	}
-
-	if (params) {
-		dbg_vprintf(DBG_MODULE, "  Mapping cmdline: 0x%08x\n", mod->cmdline);
-		*params = (char*)km_alloc_addr((paddr_t)mod->cmdline, VM_COMMON_FLAGS, 1024);
-	}
-
-	return mod->mod_end - mod->mod_start;
+	return size[n];
 }

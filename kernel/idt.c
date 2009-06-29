@@ -125,6 +125,7 @@ static void idt_handle_exception(dword *esp)
 
 	if (user) {
 		kout_printf("Abortin process %d.\n", cur_proc->pid);
+		dbg_proc_backtrace(cur_proc);
 		pm_destroy(cur_proc);
 		kout_set_status(oc);
 	}
