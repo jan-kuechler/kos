@@ -13,6 +13,7 @@
 #include "mm/mm.h"
 #include "mm/util.h"
 #include "mm/virt.h"
+#include "util/list.h"
 
 static int elf32_check(void *mem);
 static int elf32_check_type(void *mem, Elf32_Half type);
@@ -23,7 +24,10 @@ pid_t exec_file(const char *filename, const char *args, pid_t parent)
 	size_t size = load_file_to_mem(filename, &mem);
 	if (!size)
 		return 0;
-	return exec_mem(mem, args, parent);
+	pid_t pid = exec_mem(mem, args, parent);
+	kfree(mem);
+	return pid;
+
 }
 
 size_t load_file_to_mem(const char *filename, void **mem)
@@ -68,6 +72,12 @@ enum exec_type get_exec_type(void *mem)
 
 /* Elf32 stuff */
 
+struct elf32_ldata
+{
+	vaddr_t base;
+	size_t  pages;
+};
+
 static int elf32_check(void *mem)
 {
 	Elf32_Ehdr *hdr = mem;
@@ -102,6 +112,16 @@ static void elf32_alloc_mem(pdir_t pdir, vaddr_t base, int pages)
 	}
 }
 
+static void elf32_free_mem(pdir_t pdir, vaddr_t base, int pages)
+{
+	int i=0;
+	for (; i < pages; ++i) {
+		paddr_t page = vm_resolve_virt(pdir, (vaddr_t)(base + i * PAGE_SIZE));
+		/* no need to unmap, as the pdir will be purged anyway */
+		mm_free_page(page);
+	}
+}
+
 static int elf32_first_page_bytes(Elf32_Phdr *phdr)
 {
 	if (phdr->p_filesz > PAGE_SIZE - (phdr->p_vaddr % PAGE_SIZE))
@@ -110,7 +130,20 @@ static int elf32_first_page_bytes(Elf32_Phdr *phdr)
 		return phdr->p_filesz;
 }
 
-static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem)
+static void elf32_cleanup(struct proc *proc)
+{
+	if (!proc->ldata) return;
+
+	list_entry_t *e = NULL;
+	list_iterate(e, (list_t*)proc->ldata) {
+		struct elf32_ldata *d = e->data;
+		elf32_free_mem(proc->as->pdir, d->base, d->pages);
+	}
+	list_destroy(proc->ldata);
+}
+
+
+static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *linfo)
 {
 	if (!phdr->p_memsz)
 		return;
@@ -136,14 +169,17 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem)
 	int memsz_pages = NUM_PAGES(phdr->p_memsz);
 	elf32_alloc_mem(pdir, base, memsz_pages);
 
+	/* save the number of allocated pages for elf32_cleanup */
+	struct elf32_ldata *ldata = kmalloc(sizeof(*ldata));
+	ldata->base = base;
+	ldata->pages = memsz_pages;
+	list_add_front(linfo, ldata);
+
 	/* the data may begin anywhere on the first page... */
 	int first_page_bytes = elf32_first_page_bytes(phdr);
 
-	/* the last page may have to be filled with 0s */
-	int last_page_padding = PAGE_SIZE - ((phdr->p_offset + phdr->p_filesz) % PAGE_SIZE);
-
 	vaddr_t src = (vaddr_t)((dword)mem + phdr->p_offset);
-	paddr_t pdst = vm_resolve_virt(pdir, (vaddr_t)phdr->p_vaddr);
+	paddr_t pdst = vm_resolve_virt(pdir, (vaddr_t)base);
 
 	vm_cpy_pv(pdst, src, first_page_bytes);
 
@@ -162,10 +198,12 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem)
 		src += PAGE_SIZE;
 	}
 
-	/* fill the rest of the last page with 0 */
+
+	/* the last page may have to be filled with 0s */
+	int last_page_padding = PAGE_SIZE - ((phdr->p_offset + phdr->p_filesz) % PAGE_SIZE);
 	if (last_page_padding) {
 		dbg_vprintf(DBG_LOADER, "  Last page is padded with %d 0s\n", last_page_padding);
-		vaddr_t data_end = mem + ((filesz_pages - 1) * PAGE_SIZE) +
+		vaddr_t data_end = base + ((filesz_pages - 1) * PAGE_SIZE) +
 		                   (PAGE_SIZE - last_page_padding);
 		pdst = vm_resolve_virt(pdir, data_end);
 		vm_set_p(pdst, 0, last_page_padding);
@@ -186,7 +224,8 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 	Elf32_Ehdr *hdr = mem;
 
 	Elf32_Phdr *phdr = (Elf32_Phdr*)((dword)hdr + hdr->e_phoff);
-	proc_t *proc = NULL;
+
+	struct proc *proc = NULL;
 
 	int i=0;
 	for (; i < hdr->e_phnum; ++i, ++phdr) {
@@ -194,10 +233,13 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 			if (elf32_has_entry(phdr, hdr)) {
 				dbg_vprintf(DBG_LOADER, "Entry point is %p\n", hdr->e_entry);
 				proc = pm_create((void*)hdr->e_entry, args, PM_USER, parent, PS_BLOCKED);
+
+				proc->cleanup = elf32_cleanup;
+				proc->ldata   = list_create();
 			}
 			if (!proc) return 0;
 
-			elf32_map_segment(proc->as->pdir, phdr, mem);
+			elf32_map_segment(proc->as->pdir, phdr, mem, proc->ldata);
 		}
 	}
 

@@ -29,8 +29,8 @@ void *list_del_entry(list_t *list, list_entry_t *entry);
 void *list_front(list_t *list);
 void *list_back(list_t *list);
 
-#define list_iterate(pos, list) for (pos = list->front; pos != 0; pos = pos->next)
+#define list_iterate(pos, list) for (pos = (list)->front; pos != 0; pos = pos->next)
 
-#define list_riterate(pos, list) for (pos = list->back; pos != 0; pos = pos->prev)
+#define list_riterate(pos, list) for (pos = (list)->back; pos != 0; pos = pos->prev)
 
 #endif /*UTIL_LIST_H*/

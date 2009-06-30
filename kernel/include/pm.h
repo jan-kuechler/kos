@@ -40,6 +40,7 @@ typedef enum block_reason
 	BR_SLEEPING,
 	BR_WAIT_FS,
 	BR_INIT,
+	BR_WAIT_PROC,
 } block_reason_t;
 
 typedef enum proc_mode
@@ -48,7 +49,7 @@ typedef enum proc_mode
 	PM_USER,
 } proc_mode_t;
 
-typedef struct proc {
+struct proc {
 	pid_t  pid;
 	pid_t  parent;
 
@@ -79,10 +80,14 @@ typedef struct proc {
 	msg_t  *msg_head, *msg_tail;
 	byte   msg_count;
 
-	struct proc *next;
-} proc_t;
+	void   *ldata; // data for the procloader
+	void   (*cleanup)(struct proc*); // cleanup any loader specific data
 
-extern proc_t *cur_proc;
+};
+
+typedef struct proc proc_t; // __attribute__((deprecated));
+
+extern struct proc *cur_proc;
 
 void init_pm(void);
 

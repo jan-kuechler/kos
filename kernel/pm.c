@@ -74,6 +74,12 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].as = vm_create_addrspace();
 	procs[id].pagedir = procs[id].as->pdir;
 	procs[id].pdrev = 0;
+<<<<<<< HEAD:kernel/pm.c
+=======
+
+	procs[id].ldata   = NULL;
+	procs[id].cleanup = 0;
+>>>>>>> FETCH_HEAD:kernel/pm.c
 
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
@@ -132,6 +138,13 @@ void pm_destroy(proc_t *proc)
 	pm_deactivate(proc);
 	proc->status = PS_SLOT_FREE;
 
+<<<<<<< HEAD:kernel/pm.c
+=======
+	if (proc->cleanup)
+		proc->cleanup(proc);
+
+	kfree(proc->cmdline);
+>>>>>>> FETCH_HEAD:kernel/pm.c
 	vm_destroy_addrspace(proc->as);
 }
 
@@ -269,6 +282,7 @@ void pm_restore(dword *esp)
 		tss.esp0 = cur_proc->kstack;
 	}
 
+	//vm_select_addrspace(kernel_addrspace);
 	//vm_switch_pdir(kernel_pdir, kpdir_rev);
 }
 
@@ -360,7 +374,7 @@ void init_pm(void)
 
 	/* create special process 0: idle */
 	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
-	pm_activate(idle_proc); // Note: Does not unblock idle
+	pm_activate(idle_proc); // Note: Does and should not unblock idle
 
 	cur_proc = idle_proc;
 }
