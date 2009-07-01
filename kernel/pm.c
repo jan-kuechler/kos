@@ -23,7 +23,6 @@ struct proc *last_proc = NULL;
 dword user_stacks[MAX_PROCS][USTACK_SIZE] __attribute__((aligned(4096)));
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
-
 void idle()
 {
 	for (;;) { }
@@ -56,6 +55,10 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	else
 		procs[id].block = BR_INIT;
 	procs[id].parent = parent;
+
+	procs[id].wait_proc = 0;
+	procs[id].wait_for  = 0;
+	procs[id].exit_status = -1;
 
 	procs[id].cmdline = kmalloc(strlen(cmdline) + 1);
 	strcpy(procs[id].cmdline, cmdline);
@@ -135,6 +138,19 @@ void pm_destroy(struct proc *proc)
 {
 	pm_deactivate(proc);
 	proc->status = PS_SLOT_FREE;
+
+	if (proc->wait_proc) {
+		struct proc *other = pm_get_proc(proc->wait_proc);
+
+		sc_late_result(other, proc->exit_status);
+		pm_unblock(other);
+	}
+
+	if (proc->wait_for) {
+		struct proc *other = pm_get_proc(proc->wait_for);
+		if (other->wait_proc == proc->pid)
+			other->wait_proc = 0;
+	}
 
 	if (proc->cleanup)
 		proc->cleanup(proc);
@@ -328,6 +344,7 @@ int pm_get_koop()
 
 dword sys_exit(dword calln, dword status, dword arg1, dword arg2)
 {
+	cur_proc->exit_status = status;
 	pm_destroy(cur_proc);
 	pm_schedule();
 	return 0;
@@ -337,6 +354,20 @@ dword sys_yield(dword calln, dword arg0, dword arg1, dword arg2)
 {
 	pm_schedule();
 	return 0;
+}
+
+dword sys_wait(dword calln, dword pid, dword arg1, dword arg2)
+{
+	struct proc *other = pm_get_proc(pid);
+
+	if (other->status == PS_SLOT_FREE || other->wait_proc != 0)
+		return (dword)-1;
+
+	other->wait_proc = cur_proc->pid;
+	cur_proc->wait_for = pid;
+	pm_block(cur_proc, BR_WAIT_PROC);
+
+	return 0; // Dummy!
 }
 
 dword sys_get_pid(dword calln, dword arg0, dword arg1, dword arg2)
@@ -369,6 +400,7 @@ void init_pm(void)
 	syscall_register(SC_YIELD,   sys_yield);
 	syscall_register(SC_GET_PID, sys_get_pid);
 	syscall_register(SC_GET_UID, sys_get_uid);
+	syscall_register(SC_WAIT,    sys_wait);
 
 	/* create special process 0: idle */
 	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
