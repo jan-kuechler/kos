@@ -29,7 +29,7 @@ void do_puts(regs_t *regs)
 {
 	const char *str = (const char*)sc_arg0(regs);
 
-	str = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)str, 1024);
+	str = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)str, 1024);
 
 	tty_puts(str);
 
