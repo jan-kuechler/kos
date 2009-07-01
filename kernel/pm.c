@@ -74,12 +74,9 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 	procs[id].as = vm_create_addrspace();
 	procs[id].pagedir = procs[id].as->pdir;
 	procs[id].pdrev = 0;
-<<<<<<< HEAD:kernel/pm.c
-=======
 
 	procs[id].ldata   = NULL;
 	procs[id].cleanup = 0;
->>>>>>> FETCH_HEAD:kernel/pm.c
 
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
@@ -138,13 +135,11 @@ void pm_destroy(proc_t *proc)
 	pm_deactivate(proc);
 	proc->status = PS_SLOT_FREE;
 
-<<<<<<< HEAD:kernel/pm.c
-=======
 	if (proc->cleanup)
 		proc->cleanup(proc);
 
 	kfree(proc->cmdline);
->>>>>>> FETCH_HEAD:kernel/pm.c
+
 	vm_destroy_addrspace(proc->as);
 }
 

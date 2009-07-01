@@ -83,6 +83,7 @@ struct proc {
 	void   *ldata; // data for the procloader
 	void   (*cleanup)(struct proc*); // cleanup any loader specific data
 
+	struct proc *next;
 };
 
 typedef struct proc proc_t; // __attribute__((deprecated));
