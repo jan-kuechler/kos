@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <kos/syscall.h>
 #include "acpi.h"
+#include "com.h"
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
@@ -81,6 +82,9 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	kernel_init_done = 0;
 	init_kout();
+	init_com();
+
+	com_putc(0, 'J');
 
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 	init_debug();

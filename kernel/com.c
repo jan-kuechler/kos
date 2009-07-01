@@ -51,7 +51,12 @@ void init_com(void)
 	/* TODO: Get real base ports from BIOS */
 
 	init_port(0, COM_BAUD, COM_PARITY, COM_BITS);
+	init_port(1, COM_BAUD, COM_PARITY, COM_BITS);
+	init_port(2, COM_BAUD, COM_PARITY, COM_BITS);
+	init_port(3, COM_BAUD, COM_PARITY, COM_BITS);
+
 }
+
 
 static int transmit_empty(int p)
 {
@@ -65,3 +70,11 @@ void com_putc(int port, char c)
 
 	outb(ports[port] + TRANSMIT, c);
 }
+
+void com_puts(int port, const char *str)
+{
+	while (*str) {
+		com_putc(port, *str++);
+	}
+}
+

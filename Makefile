@@ -37,6 +37,8 @@ LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld
 
 LIBS=-lminc -lk 
 
+LOGFILES = -serial file:kos.log -serial file:kos_err.log -serial file:kos_dbg.log -serial file:kos_dbgv.log
+
 ######### targets ##########
 
 all: kernel link_map
@@ -108,7 +110,8 @@ initrd:
 	./mkid initrd $(BIN_DIR)/initrd
 	
 run:
-	@qemu -m 16 -L ../tools/qemu -fda img/kos.img
+	@rm -f kos*.log
+	@qemu -m 16 $(LOGFILES) -L ../tools/qemu -fda img/kos.img
 	
 run-iso:
 	@qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso

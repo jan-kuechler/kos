@@ -8,6 +8,6 @@
 void init_com(void);
 
 void com_putc(int port, char c);
-
+void com_puts(int port, const char *str);
 
 #endif /*COM_H*/

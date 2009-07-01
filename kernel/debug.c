@@ -1,12 +1,23 @@
 #include <elf.h>
+#include <format.h>
 #include <stdarg.h>
 #include <string.h>
 #include <types.h>
 #include <kos/config.h>
+#include "com.h"
 #include "kernel.h"
 #include "pm.h"
 #include "tty.h"
 #include "mm/virt.h"
+
+#define COM_ALL  0
+#define COM_ERR  1
+#define COM_DBG  2
+#define COM_VDBG 3
+
+#define CLR_ERR  0x04
+#define CLR_DBG  0x02
+#define CLR_VDBG 0x0A
 
 #ifdef CONF_DEBUG
 dword dbg_lsc_calln;
@@ -15,6 +26,8 @@ dword dbg_lsc_arg1;
 dword dbg_lsc_arg2;
 pid_t dbg_lsc_proc;
 #endif
+
+static int com_loglvl = COM_ERR;
 
 static Elf32_Shdr *symtab;
 static Elf32_Shdr *strtab;
@@ -125,18 +138,26 @@ void init_debug(void)
 
 #ifdef CONF_DEBUG
 	const char *opts = strstr((char*)multiboot_info.cmdline, "debug=");
-	if (!opts)
-		return;
+	if (opts) {
+		opts += 6;
 
-	opts += 6;
+		while (*opts && *opts != ' ') {
+			char o = *opts++;
 
-	while (*opts && *opts != ' ') {
-		char o = *opts++;
+			if (o >= 'a' && o <= 'z')
+				dbg_flags[o - 'a'] = 1;
+			else if (o >= 'A' && o <= 'Z')
+				dbg_flags[o - 'A'] = 2;
+		}
+	}
 
-		if (o >= 'a' && o <= 'z')
-			dbg_flags[o - 'a'] = 1;
-		else if (o >= 'A' && o <= 'Z')
-			dbg_flags[o - 'A'] = 2;
+	const char *com = strstr((char*)multiboot_info.cmdline, "com=");
+	if (com) {
+		com += 4;
+
+		if (*com >= '0' && *com <= '9') {
+			com_loglvl = *com - '0';
+		}
 	}
 #endif
 }
@@ -151,26 +172,62 @@ int dbg_verbose(char flag)
 	return dbg_flags[flag- 'a'] == 2;
 }
 
+void dbg_error(const char *fmt, ...)
+{
+	static char buffer[256];
+
+	va_list args;
+	va_start(args, fmt);
+
+	strafmt(buffer, fmt, args);
+
+	if (com_loglvl >= COM_ERR) {
+		com_puts(COM_ALL, buffer);
+		com_puts(COM_ERR, buffer);
+	}
+
+	byte old = kout_set_status(CLR_ERR);
+	kout_puts(buffer);
+	kout_set_status(old);
+}
+
 void dbg_printf(char flag, const char *fmt, ...)
 {
-	if (dbg_check(flag)) {
-		va_list args;
-		va_start(args, fmt);
+	static char buffer[256];
 
-		byte old = kout_set_status(0x02);
-		kout_aprintf(fmt, args);
+	va_list args;
+	va_start(args, fmt);
+
+	strafmt(buffer, fmt, args);
+
+	if (com_loglvl >= COM_DBG) {
+		com_puts(COM_ALL, buffer);
+		com_puts(COM_DBG, buffer);
+	}
+	if (dbg_check(flag)) {
+		byte old = kout_set_status(CLR_DBG);
+		kout_puts(buffer);
 		kout_set_status(old);
 	}
 }
 
 void dbg_vprintf(char flag, const char *fmt, ...)
 {
-	if (dbg_verbose(flag)) {
-		va_list args;
-		va_start(args, fmt);
+	static char buffer[256];
 
-		byte old = kout_set_status(0x0A);
-		kout_aprintf(fmt, args);
+	va_list args;
+	va_start(args, fmt);
+
+	strafmt(buffer, fmt, args);
+
+	if (com_loglvl >= COM_VDBG) {
+		com_puts(COM_ALL, buffer);
+		com_puts(COM_VDBG, buffer);
+	}
+
+	if (dbg_verbose(flag)) {
+		byte old = kout_set_status(CLR_VDBG);
+		kout_puts(buffer);
 		kout_set_status(old);
 	}
 }

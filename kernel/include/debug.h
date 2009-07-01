@@ -63,6 +63,7 @@ struct proc;
 void init_debug(void);
 int dbg_check(char flag);
 int dbg_verbose(char flag);
+void dbg_error(const char *msg, ...);
 void dbg_printf(char flag, const char *msg, ...);
 void dbg_vprintf(char flag, const char *msg, ...);
 
@@ -70,6 +71,5 @@ void init_stack_backtrace(void);
 void dbg_stack_backtrace(void);
 void dbg_stack_backtrace_ex(dword ebp, dword eip);
 void dbg_proc_backtrace(struct proc *proc);
-
 
 #endif /*DEBUG_H*/
