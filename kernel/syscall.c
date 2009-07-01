@@ -14,10 +14,10 @@
 #include "mm/util.h"
 
 
-#define sc_arg0(r) (r->ebx)
-#define sc_arg1(r) (r->ecx)
-#define sc_arg2(r) (r->edx)
-#define sc_result(r, v)  do { r->eax = v; } while (0);
+#define sc_arg0(r) ((r)->ebx)
+#define sc_arg1(r) ((r)->ecx)
+#define sc_arg2(r) ((r)->edx)
+#define sc_result(r, v)  do { (r)->eax = (v); } while (0);
 
 static int sys_testcall(int, int, int, int);
 
@@ -46,26 +46,6 @@ void do_putn(regs_t *regs)
 	tty_putn(num, base);
 
 	sc_result(regs, 0);
-}
-
-void do_exit(regs_t *regs)
-{
-}
-
-void do_yield(regs_t *regs)
-{
-}
-
-void do_sleep(regs_t *regs)
-{
-}
-
-void do_get_pid(regs_t *regs)
-{
-}
-
-void do_get_uid(regs_t *regs)
-{
 }
 
 void do_send(regs_t *regs)
@@ -126,13 +106,6 @@ void syscall(dword *esp)
 
 	MAP(SC_PUTS,       do_puts)
 	MAP(SC_PUTN,       do_putn)
-
-	MAP(SC_EXIT,       do_exit)
-	MAP(SC_YIELD,      do_yield)
-	MAP(SC_SLEEP,      do_sleep)
-
-	MAP(SC_GET_PID,    do_get_pid)
-	MAP(SC_GET_UID,    do_get_uid)
 
 	MAP(SC_SEND,       do_send)
 	MAP(SC_RECEIVE,    do_receive)
