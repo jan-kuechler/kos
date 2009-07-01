@@ -58,6 +58,8 @@ extern pid_t dbg_lsc_proc;
 #  define dbg_print_last_syscall()
 #endif
 
+struct proc;
+
 void init_debug(void);
 int dbg_check(char flag);
 int dbg_verbose(char flag);
