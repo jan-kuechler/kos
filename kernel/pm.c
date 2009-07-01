@@ -14,10 +14,10 @@
 
 static int koop_mode = 0;
 
-proc_t procs[MAX_PROCS];
-static proc_t *plist_head, *plist_tail;
+struct proc procs[MAX_PROCS];
+static struct proc *plist_head, *plist_tail;
 
-proc_t *cur_proc;
+struct proc *cur_proc;
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE] __attribute__((aligned(4096)));
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
@@ -33,7 +33,7 @@ void idle()
  *
  * Creates a new process.
  */
-proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
+struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
 {
 	int i=0;
 	int id = MAX_PROCS;
@@ -80,7 +80,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
 
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
-	vm_map_range(procs[id].pagedir, ustack, (vaddr_t)(USER_STACK_ADDR - usize),
+	vm_map_range(procs[id].as->pdir, ustack, (vaddr_t)(USER_STACK_ADDR - usize),
 	             VM_USER_FLAGS, NUM_PAGES(usize));
 
 	procs[id].ustack = (dword)ustack;
@@ -130,7 +130,7 @@ proc_t *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t 
  *
  * Destroys a process
  */
-void pm_destroy(proc_t *proc)
+void pm_destroy(struct proc *proc)
 {
 	pm_deactivate(proc);
 	proc->status = PS_SLOT_FREE;
@@ -148,7 +148,7 @@ void pm_destroy(proc_t *proc)
  *
  * Returns a pointer to the process with the given id.
  */
-proc_t *pm_get_proc(pid_t pid)
+struct proc *pm_get_proc(pid_t pid)
 {
 	return &procs[pid];
 }
@@ -158,7 +158,7 @@ proc_t *pm_get_proc(pid_t pid)
  *
  * Activates the process proc.
  */
-void pm_activate(proc_t *proc)
+void pm_activate(struct proc *proc)
 {
 	disable_intr();
 
@@ -184,10 +184,10 @@ void pm_activate(proc_t *proc)
  *
  * Deactivates the process proc.
  */
-void pm_deactivate(proc_t *proc)
+void pm_deactivate(struct proc *proc)
 {
 	disable_intr();
-	proc_t *prev = 0, *cur = plist_head;
+	struct proc *prev = 0, *cur = plist_head;
 
 	while (cur && cur != proc) {
 		prev = cur;
@@ -287,7 +287,7 @@ void pm_restore(dword *esp)
  * Blocks the process for the given reason.
  * Returns 1 on success, 0 otherwise.
  */
-byte pm_block(proc_t *proc, block_reason_t reason)
+byte pm_block(struct proc *proc, block_reason_t reason)
 {
 	if (proc->status == PS_BLOCKED)
 		return 0;
@@ -305,7 +305,7 @@ byte pm_block(proc_t *proc, block_reason_t reason)
  *
  * Unblocks the process.
  */
-void pm_unblock(proc_t *proc)
+void pm_unblock(struct proc *proc)
 {
 	proc->status = PS_READY;
 	proc->block  = BR_NOT_BLOCKED;
@@ -368,7 +368,7 @@ void init_pm(void)
 	syscall_register(SC_GET_UID, sys_get_uid);
 
 	/* create special process 0: idle */
-	proc_t *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
+	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
 	pm_activate(idle_proc); // Note: Does and should not unblock idle
 
 	cur_proc = idle_proc;
