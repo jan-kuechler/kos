@@ -17,7 +17,8 @@ static int koop_mode = 0;
 struct proc procs[MAX_PROCS];
 static struct proc *plist_head, *plist_tail;
 
-struct proc *cur_proc;
+struct proc *cur_proc = NULL;
+struct proc *last_proc = NULL;
 
 dword user_stacks[MAX_PROCS][USTACK_SIZE] __attribute__((aligned(4096)));
 dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
@@ -259,10 +260,13 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
-	//cur_proc->pdrev = vm_switch_pdir(cur_proc->pagedir, cur_proc->pdrev);
-	vm_select_addrspace(cur_proc->as);
+	if (cur_proc != last_proc) {
+		vm_select_addrspace(cur_proc->as);
 
-	*esp = cur_proc->esp;
+		*esp = cur_proc->esp;
+
+		last_proc = cur_proc;
+	}
 }
 
 /**
@@ -278,7 +282,6 @@ void pm_restore(dword *esp)
 	}
 
 	//vm_select_addrspace(kernel_addrspace);
-	//vm_switch_pdir(kernel_pdir, kpdir_rev);
 }
 
 /**
