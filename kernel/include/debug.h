@@ -1,6 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <stdarg.h>
 #include <types.h>
 #include <kos/config.h>
 
@@ -46,13 +47,13 @@ extern pid_t dbg_lsc_proc;
 		dbg_lsc_proc  = cur_proc->pid;         \
 	} while (0);
 
-#  define dbg_print_last_syscall()        \
-	kout_printf("Last syscall: %d "         \
-	            "(0x%08x, 0x%08x, 0x%08x) " \
-	            "by %d\n",                  \
-	            dbg_lsc_calln, dbg_lsc_arg0,\
-	            dbg_lsc_arg1, dbg_lsc_arg2, \
-	            dbg_lsc_proc);
+#  define dbg_print_last_syscall()      \
+	dbg_error("Last syscall: %d "         \
+	          "(0x%08x, 0x%08x, 0x%08x) " \
+	          "by %d\n",                  \
+	          dbg_lsc_calln, dbg_lsc_arg0,\
+	          dbg_lsc_arg1, dbg_lsc_arg2, \
+	          dbg_lsc_proc);
 #else
 #  define dbg_set_last_syscall(n,a0,a1,a2)
 #  define dbg_print_last_syscall()
@@ -64,6 +65,7 @@ void init_debug(void);
 int dbg_check(char flag);
 int dbg_verbose(char flag);
 void dbg_error(const char *msg, ...);
+void dbg_aerror(const char *msg, va_list args);
 void dbg_printf(char flag, const char *msg, ...);
 void dbg_vprintf(char flag, const char *msg, ...);
 

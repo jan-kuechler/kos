@@ -59,11 +59,11 @@ static inline const char *get_str(Elf32_Word index)
 static inline void print_sym(dword ebp, dword eip)
 {
 	Elf32_Sym *sym = find_sym(eip);
-	kout_printf("ebp 0x%08x eip 0x%08x", ebp, eip);
+	dbg_error("ebp 0x%08x eip 0x%08x", ebp, eip);
 	if (sym) {
-		kout_printf(" <%s + 0x%x>", get_str(sym->st_name), eip - sym->st_value);
+		dbg_error(" <%s + 0x%x>", get_str(sym->st_name), eip - sym->st_value);
 	}
-	kout_puts("\n");
+	dbg_error("\n");
 }
 
 void dbg_stack_backtrace_ex(dword ebp, dword eip)
@@ -74,7 +74,7 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 		dword  eip;
 	} *stack_frame;
 
-	kout_puts("Stack backtrace:\n");
+	dbg_error("Stack backtrace:\n");
 
 	if (ebp != 0) {
 		print_sym(ebp, eip);
@@ -91,7 +91,7 @@ void dbg_stack_backtrace_ex(dword ebp, dword eip)
 	}
 
 	if (stack_frame && !vm_is_mapped(cur_proc->as->pdir, (vaddr_t)stack_frame, sizeof(struct stack_frame), PE_USERMODE)) {
-		kout_puts("Stack corrupted!\n");
+		dbg_error("Stack corrupted!\n");
 	}
 }
 
@@ -172,12 +172,9 @@ int dbg_verbose(char flag)
 	return dbg_flags[flag- 'a'] == 2;
 }
 
-void dbg_error(const char *fmt, ...)
+void dbg_aerror(const char *fmt, va_list args)
 {
 	static char buffer[256];
-
-	va_list args;
-	va_start(args, fmt);
 
 	strafmt(buffer, fmt, args);
 
@@ -189,6 +186,17 @@ void dbg_error(const char *fmt, ...)
 	byte old = kout_set_status(CLR_ERR);
 	kout_puts(buffer);
 	kout_set_status(old);
+
+}
+
+void dbg_error(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+
+	dbg_aerror(fmt, args);
+
+	va_end(args);
 }
 
 void dbg_printf(char flag, const char *fmt, ...)
@@ -199,6 +207,7 @@ void dbg_printf(char flag, const char *fmt, ...)
 	va_start(args, fmt);
 
 	strafmt(buffer, fmt, args);
+	va_end(args);
 
 	if (com_loglvl >= COM_DBG) {
 		com_puts(COM_ALL, buffer);
@@ -209,6 +218,7 @@ void dbg_printf(char flag, const char *fmt, ...)
 		kout_puts(buffer);
 		kout_set_status(old);
 	}
+
 }
 
 void dbg_vprintf(char flag, const char *fmt, ...)
@@ -219,6 +229,7 @@ void dbg_vprintf(char flag, const char *fmt, ...)
 	va_start(args, fmt);
 
 	strafmt(buffer, fmt, args);
+	va_end(args);
 
 	if (com_loglvl >= COM_VDBG) {
 		com_puts(COM_ALL, buffer);

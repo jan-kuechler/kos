@@ -180,6 +180,28 @@ static void print_info()
 	kout_printf("\n");
 }
 
+static inline dword get_cr2()
+{
+	dword val = 0;
+	asm volatile("mov %%cr2, %0" : "=r"(val) :);
+	return val;
+}
+
+void print_state(regs_t *regs)
+{
+	dbg_error("ss:esp: %06x:%p error code: %08b cr2: %010x\n",
+	          regs->u_ss, regs->u_esp, regs->errc, get_cr2());
+	dbg_error("eax: %p ebx: %p ecx: %p edx: %p\n",
+	          regs->eax, regs->ebx, regs->ecx, regs->edx);
+	dbg_error("ebp: %p esp: %p esi: %p edi: %p\n",
+	          regs->ebp, regs->esp, regs->esi, regs->edi);
+	dbg_error("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
+	          regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
+
+	dbg_error("Current process: '%s' (%d)\n", cur_proc->cmdline, cur_proc->pid);
+
+}
+
 __attribute__((noreturn)) void shutdown()
 {
 	disable_intr();
@@ -200,9 +222,9 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	kout_select();
 
 	kout_set_status(0x04); /* white on red */
-	kout_puts("Kernel Panic!\n");
-	kout_aprintf(fmt, args);
-	kout_puts("\n");
+	dbg_error("Kernel Panic!\n");
+	dbg_aerror(fmt, args);
+	dbg_error("\n");
 
 	if (dbg_check(DBG_PANICBT))
 		dbg_stack_backtrace();
