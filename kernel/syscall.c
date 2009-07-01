@@ -61,15 +61,10 @@ void do_get_answer(regs_t *regs)
 	sc_result(regs, 42);
 }
 
-void do_test(regs_t *regs)
-{
-	kout_printf("Test syscall from process %d (%s)\n", cur_proc->pid, cur_proc->cmdline);
-}
-
 int sys_testcall(int calln, int arg0, int arg1, int arg2)
 {
-	kout_printf("Test syscall from %s with args:\n1: %d\n2: 0x%x\n3: %p\n",
-	            cur_proc->cmdline, arg0, arg1, arg2);
+//	kout_printf("Test syscall from %s with args:\n1: %d\n2: 0x%x\n3: %p\n",
+//	            cur_proc->cmdline, arg0, arg1, arg2);
 
 	return 0;
 }
@@ -109,8 +104,6 @@ void syscall(dword *esp)
 
 	MAP(SC_SEND,       do_send)
 	MAP(SC_RECEIVE,    do_receive)
-
-	MAP(SC_TEST,       do_test)
 
 	MAP(SC_GET_ANSWER, do_get_answer)
 
