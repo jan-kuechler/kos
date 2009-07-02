@@ -85,49 +85,32 @@ static const char *fault_msg[] = {
 	"??", "??", "??", "??",
 };
 
-static inline dword get_cr2()
-{
-	dword val = 0;
-	asm volatile("mov %%cr2, %0" : "=r"(val) :);
-	return val;
-}
-
 static void idt_handle_exception(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
 
 	kout_select();
-	byte oc = kout_set_status(0x04);
 
 	byte user = (regs->ds == (GDT_SEL_UDATA + 0x03));
 
 	if (user) {
-		kout_printf("%s triggered an exception.\n", cur_proc->cmdline);
+		dbg_error("%s triggered an exception.\n", cur_proc->cmdline);
 	}
 	else {
-		kout_printf("kOS triggered an exception.\n");
+		dbg_error("kOS triggered an exception.\n");
 	}
 
-	kout_printf("Exception: #%02d (%s) @ %06x:%p\n",
-	            regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
-	kout_printf("ss:esp: %06x:%p error code: %08b cr2: %010x\n",
-	            regs->u_ss, regs->u_esp, regs->errc, get_cr2());
-	kout_printf("eax: %p ebx: %p ecx: %p edx: %p\n",
-	            regs->eax, regs->ebx, regs->ecx, regs->edx);
-	kout_printf("ebp: %p esp: %p esi: %p edi: %p\n",
-	            regs->ebp, regs->esp, regs->esi, regs->edi);
-	kout_printf("eflags: %010x ds: %06x es: %06x fs: %06x gs: %06x\n",
-	            regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
+	dbg_error("Exception: #%02d (%s) @ %06x:%p\n",
+	          regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
 
-	kout_printf("Current process: '%s' (%d)\n", cur_proc->cmdline, cur_proc->pid);
+	print_state(regs);
 
-	kout_puts("\n");
+	dbg_error("\n");
 
 	if (user) {
-		kout_printf("Abortin process %d.\n", cur_proc->pid);
+		dbg_error("Abortin process %d.\n", cur_proc->pid);
 		dbg_proc_backtrace(cur_proc);
 		pm_destroy(cur_proc);
-		kout_set_status(oc);
 	}
 	else {
 		panic("Kernel Exception\n");

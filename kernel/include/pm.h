@@ -55,6 +55,7 @@ struct proc {
 
 	proc_status_t  status;
 	block_reason_t block;
+	pid_t          wait_proc, wait_for;
 	msg_t         *msg_wait_buffer;
 	dword          wakeup;
 
@@ -73,6 +74,8 @@ struct proc {
 	dword  numfds;
 
 	char *cmdline;
+
+	int   exit_status;
 
 	dword  ticks_left;
 

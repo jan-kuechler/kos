@@ -29,6 +29,8 @@
 #define SC_MKNOD        16
 #define SC_MOUNT        17
 
+#define SC_WAIT         18
+
 #define SC_GET_ANSWER   42
 
 #define SYSCALL_MAX     50

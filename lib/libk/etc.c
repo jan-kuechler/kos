@@ -13,6 +13,10 @@ void exit(int status)
 	SYSCALL1(SC_EXIT, status);
 }
 
+int wait(pid_t pid)
+{
+	return SYSCALL1(SC_WAIT, pid);
+}
 
 void sleep(dword msec)
 {

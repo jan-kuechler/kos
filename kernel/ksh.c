@@ -63,13 +63,11 @@ static void int3()
 
 static void test()
 {
-	//mod_exec(1);
-	//pm_set_koop(1);
 	pid_t pid = exec_file("/bin/test", "/bin/test testarg", 2);
-	//yield();
 	if (!pid)
 		print(stderr, "Cannot execute /bin/test\n");
-	//pm_set_koop(0);
+	else
+		wait(pid);
 }
 
 static void file()
@@ -108,6 +106,9 @@ static void help()
 
 static void run_cmd(const char *cmd)
 {
+	if (cmd[0] == '\0')
+		return;
+
 	int i=0;
 	for (; i < num_cmds; ++i) {
 		if (strcmp(cmd, cmds[i].cmd) == 0) {
@@ -115,6 +116,22 @@ static void run_cmd(const char *cmd)
 			return;
 		}
 	}
+
+	pid_t pid;
+
+	if ((pid = exec_file(cmd, cmd, 2))) {
+		wait(pid);
+		return;
+	}
+
+	char file[512] = "/bin/";
+	strcpy(&file[5], cmd);
+
+	if ((pid = exec_file(file, cmd, 2))){
+		wait(pid);
+		return;
+	}
+
 	print(stderr, "unknown command: '");
 	print(stderr, cmd);
 	print(stderr, "'\n");

@@ -13,6 +13,9 @@ extern void kernel_start(void);
 extern void kernel_end(void);
 extern void kernel_size(void);
 
+struct regs;
+void print_state(struct regs *regs);
+
 void shutdown();
 void panic(const char *fmt, ...);
 
