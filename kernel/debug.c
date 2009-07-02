@@ -209,7 +209,7 @@ void dbg_printf(char flag, const char *fmt, ...)
 	strafmt(buffer, fmt, args);
 	va_end(args);
 
-	if (com_loglvl >= COM_DBG) {
+	if (dbg_check(flag) || com_loglvl >= COM_DBG) {
 		com_puts(COM_ALL, buffer);
 		com_puts(COM_DBG, buffer);
 	}
@@ -231,7 +231,7 @@ void dbg_vprintf(char flag, const char *fmt, ...)
 	strafmt(buffer, fmt, args);
 	va_end(args);
 
-	if (com_loglvl >= COM_VDBG) {
+	if (dbg_verbose(flag) || com_loglvl >= COM_VDBG) {
 		com_puts(COM_ALL, buffer);
 		com_puts(COM_VDBG, buffer);
 	}
