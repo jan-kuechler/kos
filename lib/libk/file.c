@@ -33,9 +33,10 @@ int write(int fd, const char *buf, dword size)
 
 int mount(const char *mountp, const char *type, const char *device)
 {
-	STR_PARAM(mp, mountp);
-	STR_PARAM(t, type);
-	STR_PARAM(dev, device);
-
-	return SYSCALL3(SC_MOUNT, mp, t, dev);
+//	STR_PARAM(mp, mountp);
+//	STR_PARAM(t, type);
+//	STR_PARAM(dev, device);
+//
+//	return SYSCALL3(SC_MOUNT, mp, t, dev);
+	return -1;
 }

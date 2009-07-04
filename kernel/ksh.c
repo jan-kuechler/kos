@@ -127,10 +127,13 @@ static void run_cmd(const char *cmd)
 	char file[512] = "/bin/";
 	strcpy(&file[5], cmd);
 
+	pm_set_koop(1);
 	if ((pid = exec_file(file, cmd, 2))){
 		wait(pid);
+		pm_set_koop(0);
 		return;
 	}
+	pm_set_koop(0);
 
 	print(stderr, "unknown command: '");
 	print(stderr, cmd);

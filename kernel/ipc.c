@@ -127,6 +127,6 @@ dword sys_receive(dword calln, dword msgptr, dword block, dword arg2)
 
 void init_ipc(void)
 {
-	syscall_register(SC_SEND, sys_send);
-	syscall_register(SC_RECEIVE, sys_receive);
+	//syscall_register(SC_SEND, sys_send);
+	//syscall_register(SC_RECEIVE, sys_receive);
 }

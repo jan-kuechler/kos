@@ -20,16 +20,5 @@ int wait(pid_t pid)
 
 void sleep(dword msec)
 {
-	SYSCALL1(SC_SLEEP,msec);
-}
 
-void yield(void)
-{
-	SYSCALL0(SC_YIELD);
 }
-
-byte get_answer(void)
-{
-	return SYSCALL0(SC_GET_ANSWER);
-}
-

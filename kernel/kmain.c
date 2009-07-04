@@ -84,8 +84,6 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_kout();
 	init_com();
 
-	com_putc(0, 'J');
-
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 	init_debug();
 

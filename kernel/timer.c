@@ -74,7 +74,7 @@ void init_timer(void)
 	timer_ticks = 0;
 	next_wakeup = 0xFFFFFFFF;
 
-	syscall_register(SC_SLEEP, sys_sleep);
+	//syscall_register(SC_SLEEP, sys_sleep);
 
 	int div = TIMER_DEFAULT / TIMER_HZ;
 	outb(TIMER_DATA, 0x36);

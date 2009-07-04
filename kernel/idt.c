@@ -110,6 +110,7 @@ static void idt_handle_exception(dword *esp)
 	if (user) {
 		dbg_error("Abortin process %d.\n", cur_proc->pid);
 		dbg_proc_backtrace(cur_proc);
+		dbg_print_last_syscall();
 		pm_destroy(cur_proc);
 	}
 	else {
@@ -300,8 +301,6 @@ void init_idt(void)
 void idt_set_gate(int intr, word selector, void *handler,
                   byte dpl, byte type)
 {
-	dbg_vprintf(DBG_IDT, "New IDT Entry: #%d Selector: 0x%x Handler: 0x%p\n", intr, selector, handler);
-
 	idt[intr].base_low  = bmask((dword)handler, BMASK_WORD);
 	idt[intr].selector  = selector;
 	idt[intr].zero      = 0x00;

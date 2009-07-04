@@ -223,8 +223,8 @@ void init_fs(void)
 	syscall_register(SC_CLOSE, sys_close);
 	syscall_register(SC_READ,  sys_readwrite);
 	syscall_register(SC_WRITE, sys_readwrite);
-	syscall_register(SC_READDIR, sys_readdir);
-	syscall_register(SC_MOUNT, sys_mount);
+	//syscall_register(SC_READDIR, sys_readdir);
+	//syscall_register(SC_MOUNT, sys_mount);
 
 	dbg_printf(DBG_FS, "done\n");
 

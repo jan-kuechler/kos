@@ -5,11 +5,11 @@
 
 void puts(const char *str)
 {
-	SYSCALL1(SC_PUTS,(dword)str);
+	//SYSCALL1(SC_PUTS,(dword)str);
 }
 
 void putn(int num, int base)
 {
-	SYSCALL2(SC_PUTN, num, base);
+	//SYSCALL2(SC_PUTN, num, base);
 }
 

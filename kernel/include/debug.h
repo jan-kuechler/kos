@@ -48,11 +48,14 @@ extern pid_t dbg_lsc_proc;
 	} while (0);
 
 #  define dbg_print_last_syscall()      \
-	dbg_error("Last syscall: %d "         \
+	extern const char *dbg_lsc_name[];    \
+	dbg_error("Last syscall: %s (%d) "    \
 	          "(0x%08x, 0x%08x, 0x%08x) " \
-	          "by %d\n",                  \
+	          "by %s (%d)\n",             \
+	          dbg_lsc_name[dbg_lsc_calln],\
 	          dbg_lsc_calln, dbg_lsc_arg0,\
 	          dbg_lsc_arg1, dbg_lsc_arg2, \
+	          pm_get_proc(dbg_lsc_proc)->cmdline, \
 	          dbg_lsc_proc);
 #else
 #  define dbg_set_last_syscall(n,a0,a1,a2)

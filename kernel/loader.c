@@ -148,7 +148,7 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	if (!phdr->p_memsz)
 		return;
 
-/*	dbg_vprintf(DBG_LOADER, "Loading ELF segment...\n");
+	dbg_vprintf(DBG_LOADER, "Loading ELF segment...\n");
 	dbg_vprintf(DBG_LOADER, "Program Header:\n"
 	                        " Type:   %08d \n"
 	                        " Flags:  %08b \n"
@@ -160,7 +160,7 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	                        " Align:  %08x \n",
 	                        phdr->p_type, phdr->p_flags, phdr->p_offset,
 	                        phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz,
-	                        phdr->p_memsz, phdr->p_align);*/
+	                        phdr->p_memsz, phdr->p_align);
 
 	vaddr_t base = (vaddr_t)PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
 	if (base < (vaddr_t)CONF_PROG_BASE_MIN)
@@ -179,8 +179,11 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	int first_page_bytes = elf32_first_page_bytes(phdr);
 
 	vaddr_t src = (vaddr_t)((dword)mem + phdr->p_offset);
-	paddr_t pdst = vm_resolve_virt(pdir, (vaddr_t)base);
+	paddr_t pdst = vm_resolve_virt(pdir, (vaddr_t)phdr->p_vaddr);
 
+	dbg_vprintf(DBG_LOADER,"  Copy first %d bytes to first page %p (%p)\n"
+	                       "  Source is %p\n",
+	                       first_page_bytes, phdr->p_vaddr, pdst, src);
 	vm_cpy_pv(pdst, src, first_page_bytes);
 
 	src += first_page_bytes;
@@ -227,11 +230,18 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 
 	struct proc *proc = NULL;
 
+	dbg_printf(DBG_LOADER, "Loading '%s'...\n", args);
+	dbg_vprintf(DBG_LOADER, " Header:\n"
+	                        "  Type:  %d\n"
+	                        "  Entry: %p\n"
+	                        "  #Phdr: %d\n",
+	                        hdr->e_type, hdr->e_entry, hdr->e_phnum);
+
+
 	int i=0;
 	for (; i < hdr->e_phnum; ++i, ++phdr) {
 		if (phdr->p_type == PT_LOAD) {
 			if (elf32_has_entry(phdr, hdr)) {
-				dbg_vprintf(DBG_LOADER, "Entry point is %p\n", hdr->e_entry);
 				proc = pm_create((void*)hdr->e_entry, args, PM_USER, parent, PS_BLOCKED);
 
 				proc->cleanup = elf32_cleanup;

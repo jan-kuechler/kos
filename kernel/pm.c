@@ -370,14 +370,9 @@ dword sys_wait(dword calln, dword pid, dword arg1, dword arg2)
 	return 0; // Dummy!
 }
 
-dword sys_get_pid(dword calln, dword arg0, dword arg1, dword arg2)
+dword sys_getpid(dword calln, dword arg0, dword arg1, dword arg2)
 {
 	return cur_proc->pid;
-}
-
-dword sys_get_uid(dword calln, dword arg0, dword arg1, dword arg2)
-{
-	return 0; // not implemented
 }
 
 /**
@@ -397,9 +392,9 @@ void init_pm(void)
 	plist_tail = 0;
 
 	syscall_register(SC_EXIT,    sys_exit);
-	syscall_register(SC_YIELD,   sys_yield);
-	syscall_register(SC_GET_PID, sys_get_pid);
-	syscall_register(SC_GET_UID, sys_get_uid);
+	//syscall_register(SC_YIELD,   sys_yield);
+	syscall_register(SC_GETPID, sys_getpid);
+	//syscall_register(SC_GET_UID, sys_get_uid);
 	syscall_register(SC_WAIT,    sys_wait);
 
 	/* create special process 0: idle */

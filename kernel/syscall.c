@@ -21,7 +21,7 @@
 
 static int sys_testcall(int, int, int, int);
 
-syscall_t syscalls[SYSCALL_MAX] = {
+syscall_t syscalls[NUM_SYSCALLS] = {
 	sys_testcall, 0
 };
 
@@ -85,7 +85,7 @@ void syscall(dword *esp)
 	dbg_set_last_syscall(regs->eax, sc_arg0(regs),
 	                     sc_arg1(regs), sc_arg2(regs));
 
-	if (regs->eax >= SYSCALL_MAX)
+	if (regs->eax >= NUM_SYSCALLS)
 		panic("Invalid syscall: %d", regs->eax);
 
 	syscall_t call = syscalls[regs->eax];
@@ -96,24 +96,13 @@ void syscall(dword *esp)
 		return;
 	}
 
-	// just for compatibility
-	switch (regs->eax) {
-
-	MAP(SC_PUTS,       do_puts)
-	MAP(SC_PUTN,       do_putn)
-
-	MAP(SC_SEND,       do_send)
-	MAP(SC_RECEIVE,    do_receive)
-
-	MAP(SC_GET_ANSWER, do_get_answer)
-
-	default: panic("Invalid syscall: %d", regs->eax);
-	}
+	dbg_error("Syscall %d is not implemented yet.\n", regs->eax);
+	pm_destroy(cur_proc);
 }
 
 void syscall_register(dword calln, syscall_t call)
 {
-	kassert(calln < SYSCALL_MAX);
+	kassert(calln < NUM_SYSCALLS);
 	kassert(!syscalls[calln]);
 
 	syscalls[calln] = call;

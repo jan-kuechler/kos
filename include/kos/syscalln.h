@@ -7,32 +7,36 @@
 
 #define SC_TEST          0
 
-#define SC_PUTS          1
-#define SC_PUTN          2
+#define SC_EXIT          1
+#define SC_WAIT          2
 
-#define SC_EXIT          3
-#define SC_YIELD         4
-#define SC_SLEEP         5
+#define SC_KILL          3
 
-#define SC_GET_PID       6
-#define SC_GET_UID       7
+#define SC_FORK          4
+#define SC_EXECVE        5
+#define SC_GETPID        6
 
-#define SC_SEND          8
-#define SC_RECEIVE       9
+#define SC_OPEN          7
+#define SC_CLOSE         8
+#define SC_READ          9
+#define SC_WRITE        10
 
-#define SC_OPEN         10
-#define SC_CLOSE        11
-#define SC_READ         12
-#define SC_WRITE        13
-#define SC_READDIR      14
-#define SC_FINDDIR      15
-#define SC_MKNOD        16
-#define SC_MOUNT        17
+#define SC_LINK         11
+#define SC_UNLINK       12
+#define SC_READLINK     13
+#define SC_SYMLINK      14
 
-#define SC_WAIT         18
+#define SC_CHOWN        15
+#define SC_FSTAT        16
+#define SC_STAT         17
+#define SC_ISATTY       18
+#define SC_LSEEK        19
 
-#define SC_GET_ANSWER   42
+#define SC_GETTIMEOFDAY 20
+#define SC_TIMES        21
 
-#define SYSCALL_MAX     50
+#define SC_SBRK         22
+
+#define NUM_SYSCALLS    23
 
 #endif /*SYSCALLN_H*/

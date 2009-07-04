@@ -70,8 +70,6 @@ void init_gdt(void)
 void gdt_set_desc(int segment, dword size, dword base, byte access,
                   byte dpl, byte byte_gran)
 {
-	dbg_vprintf(DBG_GDT, "Setting GDT Entry: #%d Base: 0x%x Size: 0x%x CPL: %d\n", segment, base, size, (dword)dpl);
-
 	gdt[segment].size      = bmask(size, BMASK_WORD);
 	gdt[segment].base_low  = bmask(base, BMASK_WORD);
 	gdt[segment].base_mid  = bmask(base >> 16, BMASK_BYTE);
