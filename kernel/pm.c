@@ -82,6 +82,10 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].ldata   = NULL;
 	procs[id].cleanup = 0;
 
+	procs[id].mem_brk  = NULL;
+	procs[id].brk_page = NULL;
+	procs[id].num_dyn  = 0;
+
 	dword *ustack = user_stacks[id];
 	dword usize   = USTACK_SIZE * sizeof(dword);
 	vm_map_range(procs[id].as->pdir, ustack, (vaddr_t)(USER_STACK_ADDR - usize),

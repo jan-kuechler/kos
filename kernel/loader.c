@@ -130,6 +130,15 @@ static int elf32_first_page_bytes(Elf32_Phdr *phdr)
 		return phdr->p_filesz;
 }
 
+static void elf32_getbrk(Elf32_Phdr *phdr, vaddr_t *brk, vaddr_t *page)
+{
+	vaddr_t base = (vaddr_t)PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
+	int memsz_pages = NUM_PAGES(phdr->p_memsz);
+
+	*page = (vaddr_t)(base + (memsz_pages * PAGE_SIZE));
+	*brk  = (vaddr_t)(phdr->p_vaddr + phdr->p_memsz);
+}
+
 static void elf32_cleanup(struct proc *proc)
 {
 	if (!proc->ldata) return;
@@ -141,7 +150,6 @@ static void elf32_cleanup(struct proc *proc)
 	}
 	list_destroy(proc->ldata);
 }
-
 
 static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *linfo)
 {
@@ -250,8 +258,12 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 			if (!proc) return 0;
 
 			elf32_map_segment(proc->as->pdir, phdr, mem, proc->ldata);
+
+			elf32_getbrk(phdr, &proc->mem_brk, &proc->brk_page);
 		}
 	}
+
+	dbg_vprintf(DBG_LOADER, " Brk is %p at page %p\n", proc->mem_brk, proc->brk_page);
 
 	pm_unblock(proc);
 

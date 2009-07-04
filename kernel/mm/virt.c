@@ -3,6 +3,7 @@
 #include <string.h>
 #include "debug.h"
 #include "kernel.h"
+#include "syscall.h"
 #include "tty.h"
 #include "mm/mm.h"
 #include "mm/virt.h"
@@ -12,6 +13,8 @@
 
 extern dword *mm_get_mmap(void);
 extern dword  mm_get_mmap_size();
+
+dword sys_sbrk(dword, dword, dword, dword);
 
 pdir_t kernel_pdir;
 ptab_t working_table_map;
@@ -116,6 +119,8 @@ void init_paging(void)
 	            );
 
 	paging_enabled = 1;
+
+	syscall_register(SC_SBRK, &sys_sbrk);
 }
 
 /**
@@ -478,4 +483,43 @@ int vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags
 	}
 
 	return 1;
+}
+
+static void increase_heap(struct proc *proc, int pages)
+{
+	int i=0;
+	for (; i < pages; ++i) {
+		paddr_t page = mm_alloc_page();
+		vm_map_page(proc->as->pdir, page, proc->brk_page, PE_PRESENT | PE_READWRITE | PE_USERMODE);
+		proc->brk_page += PAGE_SIZE;
+	}
+}
+
+dword sys_sbrk(dword calln, dword incr, dword arg1, dword arg2)
+{
+	int size = (int)incr;
+
+	dbg_vprintf(DBG_SC, "sys_sbrk(%d) from %s (%d)\n", size, cur_proc->cmdline, cur_proc->pid);
+
+	vaddr_t old_brk = cur_proc->mem_brk;
+
+	if (incr == 0)
+		return (dword)old_brk;
+
+	if (incr < 0) {
+		dbg_vprintf(DBG_SC, " sbrk: incr < 0 is not implemented.\n");
+		return (dword)old_brk;
+	}
+
+	size_t rest = cur_proc->brk_page - cur_proc->mem_brk;
+
+	if (rest < size) {
+		increase_heap(cur_proc, NUM_PAGES(size));
+	}
+	else {
+		dbg_vprintf(DBG_SC, " Rest (%d) is big enough...\n", rest);
+	}
+
+	cur_proc->mem_brk += size;
+	return (dword)old_brk;
 }

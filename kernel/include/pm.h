@@ -63,6 +63,10 @@ struct proc {
 	dword  ustack;
 	dword  esp;
 
+	vaddr_t mem_brk;
+	vaddr_t brk_page;
+	int     num_dyn;
+
 	struct addrspace *as;
 	pdir_t pagedir __attribute__((deprecated));
 	dword  pdrev __attribute__((deprecated));
