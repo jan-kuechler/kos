@@ -2,7 +2,6 @@ default 0
 timeout 2
 
 title kOS
-kernel /kos.bin debug=l
+kernel /kos.bin debug=lB com=2
 module /initrd
-module /test.mod
 root (cd)
