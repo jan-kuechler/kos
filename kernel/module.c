@@ -1,6 +1,7 @@
 #include <string.h>
 #include "debug.h"
 #include "kernel.h"
+#include "tty.h"
 #include "mm/kmalloc.h"
 #include "mm/virt.h"
 
@@ -22,9 +23,9 @@ void init_mod(void)
 	addr    = kmalloc(count * sizeof(void *));
 	cmdline = kmalloc(count * sizeof(char *));
 
-	memset(size,    0, count);
-	memset(addr,    0, count);
-	memset(cmdline, 0, count);
+	memset(size,    0, count * sizeof(size_t));
+	memset(addr,    0, count * sizeof(void*));
+	memset(cmdline, 0, count * sizeof(char*));
 }
 
 size_t mod_load(int n, void **module, char **params)
@@ -34,6 +35,8 @@ size_t mod_load(int n, void **module, char **params)
 	}
 
 	if (!size[n]) {
+		dbg_printf(DBG_MODULE, "Mapping module %d\n", n);
+
 		multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr +
 		                                         n * sizeof(multiboot_mod_t);
 
@@ -42,6 +45,8 @@ size_t mod_load(int n, void **module, char **params)
 		                        mod->mod_end - mod->mod_start);
 		cmdline[n] = (char*)km_alloc_addr((paddr_t)mod->cmdline,
 		                                  VM_COMMON_FLAGS, 1024);
+		dbg_vprintf(DBG_MODULE, " Size: %d\n Addr: %p\n Name: %p\n",
+		            size[n], addr[n], cmdline[n]);
 	}
 
 	if (module)
