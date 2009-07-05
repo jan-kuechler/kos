@@ -63,8 +63,8 @@ struct proc {
 	dword  ustack;
 	dword  esp;
 
-	vaddr_t mem_brk;
-	vaddr_t brk_page;
+	vaddr_t _unaligned_ mem_brk;
+	vaddr_t _aligned_   brk_page;
 	int     num_dyn;
 
 	struct addrspace *as;

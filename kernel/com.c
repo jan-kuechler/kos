@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <types.h>
 #include <ports.h>
+#include "bios.h"
 #include "com.h"
 
 #define TRANSMIT     0
@@ -20,6 +21,8 @@ static int ports[4] = {
 	0x3E8,
 	0x2E8,
 };
+
+#define USABLE(p) (ports[p] != 0)
 
 static void init_port(int p, int baud, int parity, int bits)
 {
@@ -50,21 +53,29 @@ void init_com(void)
 {
 	/* TODO: Get real base ports from BIOS */
 
-	init_port(0, COM_BAUD, COM_PARITY, COM_BITS);
-	init_port(1, COM_BAUD, COM_PARITY, COM_BITS);
-	init_port(2, COM_BAUD, COM_PARITY, COM_BITS);
-	init_port(3, COM_BAUD, COM_PARITY, COM_BITS);
+	struct bios_data_area *info = (struct bios_data_area*)BIOS_DATA_ADDR;
 
+	int i=0;
+	for (; i < 4; ++i) {
+		ports[i] = info->com_io[i];
+
+		if (ports[i] != 0) {
+			init_port(i, COM_BAUD, COM_PARITY, COM_BITS);
+		}
+	}
 }
 
 
 static int transmit_empty(int p)
 {
-	return inb(ports[p] + LINE_STATUS);
+	return USABLE(p) ? inb(ports[p] + LINE_STATUS) : 0;
 }
 
 void com_putc(int port, char c)
 {
+	if (!USABLE(port))
+		return;
+
 	while (!transmit_empty(port))
 		;
 
@@ -73,6 +84,9 @@ void com_putc(int port, char c)
 
 void com_puts(int port, const char *str)
 {
+	if (!USABLE(port))
+		return;
+
 	while (*str) {
 		com_putc(port, *str++);
 	}

@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <page.h>
 #include <string.h>
+#include "bios.h"
 #include "debug.h"
 #include "kernel.h"
 #include "syscall.h"
@@ -102,6 +103,9 @@ void init_paging(void)
 	//km_map_range(mm_get_mmap(), mm_get_mmap(), PE_PRESENT | PE_READWRITE,
 	//             NUM_PAGES(mm_get_mmap_size()));
 
+	/* bios data area is readonly mapped */
+	km_identity_map((paddr_t)BIOS_DATA_ADDR, PE_PRESENT, sizeof(struct bios_data_area));
+
 	km_map_page(kernel_pdir, kernel_pdir, PE_PRESENT | PE_READWRITE);
 	km_map_page(working_table_map, working_table_map, PE_PRESENT | PE_READWRITE);
 
@@ -133,11 +137,6 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 {
 	CHECK_ALIGN(vaddr);
 	CHECK_ALIGN(paddr);
-
-	/* parameter validation */
-	if (vaddr == NULL) {
-		panic("map_page: vaddr is NULL.");
-	}
 
 	/* get page directory entry for the virt. address */
 	pdir_entry_t pde = pdir[pdir_index(vaddr)];
@@ -487,6 +486,8 @@ int vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags
 
 static void increase_heap(struct proc *proc, int pages)
 {
+	CHECK_ALIGN(proc->brk_page);
+
 	int i=0;
 	for (; i < pages; ++i) {
 		paddr_t page = mm_alloc_page();

@@ -3,7 +3,7 @@
 
 #include <types.h>
 
-struct bios_info
+struct bios_data_area
 {
 	/* COM port I/O ports, or 0 if none */
 	word com_io[4];
@@ -108,7 +108,7 @@ struct bios_info
 
 } __attribute__((packed));
 
-#define BIOS_INFO_ADDR ((struct bios_info*)(0x0400))
+#define BIOS_DATA_ADDR 0x0400
 
 
 #endif /* I386_BIOS_H */
