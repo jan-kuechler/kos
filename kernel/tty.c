@@ -316,6 +316,8 @@ static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 {
 	tty_t *tty = GET_TTY(file);
 
+	dbg_vprintf(DBG_TTY, "read-request for %d bytes\n", count);
+
 	if (enough_data(tty, count)) {
 		dword num = copy_data(tty, buffer, count);
 		remove_data(tty, num);
@@ -504,8 +506,11 @@ static inline byte handle_raw(byte code)
 static inline byte handle_cbreak_input(byte c)
 {
 	switch (c) {
-	case EOT:
+
 	case '\n':
+		cur_tty->inbuf[cur_tty->incount++] = '\n';
+		/* fallthrough */
+	case EOT:
 		cur_tty->eotcount++;
 		cur_tty->inbuf[cur_tty->incount++] = 0;
 		return 1;

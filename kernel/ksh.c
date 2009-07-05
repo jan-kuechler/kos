@@ -164,7 +164,7 @@ void ksh(void)
 
 	print(stdout, PROMPT);
 	while ((len = read(stdin, buffer, 512)) > 0) {
-		buffer[len] = 0;
+		buffer[len-2] = 0; // remove the newline
 		run_cmd(buffer);
 		print(stdout, PROMPT);
 	}
