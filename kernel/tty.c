@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include "acpi.h"
+#include "acpi.h"
 #include "debug.h"
 #include "idt.h"
 #include "kbc.h"
@@ -484,7 +484,7 @@ static inline byte handle_raw(byte code)
 			}
 			else if (code == KEYC_END) {
 				// weniger steuern, mehr alten und komplett entfernen!
-				shutdown();
+				acpi_poweroff();
 				puts(cur_tty, "\nCould not shutdown. Sorry.\n");
 			}
 		}

@@ -262,6 +262,9 @@ int init_acpi(void)
 
 void acpi_poweroff(void)
 {
+	// try this
+	outw( 0xB004, 0x0 | 0x2000 );
+
    // SCI_EN is set to 1 if acpi shutdown is possible
    if (SCI_EN == 0)
       return;

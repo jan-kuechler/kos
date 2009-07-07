@@ -112,8 +112,6 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	kout_puts("kOS booted.\n\n");
 
-	kout_puts("\n");
-
 	print_info();
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
