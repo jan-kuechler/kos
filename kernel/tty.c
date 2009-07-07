@@ -140,7 +140,7 @@ static void putc(tty_t *tty, char c)
 		break;
 
 	case '\b':
-		if (tty->incount > 0 && tty->x >= 1) {
+		if (tty->x >= 1) {
 			tty->x--;
 			tty->outbuf[CPOS(tty)] = ' ' | (tty->status << 8);
 			if (tty == cur_tty)
@@ -508,6 +508,7 @@ static inline byte handle_cbreak_input(byte c)
 	switch (c) {
 
 	case '\n':
+		putc(cur_tty, '\n');
 		cur_tty->inbuf[cur_tty->incount++] = '\n';
 		/* fallthrough */
 	case EOT:
@@ -517,6 +518,7 @@ static inline byte handle_cbreak_input(byte c)
 
 	case '\b':
 		if (cur_tty->incount > 0) {
+			putc(cur_tty, '\b');
 			if (cur_tty->inbuf[cur_tty->incount-1] == 0)
 				cur_tty->eotcount--;
 			cur_tty->incount--;
@@ -550,9 +552,6 @@ static inline void handle_input(byte code)
 	if (cur_tty->incount == TTY_INBUF_SIZE)
 		return;
 
-	if ((cur_tty->flags & TTY_ECHO) && c != EOT)
-		putc(cur_tty, c);
-
 	if (!(cur_tty->flags & TTY_RAW)) {
 		if (handle_cbreak_input(c))
 			goto input_end;
@@ -560,6 +559,9 @@ static inline void handle_input(byte code)
 	else if (c == EOT) {
 		return;
 	}
+
+	if ((cur_tty->flags & TTY_ECHO) && c != EOT)
+		putc(cur_tty, c);
 
 	cur_tty->inbuf[cur_tty->incount++] = c;
 
