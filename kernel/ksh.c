@@ -67,7 +67,7 @@ static void test()
 	if (!pid)
 		print(stderr, "Cannot execute /bin/test\n");
 	else
-		wait(pid);
+		waitpid(pid, NULL, 0);
 }
 
 static void file()
@@ -120,7 +120,7 @@ static void run_cmd(const char *cmd)
 	pid_t pid;
 
 	if ((pid = exec_file(cmd, cmd, 2))) {
-		wait(pid);
+		waitpid(pid, NULL, 0);
 		return;
 	}
 
@@ -129,7 +129,7 @@ static void run_cmd(const char *cmd)
 
 	pm_set_koop(1);
 	if ((pid = exec_file(file, cmd, 2))){
-		wait(pid);
+		waitpid(pid, NULL, 0);
 		pm_set_koop(0);
 		return;
 	}

@@ -364,7 +364,7 @@ dword sys_yield(dword calln, dword arg0, dword arg1, dword arg2)
 	return 0;
 }
 
-dword sys_wait(dword calln, dword pid, dword arg1, dword arg2)
+dword sys_waitpid(dword calln, dword pid, dword statusptr, dword options)
 {
 	struct proc *other = pm_get_proc(pid);
 
@@ -400,10 +400,9 @@ void init_pm(void)
 	plist_tail = 0;
 
 	syscall_register(SC_EXIT,    sys_exit);
-	//syscall_register(SC_YIELD,   sys_yield);
+	syscall_register(SC_YIELD,   sys_yield);
 	syscall_register(SC_GETPID, sys_getpid);
-	//syscall_register(SC_GET_UID, sys_get_uid);
-	syscall_register(SC_WAIT,    sys_wait);
+	syscall_register(SC_WAITPID, sys_waitpid);
 
 	/* create special process 0: idle */
 	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);

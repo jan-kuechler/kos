@@ -57,5 +57,6 @@ void _sleep(uint32_t msec);
 int send(int target, msg_t *msg);
 int recv(msg_t *buf, int block);
 
+pid_t waitpid(pid_t pid, int *status, int options);
 
 #endif /*SYSCALLS_H*/

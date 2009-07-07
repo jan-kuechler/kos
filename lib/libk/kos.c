@@ -26,3 +26,8 @@ int recv(msg_t *buf, int block)
 {
 	return SYSCALL2(SC_RECV, (int32_t)buf, block);
 }
+
+pid_t waitpid(pid_t pid, int *status, int options)
+{
+	return SYSCALL3(SC_WAITPID, pid, (int32_t)status, options);
+}

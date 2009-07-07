@@ -49,6 +49,8 @@
 #define SC_SEND         27
 #define SC_RECV         28
 
-#define NUM_SYSCALLS    29
+#define SC_WAITPID      29
+
+#define NUM_SYSCALLS    30
 
 #endif /*SYSCALLN_H*/
