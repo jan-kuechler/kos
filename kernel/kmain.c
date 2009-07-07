@@ -14,6 +14,7 @@
 #include "keymap.h"
 #include "module.h"
 #include "pm.h"
+#include "syscall.h"
 #include "timer.h"
 #include "tty.h"
 #include "mm/mm.h"
@@ -22,24 +23,14 @@
 #include "fs/devfs.h"
 #include "fs/initrd.h"
 
-multiboot_info_t multiboot_info;
-
 static void print_info();
+static dword sys_answer(dword, dword, dword, dword);
 
+multiboot_info_t multiboot_info;
 byte kernel_init_done;
 
-extern byte elf_check(vaddr_t);
-extern byte elf_check_type(vaddr_t,Elf32_Half);
-extern proc_t *elf_execute(vaddr_t,const char*,byte,pid_t,byte);
-
-void kinit()
+static void kinit_fs(void)
 {
-	//kout_puts("Initializing ACPI:");
-	//if (init_acpi() == 0)
-	//	kout_puts("\tdone!\n");
-	//else
-	//	kout_puts("\tfailed!\n");
-
 	kout_puts("Initializing FS:");
 	init_fs();
 	init_initrd();
@@ -64,13 +55,11 @@ void kinit()
 	init_tty();
 	tty_register_keymap("de", keymap_de);
 	kout_puts("\tdone!\n");
+}
 
-	//int stdout = open("/dev/tty0", 0, 0);
-	//if (stdout == -1) {
-	//	kout_puts("Error opening tty0");
-	//}
-
-	//write(stdout, "This is /dev/tty0\n", 18);
+void kinit()
+{
+	kinit_fs();
 
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
@@ -119,7 +108,9 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
 	init_mod();
 
-	kout_puts("kOS booted.\n");
+	syscall_register(SC_ANSWER, sys_answer);
+
+	kout_puts("kOS booted.\n\n");
 
 	kout_puts("\n");
 
@@ -176,6 +167,11 @@ static void print_info()
 	}
 
 	kout_printf("\n");
+}
+
+dword sys_answer(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	return 42;
 }
 
 static inline dword get_cr2()

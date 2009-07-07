@@ -37,7 +37,7 @@ dword sys_testcall(dword calln, dword arg0, dword arg1, dword arg2)
  *
  * Handles a syscall interrupt.
  */
-void syscall(dword *esp)
+void handle_syscall(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
 

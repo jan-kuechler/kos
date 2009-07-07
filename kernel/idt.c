@@ -164,7 +164,7 @@ dword idt_handle_int(dword esp)
 		idt_handle_irq(&esp);
 	}
 	else {
-		syscall(&esp);
+		handle_syscall(&esp);
 	}
 
 	pm_pick(&esp);
