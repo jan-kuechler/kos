@@ -215,6 +215,41 @@ end:
 	return (dword)err;
 }
 
+dword sys_open_std(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	dbg_printf(DBG_SC, "sys_open_std()\n");
+
+	const char *tty = cur_proc->tty;
+
+	if (!tty) {
+		// TODO: open /dev/null instead
+		return 0;
+	}
+
+	struct inode *inode = vfs_lookup(tty, cur_proc->cwd);
+	int n=0;
+
+	if (!cur_proc->fds[0]) {
+		cur_proc->fds[0] = vfs_open(inode, FSO_READ);
+		n++;
+	}
+
+	if (!cur_proc->fds[1]) {
+		cur_proc->fds[1] = vfs_open(inode, FSO_WRITE);
+		n++;
+	}
+
+	if (!cur_proc->fds[2]) {
+		cur_proc->fds[2] = vfs_open(inode, FSO_WRITE);
+		n++;
+	}
+
+	if (cur_proc->numfds < 3)
+		cur_proc->numfds = 3;
+
+	return n;
+}
+
 void init_fs(void)
 {
 	dbg_printf(DBG_FS, "\nRegistering fs syscalls... ");
@@ -225,6 +260,8 @@ void init_fs(void)
 	syscall_register(SC_WRITE, sys_readwrite);
 	//syscall_register(SC_READDIR, sys_readdir);
 	//syscall_register(SC_MOUNT, sys_mount);
+
+	syscall_register(SC_OPEN_STD, sys_open_std);
 
 	dbg_printf(DBG_FS, "done\n");
 

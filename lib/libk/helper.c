@@ -1,10 +1,11 @@
-#include <types.h>
+#include <stdint.h>
 
-dword do_syscall(dword calln, dword arg1, dword arg2, dword arg3)
+int32_t do_syscall(int32_t calln, int32_t arg1, int32_t arg2, int32_t arg3)
 {
-	dword result = 0;
+	volatile int32_t result = 0;
 
-	asm("int  $0x30"
+	asm volatile (
+		 "int  $0x30"
 	   : "=a"(result)
 	   : "a"(calln), "b"(arg1), "c"(arg2), "d"(arg3)
 	   );

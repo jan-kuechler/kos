@@ -7,7 +7,7 @@ BASE=../..
 
 CC=gcc
 CC_INCL=-I$(BASE)/include -I$(BASE)/include/arch/i386 -I$(BASE)/kernel/include -Iinclude
-CC_FLAGS=$(CC_INCL) -O3 -static -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs  -Wall -c
+CC_FLAGS=$(CC_INCL) -O3 -DLIBK -static -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs  -Wall -c
 
 all: objs archive install clean
 

@@ -49,6 +49,9 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 		panic("No free slot to create another process.\n");
 	}
 
+	struct proc *proc = &procs[id];
+	struct proc *pproc = parent ? pm_get_proc(parent) : NULL;
+
 	procs[id].status = status;
 	if (status != PS_BLOCKED)
 		procs[id].block = BR_NOT_BLOCKED;
@@ -63,6 +66,8 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].cmdline = kmalloc(strlen(cmdline) + 1);
 	strcpy(procs[id].cmdline, cmdline);
 
+	proc->tty = pproc ? pproc->tty : "/dev/tty7";
+
 	procs[id].ticks_left = PROC_START_TICKS;
 
 	procs[id].msg_head = procs[id].msg_buffer;
@@ -70,6 +75,7 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].msg_count = 0;
 
 	procs[id].cwd = fs_root;
+	memset(proc->fds, 0, PROC_NUM_FDS * sizeof(struct file *));
 	procs[id].numfds = 0;
 
 	procs[id].wakeup = 0;

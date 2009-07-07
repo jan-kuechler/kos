@@ -7,6 +7,7 @@
 
 #define SC_TEST          0
 
+/* Newlib interface */
 #define SC_EXIT          1
 #define SC_WAIT          2
 
@@ -37,6 +38,17 @@
 
 #define SC_SBRK         22
 
-#define NUM_SYSCALLS    23
+/* kOS interface */
+#define SC_ANSWER       23
+
+#define SC_OPEN_STD     24
+
+#define SC_YIELD        25
+#define SC_SLEEP        26
+
+#define SC_SEND         27
+#define SC_RECV         28
+
+#define NUM_SYSCALLS    29
 
 #endif /*SYSCALLN_H*/

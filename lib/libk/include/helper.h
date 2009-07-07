@@ -1,11 +1,12 @@
 #ifndef SYSCALL_HELPER_H
 #define SYSCALL_HELPER_H
 
+#include <stdint.h>
 #include <types.h>
 #include <kos/strparam.h>
 #include <string.h>
 
-extern dword do_syscall(dword, dword, dword, dword);
+extern int32_t do_syscall(int32_t, int32_t, int32_t, int32_t);
 
 #define SYSCALL0(n)       do_syscall(n, 0, 0, 0)
 #define SYSCALL1(n,a)     do_syscall(n, a, 0, 0)

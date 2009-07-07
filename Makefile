@@ -111,13 +111,13 @@ initrd:
 	
 run:
 	@rm -f kos*.log
-	@qemu -m 16 $(LOGFILES) -L ../tools/qemu -fda img/kos.img
+	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -fda img/kos.img
 	
 run-iso:
-	@qemu -m 16 -L ../tools/qemu -cdrom img/kos.iso
+	@qemu -m 32 -L ../tools/qemu -cdrom img/kos.iso
 
 dbg:
-	@qemu -m 16 -S -s -L ../tools/qemu -fda img/kos.img
+	@qemu -m 32 -S -s -L ../tools/qemu -fda img/kos.img
 	
 bochs:
 	@bochs
