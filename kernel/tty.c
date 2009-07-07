@@ -140,7 +140,7 @@ static void putc(tty_t *tty, char c)
 		break;
 
 	case '\b':
-		if (tty->x >= 1) {
+		if (tty->incount > 0 && tty->x >= 1) {
 			tty->x--;
 			tty->outbuf[CPOS(tty)] = ' ' | (tty->status << 8);
 			if (tty == cur_tty)
@@ -516,9 +516,11 @@ static inline byte handle_cbreak_input(byte c)
 		return 1;
 
 	case '\b':
-		if (cur_tty->inbuf[cur_tty->incount-1] == 0)
-			cur_tty->eotcount--;
-		cur_tty->incount--;
+		if (cur_tty->incount > 0) {
+			if (cur_tty->inbuf[cur_tty->incount-1] == 0)
+				cur_tty->eotcount--;
+			cur_tty->incount--;
+		}
 		return 1;
 	}
 
