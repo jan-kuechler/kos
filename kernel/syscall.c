@@ -13,63 +13,24 @@
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 
-
 #define sc_arg0(r) ((r)->ebx)
 #define sc_arg1(r) ((r)->ecx)
 #define sc_arg2(r) ((r)->edx)
 #define sc_result(r, v)  do { (r)->eax = (v); } while (0);
 
-static int sys_testcall(int, int, int, int);
+static dword sys_testcall(dword, dword, dword, dword);
 
 syscall_t syscalls[NUM_SYSCALLS] = {
 	sys_testcall, 0
 };
 
-void do_puts(regs_t *regs)
-{
-	const char *str = (const char*)sc_arg0(regs);
-
-	str = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)str, 1024);
-
-	tty_puts(str);
-
-	km_free_addr((vaddr_t)str, 1024);
-
-	sc_result(regs, 0);
-}
-
-void do_putn(regs_t *regs)
-{
-	int num  = sc_arg0(regs);
-	int base = sc_arg1(regs);
-
-	tty_putn(num, base);
-
-	sc_result(regs, 0);
-}
-
-void do_send(regs_t *regs)
-{
-}
-
-void do_receive(regs_t *regs)
-{
-}
-
-void do_get_answer(regs_t *regs)
-{
-	sc_result(regs, 42);
-}
-
-int sys_testcall(int calln, int arg0, int arg1, int arg2)
+dword sys_testcall(dword calln, dword arg0, dword arg1, dword arg2)
 {
 //	kout_printf("Test syscall from %s with args:\n1: %d\n2: 0x%x\n3: %p\n",
 //	            cur_proc->cmdline, arg0, arg1, arg2);
 
 	return 0;
 }
-
-#define MAP(calln,func) case calln: func(regs); break;
 
 /**
  *  syscall(esp)

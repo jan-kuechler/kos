@@ -4,6 +4,7 @@
 #include <string.h>
 #include <types.h>
 #include <kos/config.h>
+#include "debug.h"
 #include "com.h"
 #include "kernel.h"
 #include "pm.h"

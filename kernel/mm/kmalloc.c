@@ -1,7 +1,7 @@
 #include <page.h>
 #include <string.h>
 
-#include "config.h"
+#include <kos/config.h>
 
 #include "kernel.h"
 #include "mm/kmalloc.h"

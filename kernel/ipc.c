@@ -106,7 +106,7 @@ int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 dword sys_send(dword calln, dword target, dword msgptr, dword arg2)
 {
 	proc_t *proc = pm_get_proc(target);
-	msg_t  *msg  = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)msgptr,
+	msg_t  *msg  = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)msgptr,
 	                                 sizeof(msg_t));
 
 	dword result = ipc_send(cur_proc, proc, msg);
@@ -118,7 +118,7 @@ dword sys_send(dword calln, dword target, dword msgptr, dword arg2)
 
 dword sys_receive(dword calln, dword msgptr, dword block, dword arg2)
 {
-	msg_t *msg = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)msgptr,
+	msg_t *msg = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)msgptr,
 	                               sizeof(msg_t));
 
 	// receive has to free the address
@@ -127,6 +127,6 @@ dword sys_receive(dword calln, dword msgptr, dword block, dword arg2)
 
 void init_ipc(void)
 {
-	//syscall_register(SC_SEND, sys_send);
-	//syscall_register(SC_RECEIVE, sys_receive);
+	syscall_register(SC_SEND, sys_send);
+	syscall_register(SC_RECV, sys_receive);
 }

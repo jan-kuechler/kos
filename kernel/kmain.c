@@ -75,7 +75,7 @@ void kinit()
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
-	exit(0);
+	_exit(0);
 }
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)

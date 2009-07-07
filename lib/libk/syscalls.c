@@ -15,6 +15,9 @@
 #include <kos/syscalln.h>
 #include "helper.h"
 
+#undef errno
+int errno;
+
 #else
 
 #include "syscalln.h"
@@ -51,10 +54,10 @@ static volatile int do_syscall(int calln, int arg1, int arg2, int arg3)
 
 char **environ; /* pointer to array of char * strings that define the current environment variables */
 
-#endif /* LIBK */
-
 #undef errno
 extern int errno;
+
+#endif /* LIBK */
 
 void _exit(int status)
 {

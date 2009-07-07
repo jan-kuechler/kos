@@ -129,7 +129,7 @@ dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 
 dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 {
-	void *kbuf = vm_user_to_kernel(cur_proc->pagedir, (vaddr_t)buffer, count);
+	void *kbuf = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)buffer, count);
 	struct file *file = fd2file(fd);
 	int result = -ENOSYS;
 
@@ -152,9 +152,9 @@ end:
 dword sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->pagedir, (vaddr_t)fname, &namelen);
+	char *name = vm_map_string(cur_proc->as->pdir, (vaddr_t)fname, &namelen);
 	size_t buflen = 0;
-	char *buf = vm_map_string(cur_proc->pagedir, (vaddr_t)buffer, &buflen);
+	char *buf = vm_map_string(cur_proc->as->pdir, (vaddr_t)buffer, &buflen);
 	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
 	int status = -ENOSYS;
 
@@ -186,14 +186,14 @@ dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
 		return (dword)-EINVAL;
 
 	size_t pathlen = 0;
-	char *path = vm_map_string(cur_proc->pagedir, (vaddr_t)mountp, &pathlen);
+	char *path = vm_map_string(cur_proc->as->pdir, (vaddr_t)mountp, &pathlen);
 	size_t typelen = 0;
-	char *type = vm_map_string(cur_proc->pagedir, (vaddr_t)ftype, &typelen);
+	char *type = vm_map_string(cur_proc->as->pdir, (vaddr_t)ftype, &typelen);
 
 	size_t devlen = 0;
 	char *dev  = NULL;
 	if (device != 0)
-		dev = vm_map_string(cur_proc->pagedir, (vaddr_t)device, &devlen);
+		dev = vm_map_string(cur_proc->as->pdir, (vaddr_t)device, &devlen);
 
 	struct fstype *driver = vfs_gettype(type);
 	struct inode *inode = vfs_lookup(path, cur_proc->cwd);

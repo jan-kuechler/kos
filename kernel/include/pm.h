@@ -68,8 +68,6 @@ struct proc {
 	int     num_dyn;
 
 	struct addrspace *as;
-	pdir_t pagedir __attribute__((deprecated));
-	dword  pdrev __attribute__((deprecated));
 
 	regs_t *sc_regs;
 

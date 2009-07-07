@@ -82,8 +82,6 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].msg_wait_buffer = NULL;
 
 	procs[id].as = vm_create_addrspace();
-	procs[id].pagedir = procs[id].as->pdir;
-	procs[id].pdrev = 0;
 
 	procs[id].ldata   = NULL;
 	procs[id].cleanup = 0;

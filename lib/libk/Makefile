@@ -26,6 +26,7 @@ install:
 	
 clean:
 	rm -rf *.o
+	rm -f libk.a
 	rm -f obj.rules
 
 %.o: %.c
