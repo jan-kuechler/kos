@@ -7,4 +7,10 @@ struct strparam
 	char *ptr;
 };
 
+struct strlist
+{
+	unsigned int num;
+	struct strparam *strings;
+};
+
 #endif /*KOS_STRPARAM_H*/
