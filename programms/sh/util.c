@@ -134,6 +134,8 @@ void free_argv(struct cmd *cmd)
 
 #ifdef TEST
 
+#include <stdio.h>
+
 int main(int argc, char **argv)
 {
 	char test1[] = " Hallo  \n";
@@ -157,6 +159,7 @@ int main(int argc, char **argv)
 		printf(" ->%s\n", cmd.argv[i]);
 	}
 
+	return 0;
 }
 
 #endif
