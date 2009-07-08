@@ -72,18 +72,24 @@ int close(int file)
 
 int execve(const char *filename, char *const argv [], char *const envp[])
 {
+	STR_PARAM(filename_p, filename);
+
+	SYSCALL3(SC_EXECVE, filename_p, (int)argv, (int)envp);
+
 	errno=ENOMEM;
 	return -1;
 }
 
 int fork()
 {
+	SYSCALL0(SC_FORK);
 	errno=EAGAIN;
 	return -1;
 }
 
 int fstat(int file, struct stat *st)
 {
+	SYSCALL2(SC_STAT, file, (int)st);
 	st->st_mode = S_IFCHR;
 	return 0;
 }
@@ -95,23 +101,28 @@ int getpid()
 
 int isatty(int file)
 {
-	return 1;
+	return SYSCALL1(SC_ISATTY, file);
 }
 
 int kill(int pid, int sig)
 {
+	SYSCALL2(SC_KILL, pid, sig);
 	errno=EINVAL;
 	return(-1);
 }
 
 int link(const char *oldpath, const char *newpath)
 {
+	STR_PARAM(old_p, oldpath);
+	STR_PARAM(new_p, newpath);
+	SYSCALL2(SC_LINK, old_p, new_p);
 	errno=EMLINK;
 	return -1;
 }
 
 off_t lseek(int file, off_t offs, int dir)
 {
+	SYSCALL3(SC_LSEEK, file, offs, dir);
 	return 0;
 }
 
@@ -154,6 +165,8 @@ void *sbrk(ptrdiff_t incr)
 
 int stat(const char *path, struct stat *sbuf)
 {
+	STR_PARAM(path_p, path);
+	SYSCALL2(SC_STAT, path_p, (int)sbuf);
 	sbuf->st_mode = S_IFCHR;
 	return 0;
 }
