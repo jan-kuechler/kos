@@ -8,9 +8,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "util.h"
+#include "buildins.h"
+
 #define BUFLEN 1024
 
 #define DEBUG printf
+
+static int prev_status;
 
 static void die(const char *msg)
 {
@@ -43,9 +48,20 @@ int main(int argc, char **argv)
 	while (1) {
 		prompt(buffer, BUFLEN);
 
-		if (strcmp(buffer, "exit") == 0) {
-			break;
-		}
+		char *line = prepare(buffer);
+
+		if (!line) continue;
+
+		struct cmd cmd;
+		split_cmd(line, &cmd);
+
+		if (handle_buildin(&cmd, &prev_status))
+			goto cleanup;
+
+		printf("Unknown command '%s'\n", cmd.argv[0]);
+
+	cleanup:
+		free_argv(&cmd);
 	}
 
 	return 0;
