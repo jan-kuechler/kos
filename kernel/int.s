@@ -93,16 +93,19 @@ isr_common:
 	
 	; set the segment registers to the kernel data segment
 	mov ax, GDT_SEL_DATA
-	mov ds, eax
-	mov es, eax
-	mov fs, eax
-	mov gs, eax
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
 	
-	; arg for idt_handle_int
-	mov eax, esp
+	; arg for idt_handle_int	
+	;push esp
+	mov  eax, esp
 	push eax
 	call idt_handle_int
+	add  esp, 4 ; remove idt_handle_int's parameter
 	
+	; change stack (this is the magic for multitasking)
 	mov esp, eax
 	
 	popa

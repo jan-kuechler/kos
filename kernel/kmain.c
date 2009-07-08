@@ -12,10 +12,12 @@
 #include "ipc.h"
 #include "kernel.h"
 #include "keymap.h"
+#include "loader.h"
 #include "module.h"
 #include "pm.h"
 #include "syscall.h"
 #include "timer.h"
+#include "tss.h"
 #include "tty.h"
 #include "mm/mm.h"
 #include "mm/virt.h"
@@ -63,6 +65,14 @@ void kinit()
 
 	extern void ksh(void);
 	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
+
+	// HACK!!
+	cur_proc->tty = "/dev/tty0";
+
+	do {
+		pid_t pid = exec_file("/bin/sh", "/bin/sh", getpid());
+		waitpid(pid, NULL, 0);
+	} while (1);
 
 	_exit(0);
 }
@@ -181,8 +191,10 @@ static inline dword get_cr2()
 
 void print_state(regs_t *regs)
 {
-	dbg_error("ss:esp: %06x:%p error code: %08b cr2: %010x\n",
-	          regs->u_ss, regs->u_esp, regs->errc, get_cr2());
+	dbg_error("cs:eip: %06x:%p ss:esp: %06x:%p\n",
+	          regs->cs, regs->eip,regs->u_ss, regs->u_esp);
+	dbg_error("error code: %016b cr2: %010x\n",
+	          regs->errc, get_cr2());
 	dbg_error("eax: %p ebx: %p ecx: %p edx: %p\n",
 	          regs->eax, regs->ebx, regs->ecx, regs->edx);
 	dbg_error("ebp: %p esp: %p esi: %p edi: %p\n",

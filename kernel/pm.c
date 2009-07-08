@@ -103,8 +103,10 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	dword code_seg = mode == PM_USER ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
 	dword data_seg = mode == PM_USER ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
 
-	*(--kstack) = data_seg;      // ss
-	*(--kstack) = USER_STACK_ADDR; // esp
+ 	if (mode == PM_USER) {
+		*(--kstack) = data_seg;      // ss
+		*(--kstack) = USER_STACK_ADDR; // esp
+	}
 	*(--kstack) = 0x0202;        // eflags: 0000000100000010b -> IF
 	*(--kstack) = code_seg;      // cs
 	*(--kstack) = (dword)entry;  // eip
@@ -289,6 +291,8 @@ void pm_pick(dword *esp)
 
 		*esp = cur_proc->esp;
 
+		tss.esp0 = cur_proc->kstack;
+
 		last_proc = cur_proc;
 	}
 }
@@ -302,7 +306,6 @@ void pm_restore(dword *esp)
 {
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
-		tss.esp0 = cur_proc->kstack;
 	}
 
 	//vm_select_addrspace(kernel_addrspace);

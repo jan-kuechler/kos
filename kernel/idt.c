@@ -100,8 +100,8 @@ static void idt_handle_exception(dword *esp)
 		dbg_error("kOS triggered an exception.\n");
 	}
 
-	dbg_error("Exception: #%02d (%s) @ %06x:%p\n",
-	          regs->intr, fault_msg[regs->intr], regs->cs, regs->eip);
+	dbg_error("Exception: #%02d (%s)\n",
+	          regs->intr, fault_msg[regs->intr]);
 
 	print_state(regs);
 
