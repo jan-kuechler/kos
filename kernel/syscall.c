@@ -51,6 +51,8 @@ void handle_syscall(dword *esp)
 
 	syscall_t call = syscalls[regs->eax];
 	if (call) {
+		dbg_vprintf(DBG_SC, "syscall %d\n", regs->eax);
+
 		dword res = call(regs->eax, sc_arg0(regs),
 		                 sc_arg1(regs), sc_arg2(regs));
 		sc_result(regs, res);

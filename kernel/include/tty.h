@@ -60,6 +60,8 @@ byte tty_get_cur_term(void);
 void tty_register_keymap(const char *name, keymap_t map);
 int  tty_select_keymap(const char *name);
 
+int tty_isatty(struct file *file);
+
 void tty_puts(const char *str);
 void tty_putn(int num, int base);
 

@@ -19,6 +19,7 @@
 
 #define CPOS(t) (t->x + t->y * TTY_SCREEN_X)
 
+#define CHECK_TTY(file) ((int)(file)->inode->impl >= 0 && (int)(file)->inode->impl < NUM_TTYS)
 #define GET_TTY(file) (&ttys[file->inode->impl])
 
 static char *names[NUM_TTYS] = {
@@ -255,7 +256,7 @@ static inline dword copy_data(tty_t *tty, void *buffer, dword size)
 	}
 	else {
 		strcpy(buffer, tty->inbuf);
-		return strlen(tty->inbuf) + 1; // include the trailing 0
+		return strlen(tty->inbuf); // do not include the trailing 0
 	}
 }
 
@@ -266,6 +267,9 @@ static inline dword copy_data(tty_t *tty, void *buffer, dword size)
  */
 static inline void remove_data(tty_t *tty, dword count)
 {
+	if (bnotset(tty->flags, TTY_RAW))
+		count++; // include the EOF marker
+
 	memmove(tty->inbuf, tty->inbuf + count, TTY_INBUF_SIZE - count);
 	tty->incount -= count;
 
@@ -309,11 +313,13 @@ static int tty_open(struct inode *ino, struct file *file, dword flags)
 
 static int tty_close(struct file *file)
 {
+	if (!CHECK_TTY(file)) return -1;
 	return 0;
 }
 
 static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 {
+	if (!CHECK_TTY(file)) return -1;
 	tty_t *tty = GET_TTY(file);
 
 	dbg_vprintf(DBG_TTY, "read-request for %d bytes\n", count);
@@ -334,6 +340,7 @@ static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 
 static int tty_write(struct file *file, void *buffer, dword count, dword offset)
 {
+	if (!CHECK_TTY(file)) return -1;
 	tty_t *tty = GET_TTY(file);
 
 	char *buf = buffer;
@@ -359,6 +366,11 @@ static int tty_write_async(struct request *rq)
 static int tty_seek(struct file *file, dword offset, dword index)
 {
 	return -ENOSYS;
+}
+
+int tty_isatty(struct file *file)
+{
+	return CHECK_TTY(file);
 }
 
 /**

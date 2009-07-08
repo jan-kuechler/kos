@@ -3,6 +3,7 @@
 #include <kos/syscalln.h>
 #include "debug.h"
 #include "syscall.h"
+#include "tty.h"
 #include "fs/fs.h"
 #include "mm/util.h"
 #include "util/list.h"
@@ -149,6 +150,20 @@ end:
 	return (dword)result;
 }
 
+dword sys_stat(dword calln, dword path, dword sbuf, dword arg2)
+{
+	return -ENOSYS;
+}
+
+dword sys_isatty(dword calln, dword fd, dword arg1, dword arg2)
+{
+	struct file *file = fd2file(fd);
+	if (!file)
+		return 0;
+
+	return tty_isatty(file);
+}
+
 dword sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
 	size_t namelen = 0;
@@ -258,9 +273,12 @@ void init_fs(void)
 	syscall_register(SC_CLOSE, sys_close);
 	syscall_register(SC_READ,  sys_readwrite);
 	syscall_register(SC_WRITE, sys_readwrite);
+	syscall_register(SC_ISATTY, sys_isatty);
+
+	syscall_register(SC_STAT, sys_stat);
+
 	//syscall_register(SC_READDIR, sys_readdir);
 	//syscall_register(SC_MOUNT, sys_mount);
-
 	syscall_register(SC_OPEN_STD, sys_open_std);
 
 	dbg_printf(DBG_FS, "done\n");
