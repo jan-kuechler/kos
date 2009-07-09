@@ -36,6 +36,7 @@ static void motd()
 	while (fgets(line, 512, f)) {
 		printf(line);
 	}
+	printf("\n");
 
 	fclose(f);
 }
