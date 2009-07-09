@@ -23,6 +23,23 @@ static void die(const char *msg)
 	exit(1);
 }
 
+static void motd()
+{
+	FILE *f = fopen("/etc/motd", "r");
+
+	if (!f) {
+		printf("No message of the day...\n");
+		return;
+	}
+
+	char line[512];
+	while (fgets(line, 512, f)) {
+		printf(line);
+	}
+
+	fclose(f);
+}
+
 static size_t prompt(char *buf, size_t max)
 {
 	char *str = NULL;
@@ -44,6 +61,8 @@ static size_t prompt(char *buf, size_t max)
 int main(int argc, char **argv)
 {
 	char buffer[BUFLEN];
+
+	motd();
 
 	while (1) {
 		prompt(buffer, BUFLEN);
