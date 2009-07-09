@@ -10,8 +10,6 @@ LUA=lua.exe
 PRINT_LUA=$(TOOLS)/print.lua
 
 ######### constants #########
-VERSION = $(shell git describe)
-
 ARCH=i386
 
 BIN_DIR=bin
@@ -32,7 +30,7 @@ ASM_FLAGS=-felf
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC)
-CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -DKOS_VERSION=\"$(VERSION)\" $(CC_INC) -Wall
+CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
 
 LD=ld
 LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld
@@ -43,7 +41,7 @@ LOGFILES = -serial file:kos.log -serial file:kos_err.log -serial file:kos_dbg.lo
 
 ######### targets ##########
 
-all: kernel link_map
+all: verupdate kernel link_map
 
 test: all floppy bochs
 
@@ -55,6 +53,9 @@ version:
 check:
 	@cppcheck $(INC_DIR) -a -s -v kernel 2> check.txt
 	cat check.txt
+	
+verupdate:
+	@./version.sh
 	
 ## Makefile generation ##
 prepare: targets objlist

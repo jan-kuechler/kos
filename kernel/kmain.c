@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <kos/syscall.h>
+#include <kos/version.h>
 #include "acpi.h"
 #include "com.h"
 #include "debug.h"
@@ -31,11 +32,6 @@ static dword sys_answer(dword, dword, dword, dword);
 
 multiboot_info_t multiboot_info;
 byte kernel_init_done;
-
-#define _mts(m) #m
-#define macro_to_string(m) _mts(m)
-
-static const char *version = macro_to_string(KOS_VERSION);
 
 static void kinit_fs(void)
 {
@@ -145,7 +141,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 static void banner()
 {
-	int len = strlen(version);
+	int len = strlen(kos_version);
 	len += 4; // strlen("kOS ");
 
 	int linerest = 80 - len;
@@ -157,7 +153,7 @@ static void banner()
 	}
 	byte oc = kout_set_status(0x04);
 	kout_puts("kOS ");
-	kout_puts(version);
+	kout_puts(kos_version);
 	kout_puts("\n");
 	kout_set_status(oc);
 }
