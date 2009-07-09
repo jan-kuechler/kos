@@ -25,11 +25,17 @@
 #include "fs/devfs.h"
 #include "fs/initrd.h"
 
+static void banner();
 static void print_info();
 static dword sys_answer(dword, dword, dword, dword);
 
 multiboot_info_t multiboot_info;
 byte kernel_init_done;
+
+#define _mts(m) #m
+#define macro_to_string(m) _mts(m)
+
+static const char *version = macro_to_string(KOS_VERSION);
 
 static void kinit_fs(void)
 {
@@ -86,9 +92,9 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 	init_debug();
 
-	byte oc = kout_set_status(0x04);
-	kout_puts("\t\t\t\t       kOS\n");
-	kout_set_status(oc);
+	//kout_puts("\t\t\t\t       kOS\n");
+	banner();
+
 	kout_puts("kOS booting...\n");
 
 	dbg_printf(DBG_LOAD, "* Setting up gdt...\n");
@@ -134,6 +140,26 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	for (;;)
 		;
+}
+
+
+static void banner()
+{
+	int len = strlen(version);
+	len += 4; // strlen("kOS ");
+
+	int linerest = 80 - len;
+	int begin = linerest / 2;
+
+	int i=0;
+	for (; i < begin; ++i) {
+		kout_puts(" ");
+	}
+	byte oc = kout_set_status(0x04);
+	kout_puts("kOS ");
+	kout_puts(version);
+	kout_puts("\n");
+	kout_set_status(oc);
 }
 
 #define cpuid(op, a, b, c, d) asm("mov $" #op ", %%eax\ncpuid":"=a"(a),"=b"(b),"=c"(c),"=d"(d):)

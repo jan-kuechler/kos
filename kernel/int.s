@@ -99,7 +99,6 @@ isr_common:
 	mov gs, ax
 	
 	; arg for idt_handle_int	
-	;push esp
 	mov  eax, esp
 	push eax
 	call idt_handle_int

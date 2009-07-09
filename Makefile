@@ -10,6 +10,8 @@ LUA=lua.exe
 PRINT_LUA=$(TOOLS)/print.lua
 
 ######### constants #########
+VERSION = $(shell git describe)
+
 ARCH=i386
 
 BIN_DIR=bin
@@ -30,7 +32,7 @@ ASM_FLAGS=-felf
 
 CC=gcc
 CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC)
-CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
+CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs -DKOS_VERSION=\"$(VERSION)\" $(CC_INC) -Wall
 
 LD=ld
 LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld
