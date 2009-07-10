@@ -11,9 +11,6 @@
 
 #define MAX_PROCS 256
 
-#define KSTACK_SIZE 4096
-#define USTACK_SIZE 4096
-
 #define IDLE_PROC 0
 
 #define PROC_START_TICKS 50
@@ -60,7 +57,6 @@ struct proc {
 	dword          wakeup;
 
 	dword  kstack;
-	dword  ustack;
 	dword  esp;
 
 	vaddr_t _unaligned_ mem_brk;
@@ -76,6 +72,7 @@ struct proc {
 	struct file  *fds[PROC_NUM_FDS];
 	dword  numfds;
 
+	int   cmdline_mapped;
 	char *cmdline;
 
 	int   exit_status;

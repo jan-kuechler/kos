@@ -129,32 +129,60 @@ void vm_set_p(paddr_t dst, byte val, size_t size)
 }
 
 /**
- *  mm_create_pagedir()
+ *  vm_alloc_page(pdir, user)
  *
- * Creates a page directory mapping the full kernel.
+ * Allocates a page mapped to the page directory
+ * optionally accessible by usermode.
  */
-pdir_t mm_create_pagedir()
+vaddr_t vm_alloc_page(pdir_t pdir, int user)
 {
-	dbg_vprintf(DBG_VM, "Creating new page directory...");
+	paddr_t page = mm_alloc_page();
 
-	pdir_t pdir = mm_alloc_page();
-	km_identity_map(pdir, VM_COMMON_FLAGS, PAGE_SIZE);
+	if (page == NO_PAGE)
+		panic("vm_alloc_page: mm_alloc_page failed");
 
-	memcpy(pdir, kernel_pdir, PAGE_SIZE);
+	dword flags = PE_PRESENT | PE_READWRITE;
+	if (user)
+		flags |= PE_USERMODE;
 
-	dbg_vprintf(DBG_VM, "done (%p)\n", pdir);
-
-	return pdir;
+	return vm_alloc_addr(pdir, page, flags, PAGE_SIZE);
 }
 
-dword vm_switch_pdir(pdir_t pdir, dword rev)
+/**
+ *  vm_alloc_page(pdir, user, num)
+ *
+ * Allocates a page range mapped to the page directory
+ * optionally accessible by usermode.
+ *
+ * TODO: Change this to _not_ use mm_alloc_range() (this is why we have paging...)
+ */
+vaddr_t vm_alloc_range(pdir_t pdir, int user, int num)
 {
-	//if (rev < kpdir_rev) {
-	//	/* copy the kernel addr space (lower half) */
-	//	//dbg_vprintf(DBG_VM, "Updating pdir (%d => %d)\n", rev, kpdir_rev);
-	//	memcpy(pdir, kernel_pdir, PAGE_SIZE / 2);
-	//	//dbg_vprintf(DBG_VM, "Update done.\n");
-	//}
-	asm volatile("mov %0, %%cr3" : : "r"(pdir));
-	return kpdir_rev;
+	paddr_t pstart = mm_alloc_range(num);
+
+	if (pstart == NO_PAGE)
+		panic("vm_alloc_range: mm_alloc_range failed");
+
+	dword flags = PE_PRESENT | PE_READWRITE;
+	if (user)
+		flags |= PE_USERMODE;
+
+	return vm_alloc_addr(pdir, pstart, flags, num * PAGE_SIZE);
+
+}
+
+void vm_free_page(pdir_t pdir, vaddr_t page)
+{
+	paddr_t paddr = vm_resolve_virt(pdir, page);
+
+	vm_free_addr(pdir, page, PAGE_SIZE);
+	mm_free_page(paddr);
+}
+
+void vm_free_range(pdir_t pdir, vaddr_t start, int num)
+{
+	paddr_t pstart = vm_resolve_virt(pdir, start);
+
+	vm_free_addr(pdir, start, num * PAGE_SIZE);
+	mm_free_range(pstart, num);
 }

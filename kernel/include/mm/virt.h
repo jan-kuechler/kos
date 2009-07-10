@@ -45,12 +45,6 @@ vaddr_t vm_alloc_addr(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size
 void    vm_free_addr(pdir_t pdir, _unaligned_ vaddr_t vstart, size_t size);
 void    vm_identity_map(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_t size);
 
-vaddr_t vm_alloc_page(pdir_t pdir, int user);
-vaddr_t vm_alloc_range(pdir_t pdir, int user, int num);
-
-void    vm_free_page(pdir_t pdir, _aligned_ vaddr_t page);
-void    vm_free_range(pdir_t pdir, _aligned_ vaddr_t start, int num);
-
 paddr_t vm_resolve_virt(pdir_t pdir, _unaligned_ vaddr_t vaddr);
 
 int     vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags);
@@ -67,11 +61,6 @@ int     vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword f
 #define km_alloc_addr(paddr,flags,size)       vm_alloc_addr(kernel_pdir, paddr, flags, size)
 #define km_free_addr(vaddr,size)              vm_free_addr(kernel_pdir, vaddr, size)
 #define km_identity_map(paddr,flags,size)     vm_identity_map(kernel_pdir, paddr, flags, size)
-
-#define km_alloc_page()                       vm_alloc_page(kernel_pdir, 0)
-#define km_alloc_range(num)                   vm_alloc_range(kernel_pdir, 0, num)
-#define km_free_page(page)                    vm_free_page(kernel_pdir, page)
-#define km_free_range(start, num)             vm_free_range(kernel_pdir, start, num)
 
 #define km_resolve_virt(vaddr)                vm_resolve_virt(kernel_pdir, vaddr);
 

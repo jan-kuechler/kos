@@ -11,6 +11,7 @@
 #include "fs/fs.h"
 #include "mm/kmalloc.h"
 #include "mm/util.h"
+#include "mm/mm.h"
 
 static int koop_mode = 0;
 
@@ -19,9 +20,6 @@ static struct proc *plist_head, *plist_tail;
 
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
-
-dword user_stacks[MAX_PROCS][USTACK_SIZE] __attribute__((aligned(4096)));
-dword kernel_stacks[MAX_PROCS][KSTACK_SIZE];
 
 void idle()
 {
@@ -63,8 +61,9 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].wait_for  = 0;
 	procs[id].exit_status = -1;
 
-	procs[id].cmdline = kmalloc(strlen(cmdline) + 1);
-	strcpy(procs[id].cmdline, cmdline);
+	proc->cmdline_mapped = 0;
+	proc->cmdline = kmalloc(strlen(cmdline) + 1);
+	strcpy(proc->cmdline, cmdline);
 
 	proc->tty = pproc ? pproc->tty : "/dev/tty7";
 
@@ -90,15 +89,12 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	procs[id].brk_page = NULL;
 	procs[id].num_dyn  = 0;
 
-	dword *ustack = user_stacks[id];
-	dword usize   = USTACK_SIZE * sizeof(dword);
-	vm_map_range(procs[id].as->pdir, ustack, (vaddr_t)(USER_STACK_ADDR - usize),
-	             VM_USER_FLAGS, NUM_PAGES(usize));
+	paddr_t ustackp = mm_alloc_page();
+	vm_map_page(proc->as->pdir, ustackp, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE),
+	            PE_PRESENT | PE_READWRITE | PE_USERMODE);
 
-	procs[id].ustack = (dword)ustack;
-
-	dword *kstack = kernel_stacks[id];
-	kstack += KSTACK_SIZE;
+	dword *kstack = km_alloc_page();
+	kstack += (PAGE_SIZE / sizeof(dword)); // it's a dword* so += PAGE_SIZE would actualy mean += 0x4000
 
 	dword code_seg = mode == PM_USER ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
 	dword data_seg = mode == PM_USER ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
@@ -386,6 +382,23 @@ dword sys_getpid(dword calln, dword arg0, dword arg1, dword arg2)
 	return cur_proc->pid;
 }
 
+dword sys_getcmdline(dword calln, dword arg0, dword arg1, dword arg2)
+{
+	if (!cur_proc->cmdline) return 0;
+
+	paddr_t page = NULL;
+
+	if (!cur_proc->cmdline_mapped) {
+		page = mm_alloc_page();
+		vm_map_page(cur_proc->as->pdir,	page, (vaddr_t)CONF_PROG_BASE_MIN - PAGE_SIZE,
+		            PE_PRESENT | PE_READWRITE | PE_USERMODE);
+	}
+
+	vm_cpy_pv(page, cur_proc->cmdline, strlen(cur_proc->cmdline) + 1);
+
+	return CONF_PROG_BASE_MIN - PAGE_SIZE;
+}
+
 /**
  *  init_pm
  *
@@ -402,10 +415,11 @@ void init_pm(void)
 	plist_head = 0;
 	plist_tail = 0;
 
-	syscall_register(SC_EXIT,    sys_exit);
-	syscall_register(SC_YIELD,   sys_yield);
-	syscall_register(SC_GETPID, sys_getpid);
-	syscall_register(SC_WAITPID, sys_waitpid);
+	syscall_register(SC_EXIT,       sys_exit);
+	syscall_register(SC_YIELD,      sys_yield);
+	syscall_register(SC_GETPID,     sys_getpid);
+	syscall_register(SC_WAITPID,    sys_waitpid);
+	syscall_register(SC_GETCMDLINE, sys_getcmdline);
 
 	/* create special process 0: idle */
 	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);

@@ -373,56 +373,6 @@ void vm_identity_map(pdir_t pdir, _unaligned_ paddr_t pstart, dword flags, size_
 	vm_map_range(pdir, aligned_pstart, aligned_pstart, flags, NUM_PAGES(aligned_size));
 }
 
-/**
- *  vm_alloc_page(pdir, user)
- *
- * Allocates a page mapped to the page directory
- * optionally accessible by usermode.
- */
-vaddr_t vm_alloc_page(pdir_t pdir, int user)
-{
-	paddr_t page = mm_alloc_page();
-
-	if (page == NO_PAGE)
-		panic("vm_alloc_page: mm_alloc_page failed");
-
-	dword flags = PE_PRESENT | PE_READWRITE;
-	if (user)
-		flags |= PE_USERMODE;
-
-	return vm_alloc_addr(pdir, page, flags, PAGE_SIZE);
-}
-
-/**
- *  vm_alloc_page(pdir, user, num)
- *
- * Allocates a page range mapped to the page directory
- * optionally accessible by usermode.
- */
-vaddr_t vm_alloc_range(pdir_t pdir, int user, int num)
-{
-	paddr_t pstart = mm_alloc_range(num);
-
-	if (pstart == NO_PAGE)
-		panic("vm_alloc_range: mm_alloc_range failed");
-
-	dword flags = PE_PRESENT | PE_READWRITE;
-	if (user)
-		flags |= PE_USERMODE;
-
-	return vm_alloc_addr(pdir, pstart, flags, num * PAGE_SIZE);
-
-}
-
-void vm_free_page(pdir_t pdir, vaddr_t page)
-{
-
-}
-
-void vm_free_range(pdir_t pdir, vaddr_t start, int num)
-{
-}
-
 static ptab_entry_t get_ptab_entry(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 {
 	ptab_t       tab;
