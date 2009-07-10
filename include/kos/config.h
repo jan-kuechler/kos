@@ -25,7 +25,7 @@
 //#define CONF_KOOP_MULTITASKING
 
 /**
- *  CONF_PROG_ENTRY_MIN
+ *  CONF_PROG_BASE_MIN
  *
  * This is the minimal linking base for programs
  * to run under kOS.

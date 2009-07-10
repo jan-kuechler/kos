@@ -132,6 +132,28 @@ void free_argv(struct cmd *cmd)
 	free(cmd->argv);
 }
 
+char *build_cmd(struct cmd *cmd)
+{
+	size_t len = 0;
+
+	int i=1;
+	for (; i < cmd->argc; ++i) {
+		len += strlen(cmd->argv[i]) + 1; /* include either ' ' or '\0' */
+	}
+
+	char *line = malloc(len);
+
+	for (i = 1; i < cmd->argc; ++i) {
+		strcat(line, cmd->argv[i]);
+
+		if (i != cmd->argc - 1) {
+			strcat(line, " ");
+		}
+	}
+
+	return line;
+}
+
 #ifdef TEST
 
 #include <stdio.h>

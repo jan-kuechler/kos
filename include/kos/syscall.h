@@ -59,4 +59,7 @@ int recv(msg_t *buf, int block);
 
 pid_t waitpid(pid_t pid, int *status, int options);
 
+pid_t execute(const char *path, const char *cmdline);
+char *getcmdline();
+
 #endif /*SYSCALLS_H*/

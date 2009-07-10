@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "kernel.h"
 #include "pm.h"
+#include "syscall.h"
 #include "mm/kmalloc.h"
 #include "mm/mm.h"
 #include "mm/util.h"
@@ -27,7 +28,6 @@ pid_t exec_file(const char *filename, const char *args, pid_t parent)
 	pid_t pid = exec_mem(mem, args, parent);
 	kfree(mem);
 	return pid;
-
 }
 
 size_t load_file_to_mem(const char *filename, void **mem)
@@ -270,6 +270,22 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 	return proc->pid;
 }
 
+dword sys_execute(dword calln, dword path, dword cmd, dword arg2)
+{
+	size_t flen = 0;
+	char *file = vm_map_string(cur_proc->as->pdir, (vaddr_t)path, &flen);
+
+	size_t clen = 0;
+	char *cmdline = vm_map_string(cur_proc->as->pdir, (vaddr_t)cmd, &clen);
+
+	pid_t pid = exec_file(file, cmdline, cur_proc->pid);
+
+	km_free_addr(file, flen);
+	km_free_addr(cmdline, clen);
+	return pid;
+}
+
 void init_loader(void)
 {
+	syscall_register(SC_EXECUTE, sys_execute);
 }

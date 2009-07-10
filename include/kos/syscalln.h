@@ -51,6 +51,9 @@
 
 #define SC_WAITPID      29
 
-#define NUM_SYSCALLS    30
+#define SC_EXECUTE      30
+#define SC_GETCMDLINE   31
+
+#define NUM_SYSCALLS    32
 
 #endif /*SYSCALLN_H*/

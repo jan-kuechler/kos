@@ -23,6 +23,7 @@ archive: $(OBJS)
 	
 install:
 	cp -f $(NAME).a $(BASE)/lib/
+	cp -f $(NAME).a $(BASE)/tools/i586-pc-kos/lib/
 	
 clean:
 	rm -rf *.o

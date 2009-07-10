@@ -31,3 +31,16 @@ pid_t waitpid(pid_t pid, int *status, int options)
 {
 	return SYSCALL3(SC_WAITPID, pid, (int32_t)status, options);
 }
+
+pid_t execute(const char *path, const char *cmdline)
+{
+	STR_PARAM(path_p, path);
+	STR_PARAM(cmd_p, cmdline);
+
+	return SYSCALL2(SC_EXECUTE, path_p, cmd_p);
+}
+
+char *getcmdline()
+{
+	return (char*)SYSCALL0(SC_GETCMDLINE);
+}

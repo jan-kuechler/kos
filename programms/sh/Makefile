@@ -1,5 +1,5 @@
 CC = kgcc
-CFLAGS = -Wall -lk
+CFLAGS = -Wall 
 
 TESTCC = mingw32-gcc
 TESTCFLAGS = -Wall -DTEST
@@ -9,7 +9,7 @@ SRCFILES = $(shell echo "*.c")
 all: sh tests
 
 sh: $(SRCFILES)
-	@$(CC) $(CFLAGS) -osh $(SRCFILES)
+	@$(CC) $(CFLAGS) -osh $(SRCFILES) -lk
 
 install:
 	@cp sh ../../initrd/bin

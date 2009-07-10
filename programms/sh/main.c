@@ -10,6 +10,7 @@
 
 #include "util.h"
 #include "buildins.h"
+#include "run.h"
 
 #define BUFLEN 1024
 
@@ -76,6 +77,9 @@ int main(int argc, char **argv)
 		split_cmd(line, &cmd);
 
 		if (handle_buildin(&cmd, &prev_status))
+			goto cleanup;
+
+		if (run(&cmd, &prev_status))
 			goto cleanup;
 
 		printf("Unknown command '%s'\n", cmd.argv[0]);

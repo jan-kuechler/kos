@@ -16,16 +16,5 @@ int main(int argc, char **argv)
 
 	printf("Great job, %s!\n", name);
 
-	char buffer[128];
-	printf("Any last words? ");
-	scanf("%s", buffer);
-	printf("%s... ok.\n", buffer);
-
-	fflush(stdout);
-	return 0;
-}
-
-int _write(int f, char *p, int l)
-{
 	return 0;
 }

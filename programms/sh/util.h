@@ -9,6 +9,7 @@ struct cmd
 
 char *prepare(char *input);
 int split_cmd(char *input, struct cmd *cmd);
+char *build_cmd(struct cmd *cmd);
 void free_argv(struct cmd *cmd);
 
 #endif /*UTIL_H*/

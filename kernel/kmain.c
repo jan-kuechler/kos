@@ -73,7 +73,10 @@ void kinit()
 
 	do {
 		pid_t pid = exec_file("/bin/sh", "/bin/sh", getpid());
-		waitpid(pid, NULL, 0);
+		int status = waitpid(pid, NULL, 0);
+
+		kout_printf("/bin/sh ended with status %d.\n", status);
+
 	} while (1);
 
 	_exit(0);
@@ -119,6 +122,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
 	init_mod();
+
+	init_loader();
 
 	syscall_register(SC_ANSWER, sys_answer);
 
