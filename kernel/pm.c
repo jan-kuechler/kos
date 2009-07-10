@@ -21,81 +21,8 @@ static struct proc *plist_head, *plist_tail;
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
 
-void idle()
+static dword *prepare_stack(dword *kstack, void (*entry)(), enum proc_mode mode)
 {
-	for (;;) { }
-}
-
-/**
- *  pm_create(entry, cmdline, parent)
- *
- * Creates a new process.
- */
-struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
-{
-	int i=0;
-	int id = MAX_PROCS;
-
-	for (; i < MAX_PROCS; ++i) {
-		if (procs[i].status == PS_SLOT_FREE) {
-			id = i;
-			break;
-		}
-	}
-
-	if (id == MAX_PROCS) {
-		panic("No free slot to create another process.\n");
-	}
-
-	struct proc *proc = &procs[id];
-	struct proc *pproc = parent ? pm_get_proc(parent) : NULL;
-
-	procs[id].status = status;
-	if (status != PS_BLOCKED)
-		procs[id].block = BR_NOT_BLOCKED;
-	else
-		procs[id].block = BR_INIT;
-	procs[id].parent = parent;
-
-	procs[id].wait_proc = 0;
-	procs[id].wait_for  = 0;
-	procs[id].exit_status = -1;
-
-	proc->cmdline_mapped = 0;
-	proc->cmdline = kmalloc(strlen(cmdline) + 1);
-	strcpy(proc->cmdline, cmdline);
-
-	proc->tty = pproc ? pproc->tty : "/dev/tty7";
-
-	procs[id].ticks_left = PROC_START_TICKS;
-
-	procs[id].msg_head = procs[id].msg_buffer;
-	procs[id].msg_tail = procs[id].msg_buffer;
-	procs[id].msg_count = 0;
-
-	procs[id].cwd = fs_root;
-	memset(proc->fds, 0, PROC_NUM_FDS * sizeof(struct file *));
-	procs[id].numfds = 0;
-
-	procs[id].wakeup = 0;
-	procs[id].msg_wait_buffer = NULL;
-
-	procs[id].as = vm_create_addrspace();
-
-	procs[id].ldata   = NULL;
-	procs[id].cleanup = 0;
-
-	procs[id].mem_brk  = NULL;
-	procs[id].brk_page = NULL;
-	procs[id].num_dyn  = 0;
-
-	paddr_t ustackp = mm_alloc_page();
-	vm_map_page(proc->as->pdir, ustackp, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE),
-	            PE_PRESENT | PE_READWRITE | PE_USERMODE);
-
-	dword *kstack = km_alloc_page();
-	kstack += (PAGE_SIZE / sizeof(dword)); // it's a dword* so += PAGE_SIZE would actualy mean += 0x4000
-
 	dword code_seg = mode == PM_USER ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
 	dword data_seg = mode == PM_USER ? GDT_SEL_UDATA + 0x03 : GDT_SEL_DATA;
 
@@ -126,13 +53,88 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	*(--kstack) = 0;
 	*(--kstack) = 0;
 
-	procs[id].kstack = (dword)kstack;
-	procs[id].esp    = (dword)kstack;
+	return kstack;
+}
+
+/**
+ *  pm_create(entry, cmdline, parent)
+ *
+ * Creates a new process.
+ */
+struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
+{
+	int i=0;
+	int id = MAX_PROCS;
+
+	for (; i < MAX_PROCS; ++i) {
+		if (procs[i].status == PS_SLOT_FREE) {
+			id = i;
+			break;
+		}
+	}
+
+	if (id == MAX_PROCS) {
+		panic("No free slot to create another process.\n");
+	}
+
+	struct proc *proc = &procs[id];
+	struct proc *pproc = parent ? pm_get_proc(parent) : NULL;
+
+	proc->status = status;
+	if (status != PS_BLOCKED)
+		proc->block = BR_NOT_BLOCKED;
+	else
+		proc->block = BR_INIT;
+	proc->parent = parent;
+
+	proc->wait_proc = 0;
+	proc->wait_for  = 0;
+	proc->exit_status = -1;
+	proc->wakeup = 0;
+
+	proc->cmdline_mapped = 0;
+	proc->cmdline = kmalloc(strlen(cmdline) + 1);
+	strcpy(proc->cmdline, cmdline);
+
+	proc->ticks_left = PROC_START_TICKS;
+
+	proc->msg_wait_buffer = NULL;
+	proc->msg_head = proc->msg_buffer;
+	proc->msg_tail = proc->msg_buffer;
+	proc->msg_count = 0;
+
+	proc->tty = pproc ? pproc->tty : "/dev/tty7";
+	proc->cwd = fs_root;
+	memset(proc->fds, 0, PROC_NUM_FDS * sizeof(struct file *));
+	proc->numfds = 0;
+
+	proc->ldata   = NULL;
+	proc->cleanup = 0;
+
+	proc->mem_brk  = NULL;
+	proc->brk_page = NULL;
+	proc->num_dyn  = 0;
+
+	proc->as = vm_create_addrspace();
+
+	paddr_t ustackp = mm_alloc_page();
+	proc->ustack_addr = ustackp;
+	vm_map_page(proc->as->pdir, ustackp, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE),
+	            PE_PRESENT | PE_READWRITE | PE_USERMODE);
+
+	dword *kstack = km_alloc_page();
+	proc->kstack_addr = kstack;
+	kstack += (PAGE_SIZE / sizeof(dword)); // it's a dword* so += PAGE_SIZE would actualy mean += 0x4000
+
+	kstack = prepare_stack(kstack, entry, mode);
+
+	proc->kstack = (dword)kstack;
+	proc->esp    = (dword)kstack;
 
 	if (status == PS_READY)
-		pm_activate(&procs[id]);
+		pm_activate(proc);
 
-	return &procs[id];
+	return proc;
 }
 
 /**
@@ -162,6 +164,11 @@ void pm_destroy(struct proc *proc)
 		proc->cleanup(proc);
 
 	kfree(proc->cmdline);
+
+	/* TODO: We cannot free the kstack, as that is
+	 *       the stack we're working on at the moment.
+	 */
+	mm_free_page(proc->ustack_addr); // this one not
 
 	vm_destroy_addrspace(proc->as);
 }
@@ -397,6 +404,13 @@ dword sys_getcmdline(dword calln, dword arg0, dword arg1, dword arg2)
 	vm_cpy_pv(page, cur_proc->cmdline, strlen(cur_proc->cmdline) + 1);
 
 	return CONF_PROG_BASE_MIN - PAGE_SIZE;
+}
+
+static void idle()
+{
+	for (;;) {
+		asm("hlt");
+	}
 }
 
 /**

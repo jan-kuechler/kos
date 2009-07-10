@@ -56,6 +56,8 @@ struct proc {
 	msg_t         *msg_wait_buffer;
 	dword          wakeup;
 
+	vaddr_t kstack_addr;
+	paddr_t ustack_addr;
 	dword  kstack;
 	dword  esp;
 
