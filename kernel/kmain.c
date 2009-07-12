@@ -33,6 +33,8 @@ static dword sys_answer(dword, dword, dword, dword);
 multiboot_info_t multiboot_info;
 byte kernel_init_done;
 
+static int in_panic = 0;
+
 static void kinit_fs(void)
 {
 	kout_puts("Initializing FS:");
@@ -245,6 +247,13 @@ __attribute__((noreturn)) void shutdown()
 
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
+	if (in_panic) {
+		for (;;)
+			asm("hlt");
+	}
+
+	in_panic = 1;
+
 	kernel_init_done = 0; // interrupts won't get enabled again
 
 	va_list args;

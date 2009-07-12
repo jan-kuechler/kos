@@ -23,4 +23,10 @@ struct addrspace
 	pdir_t  pdir;
 };
 
+struct addrpair
+{
+	paddr_t phys;
+	vaddr_t virt;
+};
+
 #endif /*MM_TYPES_H*/

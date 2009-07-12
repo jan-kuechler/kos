@@ -136,14 +136,14 @@ char *build_cmd(struct cmd *cmd)
 {
 	size_t len = 0;
 
-	int i=1;
+	int i=0;
 	for (; i < cmd->argc; ++i) {
 		len += strlen(cmd->argv[i]) + 1; /* include either ' ' or '\0' */
 	}
 
 	char *line = malloc(len);
 
-	for (i = 1; i < cmd->argc; ++i) {
+	for (i = 0; i < cmd->argc; ++i) {
 		strcat(line, cmd->argv[i]);
 
 		if (i != cmd->argc - 1) {

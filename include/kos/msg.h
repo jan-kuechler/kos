@@ -1,15 +1,15 @@
 #ifndef MSG_H
 #define MSG_H
 
-#include <types.h>
+#include <stdint.h>
 
 typedef struct msg
 {
- 	pid_t sender;
- 	dword cmd;
- 	dword subcmd;
- 	dword param1;
- 	dword param2;
+ 	uint32_t sender;
+ 	uint32_t cmd;
+ 	uint32_t subcmd;
+ 	uint32_t param1;
+ 	uint32_t param2;
 } msg_t;
 
 #endif /*MSG_H*/

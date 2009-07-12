@@ -1,6 +1,6 @@
 #include <bitop.h>
 #include <string.h>
-#include <kos/error.h>
+#include <errno.h>
 #include "ipc.h"
 #include "syscall.h"
 #include "mm/util.h"
@@ -12,13 +12,13 @@ static int send(proc_t *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
-		return E_INVALID_ARG;
+		return EINVAL;
 
 	if (!msg)
-		return E_INVALID_ARG;
+		return EINVAL;
 
 	if (proc->msg_count == PROC_MSG_BUFFER_SIZE) {
-		return E_TRY_AGAIN;
+		return EAGAIN;
 	}
 
 	/* copy the message to the targets buffer */
@@ -29,20 +29,20 @@ static int send(proc_t *proc, msg_t *msg)
 	if (proc->msg_head == &proc->msg_buffer[PROC_MSG_BUFFER_SIZE])
 		proc->msg_head = proc->msg_buffer;
 
-	return OK;
+	return 0;
 }
 
 static int receive(proc_t *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
-		return E_INVALID_ARG;
+		return EINVAL;
 
 	if (!msg)
-		return E_INVALID_ARG;
+		return EINVAL;
 
 	if (proc->msg_count == 0)
-		return E_TRY_AGAIN;
+		return EAGAIN;
 
 	/* copy the message from the procbuffer to the user */
 	memcpy(msg, proc->msg_tail, sizeof(msg_t));
@@ -52,7 +52,7 @@ static int receive(proc_t *proc, msg_t *msg)
 	if (proc->msg_tail == &proc->msg_buffer[PROC_MSG_BUFFER_SIZE])
 		proc->msg_tail = proc->msg_buffer;
 
-	return OK;
+	return 0;
 }
 
 /**
@@ -83,7 +83,7 @@ int ipc_send(proc_t *from, proc_t *to, msg_t *msg)
  *
  * Tries to receive a message for a process.
  * If there is no message yet the process is blocked (when 'block' is true)
- * or E_TRY_AGAIN is returnd.
+ * or EAGAIN is returnd.
  */
 int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 {
@@ -91,12 +91,12 @@ int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 
 	// if there's no message to receive and we
 	//   should block, disable the process
-	if (status == E_TRY_AGAIN && block) {
+	if (status == EAGAIN && block) {
 		proc->msg_wait_buffer = msg;
 		pm_block(proc, BR_RECEIVING);
-		return OK;
+		return 0;
 	}
-	else if (status == OK) {
+	else if (status == 0) {
 		km_free_addr(msg, sizeof(msg_t));
 	}
 

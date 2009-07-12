@@ -109,7 +109,6 @@ static void idt_handle_exception(dword *esp)
 
 	if (user) {
 		dbg_error("Abortin process %d.\n", cur_proc->pid);
-		dbg_proc_backtrace(cur_proc);
 		dbg_print_last_syscall();
 		pm_destroy(cur_proc);
 	}
