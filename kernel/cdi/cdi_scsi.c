@@ -4,6 +4,8 @@
 struct cdi_scsi_packet* cdi_scsi_packet_alloc(size_t size)
 {
 	UNIMPLEMENTED
+
+	return (void*)0;
 }
 
 void cdi_scsi_packet_free(struct cdi_scsi_packet* packet)

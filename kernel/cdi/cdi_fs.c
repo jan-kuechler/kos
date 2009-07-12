@@ -21,10 +21,14 @@ size_t cdi_fs_data_read(struct cdi_fs_filesystem* fs, uint64_t start,
     size_t size, void* buffer)
 {
 	UNIMPLEMENTED
+
+	return 0;
 }
 
 size_t cdi_fs_data_write(struct cdi_fs_filesystem* fs, uint64_t start,
     size_t size, const void* buffer)
 {
 	UNIMPLEMENTED
+
+	return 0;
 }

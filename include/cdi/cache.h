@@ -12,6 +12,7 @@
 #define _CDI_CACHE_H_
 
 #include <stdint.h>
+#include <sys/types.h>
 
 struct cdi_cache {
     /** Groesse der Blocks, die der Cache verwaltet */
