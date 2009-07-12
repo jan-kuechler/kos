@@ -1,101 +1,42 @@
-####################
-# Makefile for kOS #
-####################
+SRCFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.c")
+ASMFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.s")
 
-######### osdev environment ######### 
-OSDEV=/c/osdev
-TOOLS=$(OSDEV)/tools
+OBJFILES = $(patsubst kernel/%.c,bin/%.o,$(SRCFILES))
+ASMOBJS  = $(patsubst kernel/%.s,bin/%.s.o,$(ASMFILES))
 
-LUA=lua.exe
-PRINT_LUA=$(TOOLS)/print.lua
+ASM = nasm
+ASMFLAGS = -felf
 
-######### constants #########
-ARCH=i386
+CC = kgcc
+CFLAGS = -Wall -O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs \
+         -Iinclude -Iinclude/arch/i386 -Ikernel/include
 
-BIN_DIR=bin
-INC_DIR=include
-LIB_DIR=lib
+LD = kld
+LDFLAGS = -Llib -static -Tlink.ld
 
-ARCH_INC=$(INC_DIR)/arch/$(ARCH)
-
-KERNEL_DIR=kernel
-KERNEL_INC=$(KERNEL_DIR)/include
-
-FS_DIR=$(KERNEL_DIR)/fs
-MM_DIR=$(KERNEL_DIR)/mm
-UTIL_DIR=$(KERNEL_DIR)/util
-
-ASM=nasm
-ASM_FLAGS=-felf
-
-CC=gcc
-CC_INC= -I$(INC_DIR) -I$(ARCH_INC) -I$(KERNEL_INC)
-CC_FLAGS=-O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs $(CC_INC) -Wall
-
-LD=ld
-LD_FLAGS=-L$(LIB_DIR) -static -Tlink.ld
-
-LIBS=-lminc -lk 
+LIBS = -lminc -lk
 
 LOGFILES = -serial file:kos.log -serial file:kos_err.log -serial file:kos_dbg.log -serial file:kos_dbgv.log
 
-######### targets ##########
+.PHONY: all clean version verupdate initrd floppy iso run run-iso
 
-all: verupdate kernel link_map
+all: verupdate kernel linkmap.txt
 
-test: all floppy bochs
-
-version:
-	$(ASM) -v
-	$(CC)  -v
-	$(LD)  -v
+clean:
+	-@rm $(wildcard $(OBJFILES) $(ASMOBJS)) linkmap.txt 
 	
-check:
-	@cppcheck $(INC_DIR) -a -s -v kernel 2> check.txt
-	cat check.txt
+version:
+	@$(ASM) -v
+	@$(CC) -v
+	@$(LD) -v
 	
 verupdate:
 	@./version.sh
-	
-## Makefile generation ##
-prepare: targets objlist
 
-targets:
-	@rm -f kernel.target
-	@for F in $(KERNEL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	@for F in $(FS_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	@for F in $(MM_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-	@for F in $(UTIL_DIR)/*.c; do $(LUA) $(PRINT_LUA) bin/ >> kernel.target && $(CC) $(CC_INC) -MM $$F >> kernel.target && $(LUA) $(PRINT_LUA) !tab "@$(CC) $(CC_FLAGS) -o \$$@ $$<" !nl >> kernel.target; done
-		
-.PHONY: objlist
-objlist:
-	@rm -f .objlist
-	@$(LUA) $(TOOLS)/makeobjlist.lua .objlist bin/ kernel.target
-	
--include kernel.target
--include .objlist
-	
-## Rest ##
+kernel: bin/kos.bin
 
-# Note: kstart.o _must_ be the first object to be linked!
-ASM_OBJS = $(BIN_DIR)/kstart.o $(BIN_DIR)/int.o 
-ALL_OBJS = $(ASM_OBJS) $(OBJS)
-
-kernel: link
-
-link: $(ALL_OBJS)
-	@$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS)
-	
-link_map:
-	@$(LD) $(LD_FLAGS) -o$(BIN_DIR)/kos.bin $(ALL_OBJS) $(LIBS) -Map link.map
-		
-$(BIN_DIR)/kstart.o: $(KERNEL_DIR)/kstart.s
-	@$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/kstart.o $(KERNEL_DIR)/kstart.s
-	
-$(BIN_DIR)/int.o: $(KERNEL_DIR)/int.s
-	@$(ASM) $(ASM_FLAGS) -o $(BIN_DIR)/int.o $(KERNEL_DIR)/int.s
-	
-## Image creation ##
+initrd:
+	mkid initrd bin/initrd
 
 floppy: 
 	@./cpyfiles.sh floppy
@@ -107,35 +48,35 @@ iso:
 	@./cpyfiles.sh iso
 	@mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
 	@rm -rf tmp
-
-.PHONY: initrd
-initrd:
-	mkid initrd $(BIN_DIR)/initrd
 	
 run:
 	@rm -f kos*.log
-	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -fda img/kos.img
+	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -no-kqemu -fda img/kos.img
 	
 run-iso:
-	@qemu -m 32 -L ../tools/qemu -cdrom img/kos.iso
+	@rm -f kos*.log
+	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -no-kqemu -cdrom img/kos.iso
 
-dbg:
-	@qemu -m 32 -S -s -L ../tools/qemu -fda img/kos.img
+
+bin/kos.bin: $(OBJFILES) $(ASMOBJS) 
+	@$(LD) $(LDFLAGS) $(ASMOBJS) $(OBJFILES) $(LIBS) -obin/kos.bin -Map linkmap.txt
 	
-bochs:
-	@bochs
+##
+# The following target creates automatic dependency and rule scripts for all objects
+##
 
-## Clean ##
+.rules: $(SRCFILES) Makefile
+	@rm -f .rules
+	@$(foreach file,$(SRCFILES),\
+	echo -n $(subst kernel,bin,$(dir $(file))) >> .rules;\
+	$(CC) $(CFLAGS) -MM $(file) >> .rules;\
+	echo -e "\t@$(CC) $(CFLAGS) -o$(patsubst kernel/%.c,bin/%.o,$(file)) $(file)" >> .rules;\
+	)
+	@$(foreach file,$(ASMFILES),\
+	echo "$(patsubst kernel/%.s,bin/%.s.o,$(file)): $(file)" >> .rules;\
+	echo -e "\t@$(ASM) $(ASMFLAGS) -o$(patsubst kernel/%.s,bin/%.s.o,$(file)) $(file)" >> .rules;\
+	)
 
-clean:
-	@rm -f $(BIN_DIR)/*.o
-	@rm -f link.map
-	
-cleanall: clean
-	@rm -f $(BIN_DIR)/kos.bin
-	@rm -f $(BIN_DIR)/*.mod
-	@rm -f $(BIN_DIR)/*.a
-	@rm -f img/kos.img
-	@rm -f img/kos.iso
-	@rm -f *.target
-	@rm -f .objlist
+-include .rules
+
+
