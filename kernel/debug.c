@@ -11,10 +11,7 @@
 #include "tty.h"
 #include "mm/virt.h"
 
-#define COM_ALL  0
-#define COM_ERR  1
-#define COM_DBG  2
-#define COM_VDBG 3
+#define COM_DBG 0
 
 #define CLR_ERR  0x04
 #define CLR_DBG  0x02
@@ -55,7 +52,7 @@ const char *dbg_lsc_name[] = {
 };
 #endif
 
-static int com_loglvl = COM_ERR;
+static int com_loglvl = 1;
 
 static Elf32_Shdr *symtab;
 static Elf32_Shdr *strtab;
@@ -206,9 +203,8 @@ void dbg_aerror(const char *fmt, va_list args)
 
 	strafmt(buffer, fmt, args);
 
-	if (com_loglvl >= COM_ERR) {
-		com_puts(COM_ALL, buffer);
-		com_puts(COM_ERR, buffer);
+	if (com_loglvl >= 1) {
+		com_puts(COM_DBG, buffer);
 	}
 
 	byte old = kout_set_status(CLR_ERR);
@@ -237,8 +233,7 @@ void dbg_printf(char flag, const char *fmt, ...)
 	strafmt(buffer, fmt, args);
 	va_end(args);
 
-	if (dbg_check(flag) || com_loglvl >= COM_DBG) {
-		com_puts(COM_ALL, buffer);
+	if (dbg_check(flag) || com_loglvl >= 2) {
 		com_puts(COM_DBG, buffer);
 	}
 	if (dbg_check(flag)) {
@@ -259,9 +254,8 @@ void dbg_vprintf(char flag, const char *fmt, ...)
 	strafmt(buffer, fmt, args);
 	va_end(args);
 
-	if (dbg_verbose(flag) || com_loglvl >= COM_VDBG) {
-		com_puts(COM_ALL, buffer);
-		com_puts(COM_VDBG, buffer);
+	if (dbg_verbose(flag) || com_loglvl >= 3) {
+		com_puts(COM_DBG, buffer);
 	}
 
 	if (dbg_verbose(flag)) {

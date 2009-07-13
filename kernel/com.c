@@ -1,12 +1,11 @@
 #include <bitop.h>
+#include <string.h>
 #include <types.h>
 #include <ports.h>
 #include "bios.h"
 #include "com.h"
 #include "fs/types.h"
 #include "fs/devfs.h"
-
-#define
 
 #define TRANSMIT     0
 #define INTR_ENABLE  1
@@ -86,7 +85,7 @@ void init_com(void)
 		if (USABLE(i)) {
 			init_port(i, COM_BAUD, COM_PARITY, COM_BITS);
 
-			memset(inodes[i], 0, sizeof(struct inode));
+			memset(&inodes[i], 0, sizeof(struct inode));
 			inodes[i].name  = names[i];
 			inodes[i].flags = FS_CHARDEV;
 			inodes[i].impl  = i;
@@ -144,7 +143,7 @@ static int com_read(struct file *file, void *buffer, dword count, dword offset)
 
 static int com_write(struct file *file, void *buffer, dword count, dword offset)
 {
-	int id = file->impl;
+	int id = file->inode->impl;
 
 	char *buf = buffer;
 	int i=0;
