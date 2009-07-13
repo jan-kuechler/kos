@@ -1,4 +1,5 @@
 SRCFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.c")
+HDRFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.h")
 ASMFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.s")
 
 OBJFILES = $(patsubst kernel/%.c,bin/%.o,$(SRCFILES))
@@ -32,6 +33,12 @@ version:
 	
 verupdate:
 	@./version.sh
+	
+stats:
+	@echo  == Lines == 
+	@wc -l $(SRCFILES) $(ASMFILES) $(HDRFILES) | sort
+	@echo -e "\n== Characters =="
+	@wc -c $(SRCFILES) $(ASMFILES) $(HDRFILES) | sort
 
 kernel: bin/kos.bin
 
