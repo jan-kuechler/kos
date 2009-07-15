@@ -1,5 +1,6 @@
 #include <bitop.h>
 #include <errno.h>
+#include <minc.h>
 #include <ports.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,15 +81,15 @@ static void scroll(tty_t *tty, int lines)
 {
 	dword offs = lines * TTY_SCREEN_X * 2;
 	dword count = (TTY_SCREEN_Y - lines) * TTY_SCREEN_X * 2;
-	dword ncount = lines * TTY_SCREEN_X * 2;
+	dword ncount = lines * TTY_SCREEN_X; // * 2;
 
 	if (tty == cur_tty) {
 		memmove(((byte*)vmem), ((byte*)vmem) + offs, count);
-		memset(((byte*)vmem) + count, 0, ncount);
+		memsetw(((int8_t*)vmem) + count, ' ' | (tty->status << 8), ncount);
 	}
 
 	memmove(((byte*)tty->outbuf), ((byte*)tty->outbuf) + offs, count);
-	memset(((byte*)tty->outbuf) + count, 0, ncount);
+	memsetw(((int8_t*)tty->outbuf) + count, ' ' | (tty->status << 8), ncount);
 	tty->y -= lines;
 }
 
@@ -107,7 +108,7 @@ static inline void flush(tty_t *tty)
  */
 static inline void clear(tty_t *tty)
 {
-	memset(tty->outbuf, 0, TTY_SCREEN_SIZE * 2); // TTY_SCREEN_SIZE is in words
+	memsetw(tty->outbuf, ' ' | (tty->status << 8), TTY_SCREEN_SIZE);
 }
 
 /**
@@ -188,30 +189,9 @@ static inline void puts(tty_t *tty, const char *str)
  */
 static void putn(tty_t *tty, int num, int base, int pad, char pc)
 {
-	static char digits[] = "0123456789ABCDEFGHIJKLMOPQRSTUVWXYZ";
-
-	char tmp[65];
-	char *end = tmp + 64;
-
-	if (base < 2 || base > 36)
-		return;
-
-	*end-- = 0;
-
-	do {
-		int rem = num % base;
-		num = num / base;
-		*end-- = digits[rem];
-		pad--;
-	} while (num > 0);
-
-	while (pad-- > 0) {
-		putc(tty, pc);
-	}
-
-	while (*(++end)) {
-		putc(tty, *end);
-	}
+	static char buffer[256];
+	numfmt(buffer, num, base, pad, pc);
+	puts(tty, buffer);
 }
 
 /**
@@ -755,97 +735,21 @@ void kout_putn(int num, int base)
 
 void kout_aprintf(const char *fmt, va_list args)
 {
-	long long val = 0;
-	int pad;
-	char padc;
+	static char buffer[1024];
 
-	while (*fmt) {
-		if (*fmt == '%') {
-			fmt++;
-
-			pad = 0;
-			if (*fmt == '0') {
-				padc = '0';
-				fmt++;
-			}
-			else {
-				padc = ' ';
-			}
-
-			while (*fmt >= '0' && *fmt <= '9') {
-				pad = pad * 10 + *fmt++ - '0';
-			}
-
-			if (*fmt == 'd' || *fmt == 'u') {
-				val = va_arg(args, int);
-				if (val < 0) {
-					putc(kout_tty, '-');
-					pad--;
-					val = -val;
-				}
-			}
-			else if (*fmt == 'i' || *fmt == 'o' ||
-			         *fmt == 'p' || *fmt == 'x' ||
-			         *fmt == 'b')
-			{
-				val = va_arg(args, int);
-				val = val  & 0xffffffff;
-			}
-
-
-			switch (*fmt) {
-			case 'c':
-				putc(kout_tty, va_arg(args, int));
-				break;
-
-			case 'b':
-				putn(kout_tty, val, 2, pad, padc);
-				break;
-
-			case 'd':
-			case 'i':
-			case 'u':
-				putn(kout_tty, val, 10, pad, padc);
-				break;
-
-			case 'o':
-				putn(kout_tty, val, 8, pad, padc);
-				break;
-
-			case 'p':
-				padc = '0';
-				pad  = 8;
-				puts(kout_tty, "0x");
-			case 'x':
-				putn(kout_tty, val, 16, pad, padc);
-				break;
-
-			case 's':
-				puts(kout_tty, va_arg(args, char*));
-				break;
-
-			case '%':
-				putc(kout_tty, '%');
-				break;
-
-			default:
-				putc(kout_tty, '%');
-				putc(kout_tty, *fmt);
-				break;
-			}
-			fmt++;
-		}
-		else {
-			putc(kout_tty, *fmt++);
-		}
-	}
+	strafmt(buffer, fmt, args);
+	kout_puts(buffer);
 }
 
 void kout_printf(const char *fmt, ...)
 {
+	static char buffer[1024];
+
 	va_list args;
 	va_start(args, fmt);
-	kout_aprintf(fmt, args);
+	strafmt(buffer, fmt, args);
+	kout_puts(buffer);
+	va_end(args);
 }
 
 byte kout_set_status(byte status)
