@@ -454,10 +454,10 @@ dword sys_sbrk(dword calln, dword incr, dword arg1, dword arg2)
 
 	vaddr_t old_brk = cur_proc->mem_brk;
 
-	if (incr == 0)
+	if (size == 0)
 		return (dword)old_brk;
 
-	if (incr < 0) {
+	if (size < 0) {
 		dbg_vprintf(DBG_SC, " sbrk: incr < 0 is not implemented.\n");
 		return (dword)old_brk;
 	}
@@ -465,6 +465,7 @@ dword sys_sbrk(dword calln, dword incr, dword arg1, dword arg2)
 	size_t rest = cur_proc->brk_page - cur_proc->mem_brk;
 
 	if (rest < size) {
+		dbg_vprintf(DBG_SC, " Increase heap by %d pages\n", NUM_PAGES(size));
 		increase_heap(cur_proc, NUM_PAGES(size));
 	}
 	else {
