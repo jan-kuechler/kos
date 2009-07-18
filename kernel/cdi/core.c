@@ -35,11 +35,7 @@ void cdi_driver_init(struct cdi_driver *driver)
 void cdi_driver_destroy(struct cdi_driver *driver)
 {
 	cdi_check_init();
-
-	if (!driver) {
-		cdi_error("driver is NULL");
-		return;
-	}
+	cdi_check_arg(driver, != NULL);
 
 	cdi_list_destroy(driver->devices);
 }
@@ -47,11 +43,7 @@ void cdi_driver_destroy(struct cdi_driver *driver)
 void cdi_driver_register(struct cdi_driver *driver)
 {
 	cdi_check_init();
-
-	if (!driver) {
-		cdi_error("driver is NULL");
-		return;
-	}
+	cdi_check_arg(driver, != NULL);
 
 	list_add_back(cdi_drivers, driver);
 

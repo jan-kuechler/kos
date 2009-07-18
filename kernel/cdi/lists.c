@@ -31,7 +31,7 @@ void cdi_list_destroy(cdi_list_t list)
 cdi_list_t cdi_list_push(cdi_list_t list, void* value)
 {
 	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	list_add_front(list->list, value);
 
@@ -41,7 +41,7 @@ cdi_list_t cdi_list_push(cdi_list_t list, void* value)
 void* cdi_list_pop(cdi_list_t list)
 {
 	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	return list_del_front(list->list);
 }
@@ -49,7 +49,7 @@ void* cdi_list_pop(cdi_list_t list)
 size_t cdi_list_empty(cdi_list_t list)
 {
 	cdi_check_init(return 0);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return 0);
 
 	return list_empty(list->list);
 }
@@ -57,7 +57,7 @@ size_t cdi_list_empty(cdi_list_t list)
 void* cdi_list_get(cdi_list_t list, size_t index)
 {
 	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -73,7 +73,7 @@ void* cdi_list_get(cdi_list_t list, size_t index)
 cdi_list_t cdi_list_insert(cdi_list_t list, size_t index, void* value)
 {
 	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -85,13 +85,13 @@ cdi_list_t cdi_list_insert(cdi_list_t list, size_t index, void* value)
 		++i;
 	}
 
-	return (void*)0;
+	return NULL;
 }
 
 void* cdi_list_remove(cdi_list_t list, size_t index)
 {
 	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -102,13 +102,13 @@ void* cdi_list_remove(cdi_list_t list, size_t index)
 		++i;
 	}
 
-	return (void*)0;
+	return NULL;
 }
 
 size_t cdi_list_size(cdi_list_t list)
 {
 	cdi_check_init(return 0);
-	cdi_check_arg(list, != NULL);
+	cdi_check_arg(list, != NULL, return NULL);
 
 	return list_size(list->list);
 }
