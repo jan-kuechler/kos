@@ -47,7 +47,7 @@ initrd:
 
 floppy: 
 	@./cpyfiles.sh floppy
-	@bfi -t=144 -f=img/kos.img tmp -b=../tools/grub/grldr.mbr
+	@bfi -t=144 -f=img/kos.img tmp 
 	@cmd "/C makeboot.bat img\kos.img "
 	@rm -rf tmp
 	

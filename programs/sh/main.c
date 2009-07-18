@@ -63,7 +63,7 @@ static size_t prompt(char *buf, size_t max)
 
 int main(int argc, char **argv)
 {
-	char buffer[BUFLEN];
+	char buffer[1024];
 
 	motd();
 

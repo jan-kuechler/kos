@@ -74,10 +74,10 @@ void kinit()
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
 
-	if (!strstr((char*)multiboot_info.cmdline, "nosh")) {
+	if (!strstr((char*)multiboot_info.cmdline, " nosh")) {
 
 		do {
-			pid_t pid = exec_file("/bin/sh", "/bin/sh", getpid());
+			pid_t pid = exec_file("/bin/sh", "sh test", getpid());
 			int status = waitpid(pid, NULL, 0);
 
 			kout_printf("/bin/sh ended with status %d.\n", status);
