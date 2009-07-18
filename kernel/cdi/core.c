@@ -48,4 +48,5 @@ void cdi_driver_register(struct cdi_driver *driver)
 	list_add_back(cdi_drivers, driver);
 
 	/* TODO: Create device file for driver. */
+	UNIMPLEMENTED
 }

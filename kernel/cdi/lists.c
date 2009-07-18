@@ -108,7 +108,7 @@ void* cdi_list_remove(cdi_list_t list, size_t index)
 size_t cdi_list_size(cdi_list_t list)
 {
 	cdi_check_init(return 0);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_arg(list, != NULL, return 0);
 
 	return list_size(list->list);
 }
