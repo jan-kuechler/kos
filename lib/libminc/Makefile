@@ -17,6 +17,7 @@ objs:
 -include obj.rules
 
 archive: $(OBJS)
+	rm $(NAME).a
 	ar rc $(NAME).a $(OBJS)
 	
 install:
