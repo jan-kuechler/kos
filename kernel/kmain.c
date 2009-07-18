@@ -59,6 +59,7 @@ static void kinit_fs(void)
 	}
 
 	init_tty();
+	init_com_devices();
 	tty_register_keymap("de", keymap_de);
 	kout_puts("\tdone!\n");
 }
@@ -73,13 +74,16 @@ void kinit()
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
 
-	do {
-		pid_t pid = exec_file("/bin/sh", "/bin/sh", getpid());
-		int status = waitpid(pid, NULL, 0);
+	if (!strstr((char*)multiboot_info.cmdline, "nosh")) {
 
-		kout_printf("/bin/sh ended with status %d.\n", status);
+		do {
+			pid_t pid = exec_file("/bin/sh", "/bin/sh", getpid());
+			int status = waitpid(pid, NULL, 0);
 
-	} while (1);
+			kout_printf("/bin/sh ended with status %d.\n", status);
+
+		} while (1);
+	}
 
 	_exit(0);
 }

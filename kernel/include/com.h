@@ -8,6 +8,7 @@
 #define COM_BITS   8
 
 void init_com(void);
+void init_com_devices(void);
 
 void com_putc(int port, char c);
 void com_puts(int port, const char *str);

@@ -84,7 +84,15 @@ void init_com(void)
 
 		if (USABLE(i)) {
 			init_port(i, COM_BAUD, COM_PARITY, COM_BITS);
+		}
+	}
+}
 
+void init_com_devices(void)
+{
+	int i=0;
+	for (; i < 4; ++i) {
+		if (USABLE(i)) {
 			memset(&inodes[i], 0, sizeof(struct inode));
 			inodes[i].name  = names[i];
 			inodes[i].flags = FS_CHARDEV;
@@ -95,7 +103,6 @@ void init_com(void)
 		}
 	}
 }
-
 
 static int transmit_empty(int p)
 {
