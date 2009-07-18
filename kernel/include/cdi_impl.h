@@ -17,9 +17,9 @@
 	} while (0)
 
 
-#define cdi_check_arg(arg, check) \
+#define cdi_check_arg(arg, check, ...) \
   if (!(arg check)) { \
-		cdi_error("Argument " #arg " is invalid"); \
+		cdi_error("Argument " #arg " is invalid", __VA_ARGS__); \
 	}
 
 #endif /*CDI_IMPL_H*/
