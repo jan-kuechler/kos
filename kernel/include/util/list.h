@@ -21,6 +21,7 @@ int list_size(list_t *list);
 
 list_t *list_add_front(list_t *list, void *data);
 list_t *list_add_back(list_t *list, void *data);
+list_t *list_add_after(list_t *list, list_entry_t *entry, void *data);
 
 void *list_del_front(list_t *list);
 void *list_del_back(list_t *list);

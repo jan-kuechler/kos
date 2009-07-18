@@ -89,6 +89,26 @@ list_t *list_add_back(list_t *list, void *data)
 	return list;
 }
 
+list_t *list_add_after(list_t *list, list_entry_t *entry, void *data)
+{
+	list_entry_t *ne = _list_create_entry(data);
+
+	if (entry->next) {
+		ne->next = entry->next;
+		entry->next->prev = ne;
+	}
+	entry->next = ne;
+	ne->prev = entry;
+
+	if (entry == list->back) {
+		list->back = ne;
+	}
+
+	list->size++;
+
+	return list;
+}
+
 /**
  *  list_del_front(list)
  *
