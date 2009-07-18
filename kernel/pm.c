@@ -397,13 +397,15 @@ dword sys_getcmdline(dword calln, dword arg0, dword arg1, dword arg2)
 
 	if (!cur_proc->cmdline_mapped) {
 		page = mm_alloc_page();
-		vm_map_page(cur_proc->as->pdir,	page, (vaddr_t)CONF_PROG_BASE_MIN - PAGE_SIZE,
+		vm_map_page(cur_proc->as->pdir,	page, (vaddr_t)INFO_SPACE_START,
 		            PE_PRESENT | PE_READWRITE | PE_USERMODE);
+
+		cur_proc->cmdline_mapped = 1;
 	}
 
 	vm_cpy_pv(page, cur_proc->cmdline, strlen(cur_proc->cmdline) + 1);
 
-	return CONF_PROG_BASE_MIN - PAGE_SIZE;
+	return INFO_SPACE_START;
 }
 
 static void idle()
