@@ -46,6 +46,7 @@ static size_t prompt(char *buf, size_t max)
 {
 	char *str = NULL;
 	printf("$ ");
+
 	if (!(str = fgets(buf, max, stdin))) {
 		die("Cannot read input.");
 	}

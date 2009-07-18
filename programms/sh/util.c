@@ -142,6 +142,7 @@ char *build_cmd(struct cmd *cmd)
 	}
 
 	char *line = malloc(len);
+	memset(line, 0, len);
 
 	for (i = 0; i < cmd->argc; ++i) {
 		strcat(line, cmd->argv[i]);
@@ -180,6 +181,13 @@ int main(int argc, char **argv)
 	for (; i < cmd.argc; ++i) {
 		printf(" ->%s\n", cmd.argv[i]);
 	}
+
+	char *relined = build_cmd(&cmd);
+
+	printf("Reassembled: '%s'\n", relined);
+
+	free_argv(&cmd);
+	free(relined);
 
 	return 0;
 }

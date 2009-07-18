@@ -35,7 +35,7 @@ struct bi_cmd
 
 static struct bi_cmd commands[] = {
 	CMD(exit),
-	CMD(echo),
+//	CMD(echo),
 	{0, 0}
 };
 
