@@ -68,8 +68,8 @@ void kinit()
 {
 	kinit_fs();
 
-	extern void ksh(void);
-	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
+//	extern void ksh(void);
+//	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
 
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";

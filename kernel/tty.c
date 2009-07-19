@@ -30,7 +30,8 @@ static char *names[NUM_TTYS] = {
 static tty_t ttys[NUM_TTYS];
 static tty_t *cur_tty;
 
-static tty_t *kout_tty;
+static tty_t _kout_tty;
+static tty_t *kout_tty = &_kout_tty;
 
 typedef struct
 {
@@ -360,46 +361,11 @@ int tty_isatty(struct file *file)
 	return CHECK_TTY(file);
 }
 
-/**
- *  tty_dbg_info(tty)
- */
-static void tty_dbg_info(tty_t *tty)
+static inline void select_tty(tty_t *tty)
 {
-	putc(tty, '\n');
-	puts(tty, "== TTY Debug Info ==\n");
-	puts(tty, "   Id:        ");
-	putc(tty, '0' + tty->id);
-	putc(tty, '\n');
-
-	puts(tty, "   Mode:      ");
-	if (tty->flags & TTY_RAW)
-		puts(tty, "raw\n");
-	else
-		puts(tty, "cbreak\n");
-
-	puts(tty, "   Modifiers: ");
-	if (modifiers.shift)
-		puts(tty, "shift ");
-	if (modifiers.alt)
-		puts(tty, "alt ");
-	if (modifiers.altgr)
-		puts(tty, "altgr ");
-	if (modifiers.ctrl)
-		puts(tty, "ctrl ");
-	putc(tty, '\n');
-
-	puts(tty, "   Incount:   ");
-	putc(tty, tty->incount + '0');
-	putc(tty, '\n');
-
-	puts(tty, "   RQs:       ");
-	putc(tty, list_size(tty->requests) + '0');
-	putc(tty, '\n');
-
-	puts(tty, "   EOTs:      ");
-	putc(tty, tty->eotcount + '0');
-	putc(tty, '\n');
-
+	cur_tty = tty;
+	flush(cur_tty);
+	update_cursor(cur_tty);
 }
 
 /** following code handles the keyboard irq **/
@@ -495,7 +461,7 @@ static inline byte handle_raw(byte code)
 	}
 
 	if (code == KEYC_F12) {
-		tty_dbg_info(cur_tty);
+		select_tty(kout_tty);
 		return 1;
 	}
 
@@ -606,9 +572,7 @@ static void tty_irq_handler(int irq, dword *esp)
 void tty_set_cur_term(byte n)
 {
 	if (n < NUM_TTYS) {
-		cur_tty = &ttys[n];
-		flush(cur_tty);
-		update_cursor(cur_tty);
+		select_tty(&ttys[n]);
 	}
 }
 
@@ -694,7 +658,7 @@ static inline void init(tty_t *tty, int id, int early)
 void init_tty(void)
 {
 	int i=0;
-	for (; i < NUM_TTYS - 1; ++i) { // spare the kout_tty
+	for (; i < NUM_TTYS; ++i) { // spare the kout_tty
 		tty_t *tty = &ttys[i];
 
 		init(tty, i, 0);
@@ -704,7 +668,7 @@ void init_tty(void)
 
 	// anything else for kout_tty is done in init_kout
 	kout_tty->requests = list_create();
-	devfs_register(&kout_tty->inode);
+//	devfs_register(&kout_tty->inode);
 
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;
@@ -723,8 +687,6 @@ void init_tty(void)
 
 void init_kout(void)
 {
-	kout_tty = &ttys[kout_id];
-
 	init(kout_tty, kout_id, 1);
 
 	cur_tty = kout_tty;
