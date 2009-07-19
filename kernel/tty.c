@@ -117,8 +117,10 @@ static inline void clear(tty_t *tty)
 static inline void update_cursor(tty_t *tty)
 {
 	if (tty == cur_tty) {
-		word pos = CPOS(tty);
-
+		word pos = TTY_SCREEN_SIZE + 1;
+		if (list_size(tty->requests) > 0) {
+			pos = CPOS(tty);
+		}
 		outb(0x3D4, 15);
 		outb(0x3D5, pos);
 		outb(0x3D4, 14);
@@ -281,6 +283,8 @@ static void answer_rq(tty_t *tty)
 	dbg_vprintf(DBG_TTY, "  rq-proc blocked? %s\n", rq->blocked ? "yes" : "no");
 	rq_finish(rq);
 	dbg_vprintf(DBG_TTY, "  finished request.\n");
+
+	update_cursor(tty);
 }
 
 static int tty_open(struct inode *ino, struct file *file, dword flags)
@@ -314,6 +318,9 @@ static int tty_read(struct file *file, void *buffer, dword count, dword offset)
 		rq->free_buffer = 1;
 		list_add_back(tty->requests, rq);
 		rq_block(rq);
+
+		update_cursor(tty);
+
 		return -EAGAIN;
 	}
 }
