@@ -32,4 +32,19 @@
  */
 #define CONF_PROG_BASE_MIN 0x40000000
 
+/**
+ *  CONF_CDI_SECURE
+ *
+ * Define this to enable extra checks for CDI functions.
+ */
+#define CONF_CDI_SECURE 1
+
+/**
+ *  CONF_CDI_ERR_FATAL
+ *
+ * Define this to make cdi_error emit a kernel panic.
+ * Otherwise it's just a dbg_error output.
+ */
+#define CONF_CDI_ERR_FATAL 1
+
 #endif /*KOS_CONFIG_H*/

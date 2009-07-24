@@ -3,14 +3,9 @@
 #include "mm/kmalloc.h"
 #include "util/list.h"
 
-struct cdi_list_implementation
-{
-	list_t *list;
-};
-
 cdi_list_t cdi_list_create(void)
 {
-	cdi_check_init(return NULL);
+	cdi_check_init(NULL);
 
 	cdi_list_t list = kmalloc(sizeof(struct cdi_list_implementation));
 
@@ -30,8 +25,8 @@ void cdi_list_destroy(cdi_list_t list)
 
 cdi_list_t cdi_list_push(cdi_list_t list, void* value)
 {
-	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_init(NULL);
+	cdi_check_arg(list, != NULL, NULL);
 
 	list_add_front(list->list, value);
 
@@ -40,24 +35,24 @@ cdi_list_t cdi_list_push(cdi_list_t list, void* value)
 
 void* cdi_list_pop(cdi_list_t list)
 {
-	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_init(NULL);
+	cdi_check_arg(list, != NULL, NULL);
 
 	return list_del_front(list->list);
 }
 
 size_t cdi_list_empty(cdi_list_t list)
 {
-	cdi_check_init(return 0);
-	cdi_check_arg(list, != NULL, return 0);
+	cdi_check_init(0);
+	cdi_check_arg(list, != NULL, 0);
 
 	return list_empty(list->list);
 }
 
 void* cdi_list_get(cdi_list_t list, size_t index)
 {
-	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_init(NULL);
+	cdi_check_arg(list, != NULL, NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -72,8 +67,8 @@ void* cdi_list_get(cdi_list_t list, size_t index)
 
 cdi_list_t cdi_list_insert(cdi_list_t list, size_t index, void* value)
 {
-	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_init(NULL);
+	cdi_check_arg(list, != NULL, NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -90,8 +85,8 @@ cdi_list_t cdi_list_insert(cdi_list_t list, size_t index, void* value)
 
 void* cdi_list_remove(cdi_list_t list, size_t index)
 {
-	cdi_check_init(return NULL);
-	cdi_check_arg(list, != NULL, return NULL);
+	cdi_check_init(NULL);
+	cdi_check_arg(list, != NULL, NULL);
 
 	list_entry_t *e;
 	int i = 0;
@@ -107,8 +102,8 @@ void* cdi_list_remove(cdi_list_t list, size_t index)
 
 size_t cdi_list_size(cdi_list_t list)
 {
-	cdi_check_init(return 0);
-	cdi_check_arg(list, != NULL, return 0);
+	cdi_check_init(0);
+	cdi_check_arg(list, != NULL, 0);
 
 	return list_size(list->list);
 }
