@@ -2,6 +2,7 @@
 #define IDT_H
 
 #include "types.h"
+#include "context.h"
 
 #define IDT_GATE_PRESENT   0x80 /* 1000000b */
 
@@ -57,9 +58,7 @@ byte idt_clr_irq_handler(byte irq);
 static inline void enable_intr()
 {
 	/* only enables interrupts when the kernel initialization is done. */
-	extern byte kernel_init_done;
-	extern byte idt_in_irq_handler;
-	if (kernel_init_done && !idt_in_irq_handler)
+	if (get_context() == PROC_CONTEXT)
 		asm volatile("sti");
 }
 

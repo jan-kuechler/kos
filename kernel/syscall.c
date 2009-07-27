@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <kos/error.h>
 #include <kos/syscalln.h>
 #include "debug.h"
 #include "idt.h"

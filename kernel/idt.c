@@ -152,7 +152,7 @@ dword idt_handle_int(dword esp)
 	regs_t *regs = (regs_t*)esp;
 
 	// let interrupts don't get enabled until we have finished
-	idt_in_irq_handler = 1;
+	set_context(IRQ_CONTEXT);
 
 	pm_restore(&esp);
 
@@ -168,7 +168,7 @@ dword idt_handle_int(dword esp)
 
 	pm_pick(&esp);
 
-	idt_in_irq_handler = 0;
+	set_context(PROC_CONTEXT);
 
 	return esp;
 }

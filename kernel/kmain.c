@@ -7,6 +7,7 @@
 #include <kos/version.h>
 #include "acpi.h"
 #include "com.h"
+#include "context.h"
 #include "debug.h"
 #include "gdt.h"
 #include "idt.h"
@@ -31,9 +32,6 @@ static void print_info();
 static dword sys_answer(dword, dword, dword, dword);
 
 multiboot_info_t multiboot_info;
-byte kernel_init_done;
-
-static int in_panic = 0;
 
 static void kinit_fs(void)
 {
@@ -68,9 +66,6 @@ void kinit()
 {
 	kinit_fs();
 
-//	extern void ksh(void);
-//	pm_create(ksh, "ksh", PM_KERNEL, 1, PS_READY);
-
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
 
@@ -90,7 +85,8 @@ void kinit()
 
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
-	kernel_init_done = 0;
+	set_context(INIT_CONTEXT);
+
 	init_kout();
 	init_com();
 
@@ -139,21 +135,18 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 
-	kernel_init_done = 1;
-
+	set_context(PROC_CONTEXT);
 	enable_intr();
 	/* send fake timer interrupt to start scheduling */
-	asm volatile ("int $0x20"); /* 0x20 is IRQ_BASE */
+	asm volatile ("int $0x20");
 
-	for (;;)
-		;
+	for (;;) asm("hlt");
 }
-
 
 static void banner()
 {
 	int len = strlen(kos_version);
-	len += 4; // strlen("kOS ");
+	len += 4; // strlen("kOS ")
 
 	int linerest = 80 - len;
 	int begin = linerest / 2;
@@ -244,21 +237,18 @@ __attribute__((noreturn)) void shutdown()
 	disable_intr();
 	kout_select();
 	kout_clear();
-	while (1) {
-		asm volatile("hlt");
-	}
+	for (;;) asm("hlt");
 }
 
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
-	if (in_panic) {
-		for (;;)
-			asm("hlt");
+	if (get_context() == PANIC_CONTEXT) {
+		/* recusive panic, just kill the machine */
+		disable_intr();
+		for (;;) asm("hlt");
 	}
 
-	in_panic = 1;
-
-	kernel_init_done = 0; // interrupts won't get enabled again
+	set_context(PANIC_CONTEXT);
 
 	va_list args;
 	va_start(args, fmt);
@@ -275,7 +265,5 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 
 	dbg_print_last_syscall();
 
-	while (1) {
-		asm volatile("hlt");
-	}
+	for (;;) asm ("hlt");
 }

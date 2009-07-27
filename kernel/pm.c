@@ -12,9 +12,11 @@
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 #include "mm/mm.h"
+#include "util/list.h"
 
 static int koop_mode = 0;
 
+struct proc kproc; /* this is the kernel process */
 struct proc procs[MAX_PROCS];
 static struct proc *plist_head, *plist_tail;
 
@@ -244,6 +246,10 @@ void pm_deactivate(struct proc *proc)
  */
 void pm_update()
 {
+	/* do not preempt the kernel process */
+//	if (cur_proc == &kproc && kproc.status == PS_READY)
+//		return;
+
 	if (!cur_proc || cur_proc->status != PS_READY || (!koop_mode && (--cur_proc->ticks_left) <= 0))
 		pm_schedule();
 }
@@ -266,6 +272,12 @@ void pm_schedule()
 
 	if (cur_proc->status == PS_RUNNING)
 		cur_proc->status = PS_READY;
+
+	/* pick the kernel process if it wants to run */
+//	if (kproc.status == PS_READY) {
+//		cur_proc = &kproc;
+//		return;
+//	}
 
 	/* Very simple round robin */
 	plist_tail->next = plist_head;
@@ -430,6 +442,8 @@ void init_pm(void)
 
 	plist_head = 0;
 	plist_tail = 0;
+
+	kproc.status = PS_BLOCKED;
 
 	syscall_register(SC_EXIT,       sys_exit);
 	syscall_register(SC_YIELD,      sys_yield);
