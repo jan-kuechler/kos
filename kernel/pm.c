@@ -12,13 +12,17 @@
 #include "mm/kmalloc.h"
 #include "mm/util.h"
 #include "mm/mm.h"
-#include "util/list.h"
 
 static int koop_mode = 0;
 
-struct proc kproc; /* this is the kernel process */
 struct proc procs[MAX_PROCS];
 static struct proc *plist_head, *plist_tail;
+
+static struct proc _kproc;
+struct proc *kproc = &_kproc;
+
+static struct proc _idle_proc;
+struct proc *idle_proc = &_idle_proc;
 
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
@@ -58,28 +62,9 @@ static dword *prepare_stack(dword *kstack, void (*entry)(), enum proc_mode mode)
 	return kstack;
 }
 
-/**
- *  pm_create(entry, cmdline, parent)
- *
- * Creates a new process.
- */
-struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
+static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
+                      enum proc_mode mode, pid_t parent, enum proc_status status)
 {
-	int i=0;
-	int id = MAX_PROCS;
-
-	for (; i < MAX_PROCS; ++i) {
-		if (procs[i].status == PS_SLOT_FREE) {
-			id = i;
-			break;
-		}
-	}
-
-	if (id == MAX_PROCS) {
-		panic("No free slot to create another process.\n");
-	}
-
-	struct proc *proc = &procs[id];
 	struct proc *pproc = parent ? pm_get_proc(parent) : NULL;
 
 	proc->status = status;
@@ -135,6 +120,32 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 
 	if (status == PS_READY)
 		pm_activate(proc);
+}
+
+/**
+ *  pm_create(entry, cmdline, parent)
+ *
+ * Creates a new process.
+ */
+struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
+{
+	int i=0;
+	int id = MAX_PROCS;
+
+	for (; i < MAX_PROCS; ++i) {
+		if (procs[i].status == PS_SLOT_FREE) {
+			id = i;
+			break;
+		}
+	}
+
+	if (id == MAX_PROCS) {
+		panic("No free slot to create another process.\n");
+	}
+
+	struct proc *proc = &procs[id];
+
+	init_proc(proc, entry, cmdline, mode, parent, status);
 
 	return proc;
 }
@@ -368,54 +379,54 @@ int pm_get_koop()
 	return koop_mode;
 }
 
-dword sys_exit(dword calln, dword status, dword arg1, dword arg2)
+int32_t sys_exit(int32_t status)
 {
 	cur_proc->exit_status = status;
-	pm_destroy(cur_proc);
+	pm_destroy(syscall_proc);
 	pm_schedule();
 	return 0;
 }
 
-dword sys_yield(dword calln, dword arg0, dword arg1, dword arg2)
+int32_t sys_yield()
 {
 	pm_schedule();
 	return 0;
 }
 
-dword sys_waitpid(dword calln, dword pid, dword statusptr, dword options)
+int32_t sys_waitpid(int32_t pid, int32_t statusptr, int32_t options)
 {
 	struct proc *other = pm_get_proc(pid);
 
 	if (other->status == PS_SLOT_FREE || other->wait_proc != 0)
 		return (dword)-1;
 
-	other->wait_proc = cur_proc->pid;
-	cur_proc->wait_for = pid;
-	pm_block(cur_proc, BR_WAIT_PROC);
+	other->wait_proc = syscall_proc->pid;
+	syscall_proc->wait_for = pid;
+	pm_block(syscall_proc, BR_WAIT_PROC);
 
 	return 0; // Dummy!
 }
 
-dword sys_getpid(dword calln, dword arg0, dword arg1, dword arg2)
+int32_t sys_getpid()
 {
-	return cur_proc->pid;
+	return syscall_proc->pid;
 }
 
-dword sys_getcmdline(dword calln, dword arg0, dword arg1, dword arg2)
+int32_t sys_getcmdline()
 {
-	if (!cur_proc->cmdline) return 0;
+	if (!syscall_proc->cmdline) return 0;
 
 	paddr_t page = NULL;
 
-	if (!cur_proc->cmdline_mapped) {
+	if (!syscall_proc->cmdline_mapped) {
 		page = mm_alloc_page();
-		vm_map_page(cur_proc->as->pdir,	page, (vaddr_t)INFO_SPACE_START,
+		vm_map_page(syscall_proc->as->pdir,	page, (vaddr_t)INFO_SPACE_START,
 		            PE_PRESENT | PE_READWRITE | PE_USERMODE);
 
-		cur_proc->cmdline_mapped = 1;
+		syscall_proc->cmdline_mapped = 1;
 	}
 
-	vm_cpy_pv(page, cur_proc->cmdline, strlen(cur_proc->cmdline) + 1);
+	vm_cpy_pv(page, syscall_proc->cmdline, strlen(syscall_proc->cmdline) + 1);
 
 	return INFO_SPACE_START;
 }
@@ -443,16 +454,17 @@ void init_pm(void)
 	plist_head = 0;
 	plist_tail = 0;
 
-	kproc.status = PS_BLOCKED;
+	//init_proc(kproc);
 
-	syscall_register(SC_EXIT,       sys_exit);
-	syscall_register(SC_YIELD,      sys_yield);
-	syscall_register(SC_GETPID,     sys_getpid);
-	syscall_register(SC_WAITPID,    sys_waitpid);
-	syscall_register(SC_GETCMDLINE, sys_getcmdline);
+	syscall_register(SC_EXIT,       sys_exit, 1);
+	syscall_register(SC_YIELD,      sys_yield, 0);
+	syscall_register(SC_GETPID,     sys_getpid, 0);
+	syscall_register(SC_WAITPID,    sys_waitpid, 3);
+	syscall_register(SC_GETCMDLINE, sys_getcmdline, 0);
 
 	/* create special process 0: idle */
 	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
+	//init_proc(idle_proc, idle, "idle", 0, 0, PS_BLOCKED);
 	pm_activate(idle_proc); // Note: Does and should not unblock idle
 
 	cur_proc = idle_proc;

@@ -72,30 +72,30 @@ struct fstype *vfs_gettype(char *name)
 
 static inline struct file *fd2file(dword fd)
 {
-	if (fd >= cur_proc->numfds)
+	if (fd >= syscall_proc->numfds)
 		return NULL;
 
-	return cur_proc->fds[fd];
+	return syscall_proc->fds[fd];
 }
 
-dword sys_open(dword calln, dword fname, dword flags, dword arg2)
+int32_t sys_open(int32_t fname, int32_t flags)
 {
 	dbg_vprintf(DBG_FS, "sys_open(%p, %d) \n", fname, flags);
 
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->as->pdir, (vaddr_t)fname, &namelen);
+	char *name = vm_map_string(syscall_proc->as->pdir, (vaddr_t)fname, &namelen);
 	int result = -1;
 
 	dbg_vprintf(DBG_FS, "name is '%s' (len: %d)\n", name, namelen);
 
-	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
+	struct inode *inode = vfs_lookup(name, syscall_proc->cwd);
 
 	if (!inode) {
 		result = vfs_geterror();
 		goto end;
 	}
 
-	if (cur_proc->numfds >= PROC_NUM_FDS) {
+	if (syscall_proc->numfds >= PROC_NUM_FDS) {
 		result = -EMFILE;
 		goto end;
 	}
@@ -106,14 +106,14 @@ dword sys_open(dword calln, dword fname, dword flags, dword arg2)
 		goto end;
 	}
 
-	cur_proc->fds[cur_proc->numfds] = file;
-	result = cur_proc->numfds++;
+	syscall_proc->fds[syscall_proc->numfds] = file;
+	result = syscall_proc->numfds++;
 end:
 	km_free_addr(name, namelen);
-	return (dword)result;
+	return result;
 }
 
-dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
+int32_t sys_close(int32_t fd)
 {
 	struct file *file = fd2file(fd);
 
@@ -122,15 +122,15 @@ dword sys_close(dword calln, dword fd, dword arg1, dword arg2)
 
 	int err = vfs_close(file);
 	if (!err) {
-		cur_proc->fds[fd] = NULL;
+		syscall_proc->fds[fd] = NULL;
 	}
 
-	return (dword)err;
+	return err;
 }
 
-dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
+int32_t sys_readwrite(int32_t fd, int32_t buffer, int32_t count)
 {
-	void *kbuf = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)buffer, count);
+	void *kbuf = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)buffer, count);
 	struct file *file = fd2file(fd);
 	int result = -ENOSYS;
 
@@ -139,7 +139,7 @@ dword sys_readwrite(dword calln, dword fd, dword buffer, dword count)
 		goto end;
 	}
 
-	if (calln == SC_READ)
+	if (syscall_proc->sc_regs->eax == SC_READ)
 		result = vfs_read(file, kbuf, count, file->pos);
 	else
 		result = vfs_write(file, kbuf, count, file->pos);
@@ -150,12 +150,12 @@ end:
 	return (dword)result;
 }
 
-dword sys_stat(dword calln, dword path, dword sbuf, dword arg2)
+int32_t sys_stat(int32_t path, int32_t sbuf)
 {
 	return -ENOSYS;
 }
 
-dword sys_isatty(dword calln, dword fd, dword arg1, dword arg2)
+int32_t sys_isatty(int32_t fd)
 {
 	struct file *file = fd2file(fd);
 	if (!file)
@@ -164,13 +164,13 @@ dword sys_isatty(dword calln, dword fd, dword arg1, dword arg2)
 	return tty_isatty(file);
 }
 
-dword sys_readdir(dword calln, dword fname, dword index, dword buffer)
+int32_t sys_readdir(dword calln, dword fname, dword index, dword buffer)
 {
 	size_t namelen = 0;
-	char *name = vm_map_string(cur_proc->as->pdir, (vaddr_t)fname, &namelen);
+	char *name = vm_map_string(syscall_proc->as->pdir, (vaddr_t)fname, &namelen);
 	size_t buflen = 0;
-	char *buf = vm_map_string(cur_proc->as->pdir, (vaddr_t)buffer, &buflen);
-	struct inode *inode = vfs_lookup(name, cur_proc->cwd);
+	char *buf = vm_map_string(syscall_proc->as->pdir, (vaddr_t)buffer, &buflen);
+	struct inode *inode = vfs_lookup(name, syscall_proc->cwd);
 	int status = -ENOSYS;
 
 	if (!inode) {
@@ -195,23 +195,23 @@ end:
 	return (dword)status;
 }
 
-dword sys_mount(dword calln, dword mountp, dword ftype, dword device)
+int32_t sys_mount(int32_t mountp, int32_t ftype, int32_t device)
 {
 	if (!mountp || !ftype)
 		return (dword)-EINVAL;
 
 	size_t pathlen = 0;
-	char *path = vm_map_string(cur_proc->as->pdir, (vaddr_t)mountp, &pathlen);
+	char *path = vm_map_string(syscall_proc->as->pdir, (vaddr_t)mountp, &pathlen);
 	size_t typelen = 0;
-	char *type = vm_map_string(cur_proc->as->pdir, (vaddr_t)ftype, &typelen);
+	char *type = vm_map_string(syscall_proc->as->pdir, (vaddr_t)ftype, &typelen);
 
 	size_t devlen = 0;
 	char *dev  = NULL;
 	if (device != 0)
-		dev = vm_map_string(cur_proc->as->pdir, (vaddr_t)device, &devlen);
+		dev = vm_map_string(syscall_proc->as->pdir, (vaddr_t)device, &devlen);
 
 	struct fstype *driver = vfs_gettype(type);
-	struct inode *inode = vfs_lookup(path, cur_proc->cwd);
+	struct inode *inode = vfs_lookup(path, syscall_proc->cwd);
 
 	int err = 0;
 
@@ -230,37 +230,37 @@ end:
 	return (dword)err;
 }
 
-dword sys_open_std(dword calln, dword arg0, dword arg1, dword arg2)
+int32_t sys_open_std()
 {
 	dbg_printf(DBG_SC, "sys_open_std()\n");
 
-	const char *tty = cur_proc->tty;
+	const char *tty = syscall_proc->tty;
 
 	if (!tty) {
 		// TODO: open /dev/null instead
 		return 0;
 	}
 
-	struct inode *inode = vfs_lookup(tty, cur_proc->cwd);
+	struct inode *inode = vfs_lookup(tty, syscall_proc->cwd);
 	int n=0;
 
-	if (!cur_proc->fds[0]) {
-		cur_proc->fds[0] = vfs_open(inode, FSO_READ);
+	if (!syscall_proc->fds[0]) {
+		syscall_proc->fds[0] = vfs_open(inode, FSO_READ);
 		n++;
 	}
 
-	if (!cur_proc->fds[1]) {
-		cur_proc->fds[1] = vfs_open(inode, FSO_WRITE);
+	if (!syscall_proc->fds[1]) {
+		syscall_proc->fds[1] = vfs_open(inode, FSO_WRITE);
 		n++;
 	}
 
-	if (!cur_proc->fds[2]) {
-		cur_proc->fds[2] = vfs_open(inode, FSO_WRITE);
+	if (!syscall_proc->fds[2]) {
+		syscall_proc->fds[2] = vfs_open(inode, FSO_WRITE);
 		n++;
 	}
 
-	if (cur_proc->numfds < 3)
-		cur_proc->numfds = 3;
+	if (syscall_proc->numfds < 3)
+		syscall_proc->numfds = 3;
 
 	return n;
 }
@@ -269,17 +269,17 @@ void init_fs(void)
 {
 	dbg_printf(DBG_FS, "\nRegistering fs syscalls... ");
 
-	syscall_register(SC_OPEN,  sys_open);
-	syscall_register(SC_CLOSE, sys_close);
-	syscall_register(SC_READ,  sys_readwrite);
-	syscall_register(SC_WRITE, sys_readwrite);
-	syscall_register(SC_ISATTY, sys_isatty);
+	syscall_register(SC_OPEN,  sys_open, 2);
+	syscall_register(SC_CLOSE, sys_close, 1);
+	syscall_register(SC_READ,  sys_readwrite, 3);
+	syscall_register(SC_WRITE, sys_readwrite, 3);
+	syscall_register(SC_ISATTY, sys_isatty, 1);
 
-	syscall_register(SC_STAT, sys_stat);
+	syscall_register(SC_STAT, sys_stat, 2);
 
 	//syscall_register(SC_READDIR, sys_readdir);
 	//syscall_register(SC_MOUNT, sys_mount);
-	syscall_register(SC_OPEN_STD, sys_open_std);
+	syscall_register(SC_OPEN_STD, sys_open_std, 0);
 
 	dbg_printf(DBG_FS, "done\n");
 

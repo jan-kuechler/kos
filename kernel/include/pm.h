@@ -94,6 +94,8 @@ struct proc {
 typedef struct proc proc_t; // __attribute__((deprecated));
 
 extern struct proc *cur_proc;
+extern struct proc *kproc;
+extern struct proc *idle_proc;
 
 void init_pm(void);
 

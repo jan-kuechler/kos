@@ -7,27 +7,27 @@
 #include "kernel.h"
 #include "regs.h"
 #include "syscall.h"
-#include "tty.h"
-#include "fs/fs.h"
-#include "mm/kmalloc.h"
-#include "mm/util.h"
+#include "util/list.h"
 
-#define sc_arg0(r) ((r)->ebx)
-#define sc_arg1(r) ((r)->ecx)
-#define sc_arg2(r) ((r)->edx)
-#define sc_result(r, v)  do { (r)->eax = (v); } while (0);
+#define sc_arg1(r) ((r)->ebx)
+#define sc_arg2(r) ((r)->ecx)
+#define sc_arg3(r) ((r)->edx)
 
-static dword sys_testcall(dword, dword, dword, dword);
-
-syscall_t syscalls[NUM_SYSCALLS] = {
-	sys_testcall, 0
+struct syscall_data
+{
+	syscall_func func;
+	uint32_t     args;
 };
 
-dword sys_testcall(dword calln, dword arg0, dword arg1, dword arg2)
-{
-//	kout_printf("Test syscall from %s with args:\n1: %d\n2: 0x%x\n3: %p\n",
-//	            cur_proc->cmdline, arg0, arg1, arg2);
+struct proc *syscall_proc;
 
+static int32_t sys_test();
+struct syscall_data syscalls[NUM_SYSCALLS] = {
+	{sys_test, 0},
+};
+
+int32_t sys_test()
+{
 	return 0;
 }
 
@@ -40,32 +40,72 @@ void handle_syscall(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
 
-	cur_proc->sc_regs = regs;
+	struct syscall_info *info = kmalloc(sizeof(*info));
+	info->regs = regs;
+	info->proc = cur_proc;
 
-	dbg_set_last_syscall(regs->eax, sc_arg0(regs),
-	                     sc_arg1(regs), sc_arg2(regs));
+	//list_add_back(syscall_list, info);
 
-	if (regs->eax >= NUM_SYSCALLS)
-		panic("Invalid syscall: %d", regs->eax);
+	/* COMPAT */
+	syscall_execute(info);
+	kfree(info);
+	/* END */
+}
 
-	syscall_t call = syscalls[regs->eax];
-	if (call) {
-		dbg_vprintf(DBG_SC, "syscall %d\n", regs->eax);
+void syscall_execute(struct syscall_info *info)
+{
+	dbg_set_last_syscall(info->regs->eax, sc_arg1(info->regs),
+	                     sc_arg2(info->regs), sc_arg3(info->regs));
 
-		dword res = call(regs->eax, sc_arg0(regs),
-		                 sc_arg1(regs), sc_arg2(regs));
-		sc_result(regs, res);
+	if (info->regs->eax >= NUM_SYSCALLS) {
+		dbg_error("Invalid syscall %d by %s (%d)\n", info->regs->eax,
+		          info->proc->cmdline, info->proc->pid);
+		pm_destroy(info->proc);
 		return;
 	}
 
-	dbg_error("Syscall %d is not implemented yet.\n", regs->eax);
-	pm_destroy(cur_proc);
+	syscall_proc = info->proc;
+	syscall_proc->sc_regs = info->regs;
+
+	syscall_func func = syscalls[info->regs->eax].func;
+	if (!func) {
+		dbg_error("Syscall %d is not implemented yet.\n", info->regs->eax);
+		pm_destroy(syscall_proc);
+
+		return;
+	}
+
+	int32_t result = 0;
+	switch (syscalls[info->regs->eax].args) {
+	case 0:
+		result = func();
+		break;
+
+	case 1:
+		result = func(sc_arg1(info->regs));
+		break;
+
+	case 2:
+		result = func(sc_arg1(info->regs), sc_arg2(info->regs));
+		break;
+
+	case 3:
+		result = func(sc_arg1(info->regs), sc_arg2(info->regs), sc_arg3(info->regs));
+		break;
+
+	default:
+		panic("Too many arguments for syscall %d!\n", info->regs->eax);
+	};
+
+	info->regs->eax = result;
 }
 
-void syscall_register(dword calln, syscall_t call)
+void syscall_register(uint32_t id, syscall_func func, uint32_t nargs)
 {
-	kassert(calln < NUM_SYSCALLS);
-	kassert(!syscalls[calln]);
+	kassert(id < NUM_SYSCALLS);
+	kassert(!syscalls[id].func);
+	kassert(nargs <= SC_MAX_ARGS);
 
-	syscalls[calln] = call;
+	syscalls[id].func = func;
+	syscalls[id].args = nargs;
 }

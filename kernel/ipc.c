@@ -103,30 +103,30 @@ int ipc_receive(proc_t *proc, msg_t *msg, byte block)
 	return status;
 }
 
-dword sys_send(dword calln, dword target, dword msgptr, dword arg2)
+int32_t sys_send(int32_t target, int32_t msgptr)
 {
 	proc_t *proc = pm_get_proc(target);
-	msg_t  *msg  = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)msgptr,
+	msg_t  *msg  = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)msgptr,
 	                                 sizeof(msg_t));
 
-	dword result = ipc_send(cur_proc, proc, msg);
+	dword result = ipc_send(syscall_proc, proc, msg);
 
 	km_free_addr(msg, sizeof(msg_t));
 
 	return result;
 }
 
-dword sys_receive(dword calln, dword msgptr, dword block, dword arg2)
+int32_t sys_receive(int32_t msgptr, int32_t block)
 {
-	msg_t *msg = vm_user_to_kernel(cur_proc->as->pdir, (vaddr_t)msgptr,
+	msg_t *msg = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)msgptr,
 	                               sizeof(msg_t));
 
 	// receive has to free the address
-	return ipc_receive(cur_proc, msg, block);
+	return ipc_receive(syscall_proc, msg, block);
 }
 
 void init_ipc(void)
 {
-	syscall_register(SC_SEND, sys_send);
-	syscall_register(SC_RECV, sys_receive);
+	syscall_register(SC_SEND, sys_send, 2);
+	syscall_register(SC_RECV, sys_receive, 2);
 }

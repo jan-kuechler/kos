@@ -15,7 +15,7 @@
 extern dword *mm_get_mmap(void);
 extern dword  mm_get_mmap_size();
 
-dword sys_sbrk(dword, dword, dword, dword);
+int32_t sys_sbrk(int32_t);
 
 pdir_t kernel_pdir;
 ptab_t working_table_map;
@@ -124,7 +124,7 @@ void init_paging(void)
 
 	paging_enabled = 1;
 
-	syscall_register(SC_SBRK, &sys_sbrk);
+	syscall_register(SC_SBRK, sys_sbrk, 1);
 }
 
 /**
@@ -446,32 +446,30 @@ static void increase_heap(struct proc *proc, int pages)
 	}
 }
 
-dword sys_sbrk(dword calln, dword incr, dword arg1, dword arg2)
+int32_t sys_sbrk(int32_t incr)
 {
-	int size = (int)incr;
+	dbg_vprintf(DBG_SC, "sys_sbrk(%d) from %s (%d)\n", incr, syscall_proc->cmdline, syscall_proc->pid);
 
-	dbg_vprintf(DBG_SC, "sys_sbrk(%d) from %s (%d)\n", size, cur_proc->cmdline, cur_proc->pid);
+	vaddr_t old_brk = syscall_proc->mem_brk;
 
-	vaddr_t old_brk = cur_proc->mem_brk;
+	if (incr == 0)
+		return (int32_t)old_brk;
 
-	if (size == 0)
-		return (dword)old_brk;
-
-	if (size < 0) {
+	if (incr < 0) {
 		dbg_vprintf(DBG_SC, " sbrk: incr < 0 is not implemented.\n");
-		return (dword)old_brk;
+		return (int32_t)old_brk;
 	}
 
-	size_t rest = cur_proc->brk_page - cur_proc->mem_brk;
+	size_t rest = syscall_proc->brk_page - syscall_proc->mem_brk;
 
-	if (rest < size) {
-		dbg_vprintf(DBG_SC, " Increase heap by %d pages\n", NUM_PAGES(size));
-		increase_heap(cur_proc, NUM_PAGES(size));
+	if (rest < incr) {
+		dbg_vprintf(DBG_SC, " Increase heap by %d pages\n", NUM_PAGES(incr));
+		increase_heap(syscall_proc, NUM_PAGES(incr));
 	}
 	else {
 		dbg_vprintf(DBG_SC, " Rest (%d) is big enough...\n", rest);
 	}
 
-	cur_proc->mem_brk += size;
-	return (dword)old_brk;
+	syscall_proc->mem_brk += incr;
+	return (int32_t)old_brk;
 }

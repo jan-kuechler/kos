@@ -29,7 +29,7 @@
 
 static void banner();
 static void print_info();
-static dword sys_answer(dword, dword, dword, dword);
+static int32_t sys_answer();
 
 multiboot_info_t multiboot_info;
 
@@ -83,6 +83,16 @@ void kinit()
 	_exit(0);
 }
 
+void krun(void)
+{
+	while (1) {
+//kassert(!list_empty(syscalls)); /* kproc should'nt get enabled when there are no syscalls to do */
+
+
+		//pm_block(&kproc,
+	}
+}
+
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	set_context(INIT_CONTEXT);
@@ -127,7 +137,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	init_loader();
 
-	syscall_register(SC_ANSWER, sys_answer);
+	syscall_register(SC_ANSWER, sys_answer, 0);
 
 	kout_puts("kOS booted.\n\n");
 
@@ -203,7 +213,7 @@ static void print_info()
 	kout_printf("\n");
 }
 
-dword sys_answer(dword calln, dword arg0, dword arg1, dword arg2)
+int32_t sys_answer()
 {
 	return 42;
 }

@@ -270,15 +270,15 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 	return proc->pid;
 }
 
-dword sys_execute(dword calln, dword path, dword cmd, dword arg2)
+int32_t sys_execute(int32_t path, int32_t cmd)
 {
 	size_t flen = 0;
-	char *file = vm_map_string(cur_proc->as->pdir, (vaddr_t)path, &flen);
+	char *file = vm_map_string(syscall_proc->as->pdir, (vaddr_t)path, &flen);
 
 	size_t clen = 0;
-	char *cmdline = vm_map_string(cur_proc->as->pdir, (vaddr_t)cmd, &clen);
+	char *cmdline = vm_map_string(syscall_proc->as->pdir, (vaddr_t)cmd, &clen);
 
-	pid_t pid = exec_file(file, cmdline, cur_proc->pid);
+	pid_t pid = exec_file(file, cmdline, syscall_proc->pid);
 
 	km_free_addr(file, flen);
 	km_free_addr(cmdline, clen);
@@ -287,5 +287,5 @@ dword sys_execute(dword calln, dword path, dword cmd, dword arg2)
 
 void init_loader(void)
 {
-	syscall_register(SC_EXECUTE, sys_execute);
+	syscall_register(SC_EXECUTE, sys_execute, 2);
 }
