@@ -12,7 +12,7 @@ typedef struct ringbuffer ringbuffer_t;
  *
  * Creates and returns a ringbuffer large enough to hold
  * num items of esize bytes each.
- * If override is true old data may be overriden if there
+ * If override is true old data may be overridden if there
  * is not enough space to complete a write request.
  * You have to call rbuf_destroy to free the ringbuffer.
  */

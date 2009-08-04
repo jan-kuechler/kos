@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#ifdef RBUF_TEST
+#ifdef HOSTED
 #  include "../include/util/ringbuffer.h"
 #  define kmalloc malloc
 #  define kfree   free
@@ -121,7 +121,11 @@ size_t rbuf_read(ringbuffer_t *rb, void *dst, size_t count)
 	return num;
 }
 
-#ifdef RBUF_TEST
+#if defined(TEST) && defined(PERF)
+#  error "Cannot create test and performace test at the same time..."
+#endif
+
+#ifdef TEST
 
 #include <assert.h>
 #include <stdio.h>
@@ -200,7 +204,83 @@ int main(int argc, char **argv)
 		rbuf_init_static(&rb, data, sizeof(float), 20, false);
 	}
 
+	printf("All tests passed!\n\n");
+
 	return 0;
+}
+
+#endif
+
+#ifdef PERF
+
+#include <assert.h>
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h> /* GetTickCount */
+
+#define PNUM 10000
+
+#define PSTART(Name) \
+	{ \
+		const char *_name = Name; \
+		DWORD _start_tick = GetTickCount(); \
+		int _count = 0; \
+		for (; _count < PNUM; ++_count) {
+
+#define PEND \
+		} \
+		DWORD _end_tick = GetTickCount(); \
+		DWORD _total = _end_tick - _start_tick; \
+		printf("%s took %d ms\n", _name, _total); \
+	}
+
+
+int main(int argc, char **argv)
+{
+	ringbuffer_t *buffers[PNUM] = {0};
+
+	int full_data[100];
+	int full_dest[100] = {0};
+	memset(full_data, 0x42, 100 * sizeof(int));
+
+	int part_data[15];
+	int part_dest[15] = {0};
+	memset(part_data, 0x42, 15 * sizeof(int));
+
+	printf("Performance tests:\n");
+
+	PSTART("Empty")
+	PEND
+
+	PSTART("Create")
+		buffers[_count] = rbuf_create(sizeof(int), 100, false);
+	PEND
+
+	PSTART("Full-Write")
+		rbuf_write(buffers[_count], full_data, 100);
+	PEND
+
+	PSTART("Full-Read")
+		rbuf_read(buffers[_count], full_dest, 100);
+	PEND
+
+	assert(memcmp(full_data, full_dest, 100 * sizeof(int)) == 0);
+
+	PSTART("Write-Read-Cycles")
+		int i=0;
+		for (; i < 10; ++i) {
+			rbuf_write(buffers[_count], part_data, 15);
+			rbuf_read(buffers[_count], part_dest, 15);
+		}
+	PEND
+
+	assert(memcmp(part_data, part_dest, 15 * sizeof(int)) == 0);
+
+	PSTART("Destroy")
+		rbuf_destroy(buffers[_count]);
+	PEND
+
+	printf("End.\n");
 }
 
 #endif
