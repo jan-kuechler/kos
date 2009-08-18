@@ -1,4 +1,5 @@
 #include <bitop.h>
+#include <limits.h>
 #include <ports.h>
 
 #include "debug.h"
@@ -8,14 +9,13 @@
 #include "pm.h"
 #include "regs.h"
 #include "syscall.h"
+#include "timer.h"
 #include "tty.h"
 
-idt_entry_t   idt[IDT_SIZE];
-irq_handler_t irq_handlers[16] = {0}; // a list of functions to be called
+idt_entry_t   idt[IDT_SIZE] __attribute__((aligned(8)));
+irq_handler_t irq_handlers[NUM_IRQ] = {0}; // a list of functions to be called
                                       // when an IRQ happens
-
-byte idt_in_irq_handler; // this controls whether enable/disable_intr
-                         // has an effect
+static volatile uint32_t irq_counter[NUM_IRQ] = {0};
 
 /* assembler stubs exported by int.s */
 extern void isr_null_handler(void);
@@ -62,27 +62,38 @@ extern void syscall_stub(void);
 
 /* messages for (nearly) all exceptions */
 static const char *fault_msg[] = {
-	"Devide by 0",
-	"Debug exception",
-	"NMI",
-	"INT3",
-	"INTO",
-	"BOUND exception",
-	"Invalid opcode",
-	"No coprocessor",
-	"Double fault",
-	"Coprocessor segment overrun",
-	"Bad TSS",
-	"Segment not present",
-	"Stack fault",
-	"General protection fault",
-	"Page fault",
-	"??",
-	"Coprocessor error",
-	"Alignment check",
-	"??",	"??", "??", "??", "??",
-	"??",	"??", "??", "??", "??",
-	"??", "??", "??", "??",
+	"Devide Error",
+	"Reserved",
+	"Nonmaskable Interrupt",
+	"Breakpoint",
+	"Overflow",
+	"Bound Range Exceeded",
+	"Invalid Opcode",
+	"Device Not Available",
+	"Double Fault",
+	"Coprocessor Segment Overrun",
+	"Invalid TSS",
+	"Segment Not Present",
+	"Stack-Segment Fault",
+	"General Protection Fault",
+	"Page Fault",
+	"Reserved",
+	"x87 Floating-Point Exception",
+	"Alignment Check",
+	"Machine Check",
+	"SIMD Floating-Point Exception",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
 };
 
 static void idt_handle_exception(dword *esp)
@@ -91,7 +102,7 @@ static void idt_handle_exception(dword *esp)
 
 	kout_select();
 
-	byte user = (regs->ds == (GDT_SEL_UDATA + 0x03));
+	bool user = (regs->ds == (GDT_SEL_UDATA + 0x03));
 
 	if (user) {
 		dbg_error("%s triggered an exception.\n", cur_proc->cmdline);
@@ -120,11 +131,13 @@ static void idt_handle_exception(dword *esp)
 static void idt_handle_irq(dword *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
-	dword irq = regs->intr - IRQ_BASE;
+	int irq = regs->intr - IRQ_BASE;
+
+	irq_counter[irq]++;
 
 	if (irq == 7 || irq == 15) {
 		// theese irqs may be fake ones, test it
-		byte pic = (irq < 8) ? PIC1 : PIC2;
+		uint8_t pic = (irq < 8) ? PIC1 : PIC2;
 		outb(pic + 3, 0x03);
 		if ((inb(pic) & 0x80) != 0) {
 			goto irq_handeled;
@@ -152,7 +165,7 @@ dword idt_handle_int(dword esp)
 	regs_t *regs = (regs_t*)esp;
 
 	// let interrupts don't get enabled until we have finished
-	set_context(IRQ_CONTEXT);
+	cx_set(CX_IRQ);
 
 	pm_restore(&esp);
 
@@ -162,13 +175,18 @@ dword idt_handle_int(dword esp)
 	else if (regs->intr < SYSCALL) {
 		idt_handle_irq(&esp);
 	}
-	else {
+	else if (regs->intr == SYSCALL) {
+		cx_set(CX_SYSCALL);
 		handle_syscall(&esp);
+		cx_set(CX_IRQ);
+	}
+	else {
+		panic("Unhandled interrupt: 0x%x", regs->intr);
 	}
 
 	pm_pick(&esp);
 
-	set_context(PROC_CONTEXT);
+	cx_set(CX_PROC);
 
 	return esp;
 }
@@ -178,16 +196,15 @@ dword idt_handle_int(dword esp)
  *
  * Sets the handler for an irq.
  */
-byte idt_set_irq_handler(byte irq, irq_handler_t handler)
+bool idt_set_irq_handler(uint8_t irq, irq_handler_t handler)
 {
-	if (irq > 15)
-		return 0;
+	kassert(irq < NUM_IRQ);
 
 	if (irq_handlers[irq] != 0)
-		return 0;
+		return false;
 
 	irq_handlers[irq] = handler;
-	return 1;
+	return true;
 }
 
 /**
@@ -195,13 +212,30 @@ byte idt_set_irq_handler(byte irq, irq_handler_t handler)
  *
  * Clears the handler for an irq.
  */
-byte idt_clr_irq_handler(byte irq)
+bool idt_clr_irq_handler(uint8_t irq)
 {
-	if (irq > 15)
-		return 0;
+	kassert(irq < NUM_IRQ);
 
 	irq_handlers[irq] = 0;
-	return 1;
+	return true;
+}
+
+void idt_reset_irq_counter(uint8_t irq)
+{
+	kassert(irq < NUM_IRQ);
+	irq_counter[irq] = 0;
+}
+
+void idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout)
+{
+	kassert(irq < NUM_IRQ);
+	assert_allowed(A_DELAY_EXEC);
+
+	uint32_t should = since_reset ? 1 : irq_counter[irq] + 1;
+	uint64_t ticks = timeout ? timer_ticks + timeout : ULLONG_MAX;
+
+	while (irq_counter[irq] < should && timer_ticks < ticks)
+		;
 }
 
 /**
@@ -214,51 +248,49 @@ void init_idt(void)
 	int i = 0;
 
 	for (; i < IDT_SIZE; ++i) {
-		idt_set_gate(i, GDT_SEL_CODE, isr_null_handler, 0, IDT_INTERRUPT_GATE);
+		idt_set_gate(i, GDT_SEL_CODE, isr_null_handler, 0, IDT_INTR_GATE);
 	}
 
-	idt_in_irq_handler = 0;
-
 	// there should be some sort of compile time 'for' with macros )-:
-	idt_set_gate( 0, GDT_SEL_CODE, isr_stub_0,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 1, GDT_SEL_CODE, isr_stub_1,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 2, GDT_SEL_CODE, isr_stub_2,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 3, GDT_SEL_CODE, isr_stub_3,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 4, GDT_SEL_CODE, isr_stub_4,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 5, GDT_SEL_CODE, isr_stub_5,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 6, GDT_SEL_CODE, isr_stub_6,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 7, GDT_SEL_CODE, isr_stub_7,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 8, GDT_SEL_CODE, isr_stub_8,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate( 9, GDT_SEL_CODE, isr_stub_9,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(10, GDT_SEL_CODE, isr_stub_10, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(11, GDT_SEL_CODE, isr_stub_11, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(12, GDT_SEL_CODE, isr_stub_12, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(13, GDT_SEL_CODE, isr_stub_13, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(14, GDT_SEL_CODE, isr_stub_14, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(15, GDT_SEL_CODE, isr_stub_15, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(16, GDT_SEL_CODE, isr_stub_16, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(17, GDT_SEL_CODE, isr_stub_17, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(18, GDT_SEL_CODE, isr_stub_18, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(19, GDT_SEL_CODE, isr_stub_19, 0, IDT_INTERRUPT_GATE);
+	idt_set_gate( 0, GDT_SEL_CODE, isr_stub_0,  0, IDT_INTR_GATE);
+	idt_set_gate( 1, GDT_SEL_CODE, isr_stub_1,  0, IDT_INTR_GATE);
+	idt_set_gate( 2, GDT_SEL_CODE, isr_stub_2,  0, IDT_INTR_GATE);
+	idt_set_gate( 3, GDT_SEL_CODE, isr_stub_3,  0, IDT_INTR_GATE);
+	idt_set_gate( 4, GDT_SEL_CODE, isr_stub_4,  0, IDT_INTR_GATE);
+	idt_set_gate( 5, GDT_SEL_CODE, isr_stub_5,  0, IDT_INTR_GATE);
+	idt_set_gate( 6, GDT_SEL_CODE, isr_stub_6,  0, IDT_INTR_GATE);
+	idt_set_gate( 7, GDT_SEL_CODE, isr_stub_7,  0, IDT_INTR_GATE);
+	idt_set_gate( 8, GDT_SEL_CODE, isr_stub_8,  0, IDT_INTR_GATE);
+	idt_set_gate( 9, GDT_SEL_CODE, isr_stub_9,  0, IDT_INTR_GATE);
+	idt_set_gate(10, GDT_SEL_CODE, isr_stub_10, 0, IDT_INTR_GATE);
+	idt_set_gate(11, GDT_SEL_CODE, isr_stub_11, 0, IDT_INTR_GATE);
+	idt_set_gate(12, GDT_SEL_CODE, isr_stub_12, 0, IDT_INTR_GATE);
+	idt_set_gate(13, GDT_SEL_CODE, isr_stub_13, 0, IDT_INTR_GATE);
+	idt_set_gate(14, GDT_SEL_CODE, isr_stub_14, 0, IDT_INTR_GATE);
+	idt_set_gate(15, GDT_SEL_CODE, isr_stub_15, 0, IDT_INTR_GATE);
+	idt_set_gate(16, GDT_SEL_CODE, isr_stub_16, 0, IDT_INTR_GATE);
+	idt_set_gate(17, GDT_SEL_CODE, isr_stub_17, 0, IDT_INTR_GATE);
+	idt_set_gate(18, GDT_SEL_CODE, isr_stub_18, 0, IDT_INTR_GATE);
+	idt_set_gate(19, GDT_SEL_CODE, isr_stub_19, 0, IDT_INTR_GATE);
 
-	idt_set_gate(IRQ_BASE +  0, GDT_SEL_CODE, irq_stub_0,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  1, GDT_SEL_CODE, irq_stub_1,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  2, GDT_SEL_CODE, irq_stub_2,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  3, GDT_SEL_CODE, irq_stub_3,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  4, GDT_SEL_CODE, irq_stub_4,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  5, GDT_SEL_CODE, irq_stub_5,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  6, GDT_SEL_CODE, irq_stub_6,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  7, GDT_SEL_CODE, irq_stub_7,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  8, GDT_SEL_CODE, irq_stub_8,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE +  9, GDT_SEL_CODE, irq_stub_9,  0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 10, GDT_SEL_CODE, irq_stub_10, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 11, GDT_SEL_CODE, irq_stub_11, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 12, GDT_SEL_CODE, irq_stub_12, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 13, GDT_SEL_CODE, irq_stub_13, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 14, GDT_SEL_CODE, irq_stub_14, 0, IDT_INTERRUPT_GATE);
-	idt_set_gate(IRQ_BASE + 15, GDT_SEL_CODE, irq_stub_15, 0, IDT_INTERRUPT_GATE);
+	idt_set_gate(IRQ_BASE +  0, GDT_SEL_CODE, irq_stub_0,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  1, GDT_SEL_CODE, irq_stub_1,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  2, GDT_SEL_CODE, irq_stub_2,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  3, GDT_SEL_CODE, irq_stub_3,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  4, GDT_SEL_CODE, irq_stub_4,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  5, GDT_SEL_CODE, irq_stub_5,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  6, GDT_SEL_CODE, irq_stub_6,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  7, GDT_SEL_CODE, irq_stub_7,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  8, GDT_SEL_CODE, irq_stub_8,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE +  9, GDT_SEL_CODE, irq_stub_9,  0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 10, GDT_SEL_CODE, irq_stub_10, 0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 11, GDT_SEL_CODE, irq_stub_11, 0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 12, GDT_SEL_CODE, irq_stub_12, 0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 13, GDT_SEL_CODE, irq_stub_13, 0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 14, GDT_SEL_CODE, irq_stub_14, 0, IDT_INTR_GATE);
+	idt_set_gate(IRQ_BASE + 15, GDT_SEL_CODE, irq_stub_15, 0, IDT_INTR_GATE);
 
-	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_INTERRUPT_GATE);
+	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_TRAP_GATE);
 
 	/* PIC */
 	dbg_printf(DBG_IDT, "Initializing PIC\n");
@@ -279,8 +311,8 @@ void init_idt(void)
 	outb_wait(PIC2_DATA, 0x00);
 
 	struct {
-		word  size;
-		dword base;
+		uint16_t  size;
+		uint32_t base;
 	} __attribute__((packed)) idt_ptr = {
 		.size = IDT_SIZE * 8 - 1,
 		.base = (dword)idt,
@@ -297,13 +329,13 @@ void init_idt(void)
  *
  * Sets an IDT gate.
  */
-void idt_set_gate(int intr, word selector, void *handler,
-                  byte dpl, byte type)
+void idt_set_gate(int intr, uint16_t selector, void *handler,
+                  uint8_t dpl, uint8_t type)
 {
-	idt[intr].base_low  = bmask((dword)handler, BMASK_WORD);
+	idt[intr].base_low  = bmask((uint32_t)handler, BMASK_WORD);
 	idt[intr].selector  = selector;
 	idt[intr].zero      = 0x00;
 	idt[intr].type      = IDT_GATE_PRESENT | (bmask(dpl, BMASK_2BIT) << 5) |
 	                      bmask(type,BMASK_4BIT);
-	idt[intr].base_high = bmask(((dword)handler >> 16), BMASK_WORD);
+	idt[intr].base_high = bmask(((uint32_t)handler >> 16), BMASK_WORD);
 }

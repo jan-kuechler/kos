@@ -3,6 +3,7 @@
 
 #include <kos/config.h>
 
+#include "context.h"
 #include "kernel.h"
 #include "mm/kmalloc.h"
 #include "mm/mm.h"
@@ -59,6 +60,7 @@ static mem_node_t *create_node(size_t size, void *ptr, byte is_free)
 
 void *kmallocu(size_t size)
 {
+	assert_allowed(A_DYN_MEM);
 	if (size < 1) return NULL;
 
 	mem_node_t *prev = 0;

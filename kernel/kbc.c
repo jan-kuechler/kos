@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <bitop.h>
 #include <ports.h>
 
@@ -60,13 +61,13 @@ static inline void clear_in(void)
 	}
 }
 
-static inline void send_cmd(byte cmd)
+static inline void send_cmd(uint8_t cmd)
 {
 	clear_in();
 	outb(KBC_CMD, cmd);
 }
 
-static inline void send_data(byte data)
+static inline void send_data(uint8_t data)
 {
 	clear_in();
 	outb(KBC_DATA, data);
@@ -77,7 +78,7 @@ static inline void send_data(byte data)
  *
  * Returns the first key of the keyboards input buffer
  */
-byte kbc_getkey(void)
+uint8_t kbc_getkey(void)
 {
 	return inb(KBC_DATA);
 }
@@ -87,7 +88,7 @@ byte kbc_getkey(void)
  *
  * Translates a keyboard scancode to a keycode, used in the keymaps.
  */
-byte kbc_scan_to_keycode(byte elvl, word scancode)
+uint8_t kbc_scan_to_keycode(uint8_t elvl, uint16_t scancode)
 {
 	switch (elvl) {
 	case 0:
@@ -113,9 +114,9 @@ byte kbc_scan_to_keycode(byte elvl, word scancode)
  *
  * Controls the keyboard LEDs
  */
-void kbc_led(byte caps, byte num, byte scroll)
+void kbc_led(uint8_t caps, uint8_t num, uint8_t scroll)
 {
-	byte led = 0;
+	uint8_t led = 0;
 	if (caps)   bsetn(led, 2);
 	if (num)    bsetn(led, 1);
 	if (scroll) bsetn(led, 0);
@@ -133,6 +134,5 @@ void kbc_led(byte caps, byte num, byte scroll)
  */
 void kbc_reset_cpu(void)
 {
-	send_cmd(CMD_WRITE_OUTP);
-	send_data(RESET_CPU);
+	send_cmd(RESET_CPU);
 }

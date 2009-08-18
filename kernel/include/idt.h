@@ -1,17 +1,21 @@
 #ifndef IDT_H
 #define IDT_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "types.h"
 #include "context.h"
 
 #define IDT_GATE_PRESENT   0x80 /* 1000000b */
 
-#define IDT_INTERRUPT_GATE 0xE /* for 32 bit */
+#define IDT_INTR_GATE 0xE /* for 32 bit */
 #define IDT_TRAP_GATE      0xF /* for 32 bit */
 #define IDT_TASK_GATE      0x5
 
 #define IRQ_BASE 0x20 /* Change int.s if you change this value */
 #define SYSCALL  0x30
+
+#define NUM_IRQ  0x10 /* = 16dec */
 
 #define PIC1      0x20
 #define PIC2      0xA0
@@ -39,32 +43,35 @@
 #define IDT_SIZE 256 /* Number of idt entries */
 
 typedef struct idt_entry {
-	word base_low;
-	word selector;
-	byte zero;
-	byte type;
-	word base_high;
+	uint16_t base_low;
+	uint16_t selector;
+	uint8_t  zero;
+	uint8_t  type;
+	uint16_t base_high;
 } __attribute__((packed)) idt_entry_t;
 
 void init_idt(void);
-void idt_set_gate(int intr, word selector, void *handler,
-                  byte dpl, byte type);
+void idt_set_gate(int intr, uint16_t selector, void *handler,
+                  uint8_t dpl, uint8_t type);
 
 typedef void (*irq_handler_t)(int, dword*);
 
-byte idt_set_irq_handler(byte irq, irq_handler_t handler);
-byte idt_clr_irq_handler(byte irq);
+bool idt_set_irq_handler(uint8_t irq, irq_handler_t handler);
+bool idt_clr_irq_handler(uint8_t irq);
+
+void idt_reset_irq_counter(uint8_t irq);
+void idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout);
 
 static inline void enable_intr()
 {
-	/* only enables interrupts when the kernel initialization is done. */
-	if (get_context() == PROC_CONTEXT)
+	if (cx_allowed(A_CHANGE_IF))
 		asm volatile("sti");
 }
 
 static inline void disable_intr()
 {
-	asm volatile("cli");
+	if (cx_allowed(A_CHANGE_IF))
+		asm volatile("cli");
 }
 
 #endif /*IDT_H*/

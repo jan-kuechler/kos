@@ -19,6 +19,7 @@ kstart:
 	hlt
 	
 multi_boot_header:
+section .header
 align 4
 	MB_MAGIC	equ	0x1BADB002
 	MB_FLAGS	equ	0x03             

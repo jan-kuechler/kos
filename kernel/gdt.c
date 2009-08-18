@@ -4,7 +4,7 @@
 #include "gdt.h"
 #include "tss.h"
 
-gdt_entry_t gdt[GDT_SIZE];
+gdt_entry_t gdt[GDT_SIZE] __attribute__((aligned(8)));
 
 /**
  *  init_gdt()

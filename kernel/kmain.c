@@ -83,20 +83,8 @@ void kinit()
 	_exit(0);
 }
 
-void krun(void)
-{
-	while (1) {
-//kassert(!list_empty(syscalls)); /* kproc should'nt get enabled when there are no syscalls to do */
-
-
-		//pm_block(&kproc,
-	}
-}
-
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
-	set_context(INIT_CONTEXT);
-
 	init_kout();
 	init_com();
 
@@ -120,6 +108,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	dbg_printf(DBG_LOAD, "* Setting up paging...\n");
 	init_paging();
 
+	cx_set(CX_INIT);
+
 	dbg_printf(DBG_LOAD, "* Setting up stack backtrace...\n");
 	init_stack_backtrace();
 
@@ -139,13 +129,13 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
 
+	cx_set(CX_INIT_DONE);
 	kout_puts("kOS booted.\n\n");
 
 	print_info();
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 
-	set_context(PROC_CONTEXT);
 	enable_intr();
 	/* send fake timer interrupt to start scheduling */
 	asm volatile ("int $0x20");
@@ -252,13 +242,13 @@ __attribute__((noreturn)) void shutdown()
 
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
-	if (get_context() == PANIC_CONTEXT) {
+	if (cx_get() == CX_PANIC) {
 		/* recusive panic, just kill the machine */
-		disable_intr();
 		for (;;) asm("hlt");
 	}
 
-	set_context(PANIC_CONTEXT);
+	disable_intr();
+	cx_set(CX_PANIC);
 
 	va_list args;
 	va_start(args, fmt);
