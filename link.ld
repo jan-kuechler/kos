@@ -10,6 +10,14 @@ SECTIONS
 	kernel_start = .;
 	kernel_phys_start = . - VIRT_TO_PHYS;
 
+	.header : AT(ADDR(.header) - VIRT_TO_PHYS)
+	{
+		*(.header)
+	}
+	.init : AT(ADDR(.init) - VIRT_TO_PHYS)
+	{
+		*(.init)
+	}
 	.text : AT(ADDR(.text) - VIRT_TO_PHYS)
 	{
 		*(.text)

@@ -1,47 +1,47 @@
 #ifndef PORTS_H
 #define PORTS_H
 
-#include <types.h>
+#include <stdint.h>
 
-static inline word inw(word _port)
+static inline uint16_t inw(uint16_t port)
 {
-	word result;
-	asm volatile ("inw %1, %0" : "=a" (result) : "Nd" (_port));
+	uint16_t result;
+	asm volatile ("inw %1, %0" : "=a" (result) : "Nd" (port));
 	return result;
 }
 
-static inline byte inb(word _port)
+static inline uint8_t inb(uint16_t port)
 {
-	byte result;
-	asm volatile ("inb %1, %0" : "=a" (result) : "Nd" (_port));
+	uint8_t result;
+	asm volatile ("inb %1, %0" : "=a" (result) : "Nd" (port));
 	return result;
 }
 
-static inline dword inl(word _port)
+static inline uint32_t inl(uint16_t port)
 {
-	dword result;
-	asm volatile ("inl %1, %0" : "=a" (result) : "Nd" (_port));
+	uint32_t result;
+	asm volatile ("inl %1, %0" : "=a" (result) : "Nd" (port));
 	return result;
 }
 
-static inline void outw(word _port, word _data)
+static inline void outw(uint16_t port, uint16_t data)
 {
-	asm volatile ("outw %0, %1" : : "a" (_data), "Nd" (_port));
+	asm volatile ("outw %0, %1" : : "a" (data), "Nd" (port));
 }
 
-static inline void outb(word _port, byte _data)
+static inline void outb(uint16_t port, uint8_t data)
 {
-	asm volatile ("outb %0, %1" : : "a" (_data), "Nd" (_port));
+	asm volatile ("outb %0, %1" : : "a" (data), "Nd" (port));
 }
 
-static inline void outl(word _port, dword _data)
+static inline void outl(uint16_t port, uint32_t data)
 {
-	asm volatile ("outl %0, %1" : : "a"(_data), "Nd" (_port));
+	asm volatile ("outl %0, %1" : : "a"(data), "Nd" (port));
 }
 
-static inline void outb_wait(word _port, byte _data)
+static inline void outb_wait(uint16_t port, uint8_t data)
 {
-	asm volatile ("outb %0, %1\njmp 1f\n1: jmp 1f\n1:" : : "a" (_data), "Nd" (_port));
+	asm volatile ("outb %0, %1\njmp 1f\n1: jmp 1f\n1:" : : "a" (data), "Nd" (port));
 }
 
 #endif /*PORTS_H*/
