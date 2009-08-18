@@ -60,7 +60,7 @@ bool idt_set_irq_handler(uint8_t irq, irq_handler_t handler);
 bool idt_clr_irq_handler(uint8_t irq);
 
 void idt_reset_irq_counter(uint8_t irq);
-void idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout);
+bool idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout);
 
 static inline void enable_intr()
 {

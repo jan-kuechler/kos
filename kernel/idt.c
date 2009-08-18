@@ -226,7 +226,7 @@ void idt_reset_irq_counter(uint8_t irq)
 	irq_counter[irq] = 0;
 }
 
-void idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout)
+bool idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout)
 {
 	kassert(irq < NUM_IRQ);
 	assert_allowed(A_DELAY_EXEC);
@@ -236,6 +236,7 @@ void idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout)
 
 	while (irq_counter[irq] < should && timer_ticks < ticks)
 		;
+	return irq_counter[irq] >= should;
 }
 
 /**
