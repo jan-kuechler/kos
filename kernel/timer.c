@@ -1,12 +1,14 @@
 #include <bitop.h>
+#include <limits.h>
 #include <ports.h>
 
+#include "context.h"
 #include "idt.h"
 #include "syscall.h"
 #include "timer.h"
 
-dword timer_ticks; // timer ticks since system start
-dword next_wakeup; // next time a process has to be unblocked
+volatile uint64_t timer_ticks; // timer ticks since system start
+uint64_t next_wakeup; // next time a process has to be unblocked
 
 // this one is a bit hacky... as pm.c should not export it's list.
 extern proc_t procs[MAX_PROCS];
@@ -23,7 +25,7 @@ void timer_irq(int irq, dword *esp)
  	timer_ticks++;
 
 	if (timer_ticks >= next_wakeup) {
-		next_wakeup = 0xFFFFFFFF;
+		next_wakeup = ULLONG_MAX;
 
 		proc_t *p = procs;
 		for (; p < &procs[MAX_PROCS]; p++) {
@@ -66,13 +68,22 @@ dword sys_sleep(dword calln, dword msec, dword arg1, dword arg2)
 	return 0;
 }
 
+void ksleep(uint32_t msec)
+{
+	assert_allowed(A_DELAY_EXEC);
+
+	uint64_t then = timer_ticks + (msec * TIMER_HZ/1000);
+	while (timer_ticks < then)
+		; /* busy wating -.- */
+}
+
 /**
  *  init_timer()
  */
 void init_timer(void)
 {
 	timer_ticks = 0;
-	next_wakeup = 0xFFFFFFFF;
+	next_wakeup = ULLONG_MAX;
 
 	//syscall_register(SC_SLEEP, sys_sleep);
 
