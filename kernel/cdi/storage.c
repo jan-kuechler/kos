@@ -3,7 +3,13 @@
 
 void cdi_storage_driver_init(struct cdi_storage_driver* driver)
 {
-	UNIMPLEMENTED
+	LOG
+
+	cdi_check_init();
+	cdi_check_arg(driver, != NULL);
+
+	driver->drv.type = CDI_STORAGE;
+	cdi_driver_init(&driver->drv);
 }
 
 void cdi_storage_driver_destroy(struct cdi_storage_driver* driver)

@@ -6,6 +6,7 @@
 #include <kos/syscall.h>
 #include <kos/version.h>
 #include "acpi.h"
+#include "cdi_driver.h"
 #include "com.h"
 #include "context.h"
 #include "debug.h"
@@ -128,6 +129,12 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_loader();
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
+
+	dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
+	const char *ata_args[] = {
+		"ata", "nodam"
+	};
+	init_ata(2, ata_args);
 
 	cx_set(CX_INIT_DONE);
 	kout_puts("kOS booted.\n\n");

@@ -2,6 +2,7 @@
 #define CDI_IMPL_H
 
 #include <kos/config.h>
+#include "debug.h"
 #include "kernel.h"
 
 struct list; /* from util/list.h */
@@ -12,7 +13,7 @@ struct cdi_list_implementation
 	struct list *list;
 };
 
-#define UNIMPLEMENTED panic("The CDI function %s is not implemented yet.", __func__);
+#define UNIMPLEMENTED panic("The CDI function %s:%s is not implemented.", __FILE__, __func__);
 
 #ifdef CONF_CDI_ERR_FATAL
 #  define cdi_error(msg, ...) \
@@ -47,6 +48,12 @@ struct cdi_list_implementation
 		if (!(arg check)) { \
 			return __VA_ARGS__; \
 		}
+#endif
+
+#ifdef CONF_DEBUG
+#  define LOG dbg_vprintf(DBG_CDI, "%s\n", __func__);
+#else
+#  define LOG
 #endif
 
 #endif /*CDI_IMPL_H*/

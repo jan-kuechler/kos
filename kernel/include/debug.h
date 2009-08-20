@@ -18,6 +18,7 @@
 #define DBG_PM        'p'
 #define DBG_SC        's'
 #define DBG_FS        'f'
+#define DBG_CDI       'd'
 
 #ifdef CONF_DEBUG
 #include "kernel.h"

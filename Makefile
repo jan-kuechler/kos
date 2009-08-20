@@ -10,12 +10,12 @@ ASMFLAGS = -felf
 
 CC = kgcc
 CFLAGS = -Wall -O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs \
-         -Iinclude -Iinclude/arch/i386 -Ikernel/include
+         -fno-builtin -Iinclude -Iinclude/arch/i386 -Ikernel/include
 
 LD = kld
 LDFLAGS = -Llib -static -Tlink.ld
 
-LIBS = -lminc -lk
+LIBS = -lutil -lc -lutil -lk -lgcc
 
 LOGFILES = -serial file:kos.log -serial file:kos_err.log -serial file:kos_dbg.log -serial file:kos_dbgv.log
 

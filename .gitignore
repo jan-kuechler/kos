@@ -1,5 +1,7 @@
 *.a
 *.o
+*.d
+*.t
 *.exe
 *.bak
 test-*

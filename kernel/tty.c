@@ -730,7 +730,7 @@ byte kout_set_status(byte status)
 
 void kout_select(void)
 {
-	tty_set_cur_term(kout_id);
+	select_tty(kout_tty);
 }
 
 void kout_clear()
