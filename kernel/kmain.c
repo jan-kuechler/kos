@@ -17,6 +17,7 @@
 #include "keymap.h"
 #include "loader.h"
 #include "module.h"
+#include "pci.h"
 #include "pm.h"
 #include "syscall.h"
 #include "timer.h"
@@ -66,6 +67,10 @@ static void kinit_fs(void)
 void kinit()
 {
 	kinit_fs();
+
+	kout_puts("\n");
+	print_info();
+	pci_print_table();
 
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
@@ -126,20 +131,25 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	dbg_printf(DBG_LOAD, "* Setting up module support...\n");
 	init_mod();
 
+	dbg_printf(DBG_LOAD, "* Setting up pci devices...\n");
+	init_pci();
+
+	dbg_printf(DBG_LOAD, "* Setting up loader...\n");
 	init_loader();
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
 
-	dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
-	const char *ata_args[] = {
-		"ata", "nodam"
-	};
-	init_ata(2, ata_args);
+	if (0)
+	{
+		dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
+		const char *ata_args[] = {
+			"ata", "nodam"
+		};
+		init_ata(2, ata_args);
+	}
 
 	cx_set(CX_INIT_DONE);
 	kout_puts("kOS booted.\n\n");
-
-	print_info();
 
 	pm_create(kinit, "kinit", PM_KERNEL, 0, PS_READY);
 
@@ -199,15 +209,7 @@ static void print_info()
 		kout_printf("Kernel size: %4d KB\n", (int)(kernel_end - kernel_start) / 1024);
 	}
 
-	if (multiboot_info.flags & 9) { // Bootloader
-		km_identity_map((char*)multiboot_info.boot_loader_name, VM_COMMON_FLAGS, 1024);
-
-		// hopefully the boot_load_name isn't larger than 1024 bytes...
-		kout_printf("== Bootloader ==\n");
-		kout_printf("%s\n", (char*)multiboot_info.boot_loader_name);
-	}
-
-	kout_printf("\n");
+	kout_puts("\n");
 }
 
 int32_t sys_answer()

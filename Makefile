@@ -17,7 +17,7 @@ LDFLAGS = -Llib -static -Tlink.ld
 
 LIBS = -lutil -lc -lutil -lk -lgcc
 
-LOGFILES = -serial file:kos.log -serial file:kos_err.log -serial file:kos_dbg.log -serial file:kos_dbgv.log
+QFLAGS = -m 32 -soundhw all -serial file:kos.log -L ../tools/qemu -no-kqemu
 
 .PHONY: all clean version verupdate initrd floppy iso run run-iso
 
@@ -58,11 +58,11 @@ iso:
 	
 run:
 	@rm -f kos*.log
-	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -no-kqemu -fda img/kos.img
+	@qemu $(QFLAGS) -fda img/kos.img 
 	
 run-iso:
 	@rm -f kos*.log
-	@qemu -m 32 $(LOGFILES) -L ../tools/qemu -no-kqemu -cdrom img/kos.iso
+	@qemu $(QFLAGS) -cdrom img/kos.iso
 
 
 bin/kos.bin: $(OBJFILES) $(ASMOBJS) 
