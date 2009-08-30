@@ -89,6 +89,16 @@ void kinit()
 	_exit(0);
 }
 
+static void init_cdi_driver()
+{
+	dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
+
+	const char *ata_args[] = {
+		"ata", "nodam"
+	};
+	init_ata(2, ata_args);
+}
+
 void kmain(int mb_magic, multiboot_info_t *mb_info)
 {
 	init_kout();
@@ -139,14 +149,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
 
-	if (0)
-	{
-		dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
-		const char *ata_args[] = {
-			"ata", "nodam"
-		};
-		init_ata(2, ata_args);
-	}
+	//init_cdi_driver();
 
 	cx_set(CX_INIT_DONE);
 	kout_puts("kOS booted.\n\n");
@@ -162,8 +165,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 static void banner()
 {
-	int len = strlen(kos_version);
-	len += 4; // strlen("kOS ")
+	/* Banner: kos *version* *name* (*builddate*) */
+	int len = 4 + strlen(kos_version) + 3 + strlen(kos_builddate);
 
 	int linerest = 80 - len;
 	int begin = linerest / 2;
@@ -175,7 +178,9 @@ static void banner()
 	byte oc = kout_set_status(0x04);
 	kout_puts("kOS ");
 	kout_puts(kos_version);
-	kout_puts("\n");
+	kout_puts(" (");
+	kout_puts(kos_builddate);
+	kout_puts(")\n");
 	kout_set_status(oc);
 }
 

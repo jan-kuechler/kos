@@ -11,9 +11,9 @@ then
 #ifndef KOS_VERSION_H
 #define KOS_VERSION_H
 
-static const char *kos_version = "version";
-static const char *kos_buildname = "name";
-static const char *kos_builddate = "date";
+__attribute__((unused)) static const char *kos_version = "version";
+__attribute__((unused)) static const char *kos_buildname = "name";
+__attribute__((unused)) static const char *kos_builddate = "date";
 
 #endif /*KOS_VERSION_H*/	
 STOP
