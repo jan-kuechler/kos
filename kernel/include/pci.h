@@ -21,8 +21,17 @@ struct pci_dev
 	uint8_t irq;
 };
 
+enum pci_res_type
+{
+	PCI_RES_MEMORY,
+	PCI_RES_IOPORT,
+};
+
 struct pci_res
 {
+	enum pci_res_type type;
+	uint32_t start;
+	uint32_t length;
 };
 
 extern list_t *pci_devices;

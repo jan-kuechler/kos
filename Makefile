@@ -1,3 +1,9 @@
+################
+# kOS Makefile #
+################
+
+BUILDNAME = Yggdrasil
+
 SRCFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.c")
 HDRFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.h")
 ASMFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.s")
@@ -32,7 +38,7 @@ version:
 	@$(LD) -v
 	
 verupdate:
-	@./version.sh
+	@KOS_BUILDNAME=${BUILDNAME} ./version.sh
 	
 stats:
 	@echo  == Lines == 
