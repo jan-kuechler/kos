@@ -8,6 +8,7 @@
 #include "regs.h"
 #include "fs/types.h"
 #include "mm/virt.h"
+#include "util/ringbuffer.h"
 
 #define MAX_PROCS 256
 
@@ -53,7 +54,6 @@ struct proc {
 	proc_status_t  status;
 	block_reason_t block;
 	pid_t          wait_proc, wait_for;
-	msg_t         *msg_wait_buffer;
 	dword          wakeup;
 
 	vaddr_t kstack_addr;
@@ -81,9 +81,8 @@ struct proc {
 
 	dword  ticks_left;
 
-	msg_t  msg_buffer[PROC_MSG_BUFFER_SIZE];
-	msg_t  *msg_head, *msg_tail;
-	byte   msg_count;
+	msg_t        *msg_waitbuf;
+	ringbuffer_t *msgbuffer;
 
 	void   *ldata; // data for the procloader
 	void   (*cleanup)(struct proc*); // cleanup any loader specific data

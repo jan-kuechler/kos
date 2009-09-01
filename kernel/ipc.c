@@ -6,9 +6,7 @@
 #include "mm/util.h"
 #include "mm/virt.h"
 
-// FIXME: does not handle user space!
-
-static int send(proc_t *proc, msg_t *msg)
+static int send(struct proc *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
@@ -17,22 +15,16 @@ static int send(proc_t *proc, msg_t *msg)
 	if (!msg)
 		return EINVAL;
 
-	if (proc->msg_count == PROC_MSG_BUFFER_SIZE) {
+	if (!rbuf_freesize(proc->msgbuffer)) {
 		return EAGAIN;
 	}
 
-	/* copy the message to the targets buffer */
-	memcpy(proc->msg_head, msg, sizeof(msg_t));
-	proc->msg_head++;
-	proc->msg_count++;
-
-	if (proc->msg_head == &proc->msg_buffer[PROC_MSG_BUFFER_SIZE])
-		proc->msg_head = proc->msg_buffer;
+	rbuf_write(proc->msgbuffer, msg, 1);
 
 	return 0;
 }
 
-static int receive(proc_t *proc, msg_t *msg)
+static int receive(struct proc *proc, msg_t *msg)
 {
 	/* check args */
 	if (proc->status == PS_SLOT_FREE)
@@ -41,16 +33,10 @@ static int receive(proc_t *proc, msg_t *msg)
 	if (!msg)
 		return EINVAL;
 
-	if (proc->msg_count == 0)
+	if (rbuf_empty(proc->msgbuffer))
 		return EAGAIN;
 
-	/* copy the message from the procbuffer to the user */
-	memcpy(msg, proc->msg_tail, sizeof(msg_t));
-	proc->msg_tail++;
-	proc->msg_count--;
-
-	if (proc->msg_tail == &proc->msg_buffer[PROC_MSG_BUFFER_SIZE])
-		proc->msg_tail = proc->msg_buffer;
+	rbuf_read(proc->msgbuffer, msg, 1);
 
 	return 0;
 }
@@ -62,20 +48,20 @@ static int receive(proc_t *proc, msg_t *msg)
  * This function may unblock the 'to'-proc, when it
  * was blocked for receiving a not yet exisiting message.
  */
-int ipc_send(proc_t *from, proc_t *to, msg_t *msg)
+int ipc_send(struct proc *from, struct proc *to, msg_t *msg)
 {
 	msg->sender = from->pid;
-	byte status = send(to, msg);
+	int err = send(to, msg);
 
 	// if the target was blocked by waiting for a message wake it up
 	if (pm_is_blocked_for(to, BR_RECEIVING)) {
-		receive(to, to->msg_wait_buffer);
-		km_free_addr(to->msg_wait_buffer, sizeof(msg_t));
-		to->msg_wait_buffer = (void*)0;
+		receive(to, to->msg_waitbuf);
+		km_free_addr(to->msg_waitbuf, sizeof(msg_t));
+		to->msg_waitbuf = NULL;
 		pm_unblock(to);
 	}
 
-	return status;
+	return err;
 }
 
 /**
@@ -85,31 +71,31 @@ int ipc_send(proc_t *from, proc_t *to, msg_t *msg)
  * If there is no message yet the process is blocked (when 'block' is true)
  * or EAGAIN is returnd.
  */
-int ipc_receive(proc_t *proc, msg_t *msg, byte block)
+int ipc_receive(struct proc *proc, msg_t *msg, byte block)
 {
-	int status = receive(proc, msg);
+	int err = receive(proc, msg);
 
 	// if there's no message to receive and we
-	//   should block, disable the process
-	if (status == EAGAIN && block) {
-		proc->msg_wait_buffer = msg;
+	// should block, disable the process
+	if (err == EAGAIN && block) {
+		proc->msg_waitbuf = msg;
 		pm_block(proc, BR_RECEIVING);
 		return 0;
 	}
-	else if (status == 0) {
+	else if (!err) {
 		km_free_addr(msg, sizeof(msg_t));
 	}
 
-	return status;
+	return err;
 }
 
 int32_t sys_send(int32_t target, int32_t msgptr)
 {
-	proc_t *proc = pm_get_proc(target);
-	msg_t  *msg  = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)msgptr,
-	                                 sizeof(msg_t));
+	struct proc *proc = pm_get_proc(target);
+	msg_t *msg = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)msgptr,
+	                               sizeof(msg_t));
 
-	dword result = ipc_send(syscall_proc, proc, msg);
+	int result = ipc_send(syscall_proc, proc, msg);
 
 	km_free_addr(msg, sizeof(msg_t));
 

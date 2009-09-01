@@ -85,10 +85,8 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
 
 	proc->ticks_left = PROC_START_TICKS;
 
-	proc->msg_wait_buffer = NULL;
-	proc->msg_head = proc->msg_buffer;
-	proc->msg_tail = proc->msg_buffer;
-	proc->msg_count = 0;
+	proc->msg_waitbuf = NULL;
+	proc->msgbuffer = rbuf_create(sizeof(msg_t), 24, false);
 
 	proc->tty = pproc ? pproc->tty : "/dev/tty7";
 	proc->cwd = fs_root;

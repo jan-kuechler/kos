@@ -199,10 +199,10 @@ static enum excpt_policy pf_handler(uint32_t *esp)
 	uint32_t cr2 = get_cr2();
 	dbg_error("Virtual address: %p\n", cr2);
 	if (cr2 < 1024) { /* NULL pointer access or structure at NULL */
-		dbg_error("Thou shalt not follow the NULL pointer, for chaos and madness await thee at its end.\n");
+		dbg_error("Hint: Thou shalt not follow the NULL pointer, for chaos and madness await thee at its end.\n");
 	}
 	else if (cr2 < USER_SPACE_START && (regs->errc & USER)) {
-		dbg_error("Tztztz... Bad user! The kernel lives here... and it bites.\n");
+		dbg_error("Hint: Tztztz... Bad user! The kernel lives here... and it bites.\n");
 	}
 
 	return EP_DEFAULT;
