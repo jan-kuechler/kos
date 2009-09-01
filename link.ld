@@ -16,7 +16,15 @@ SECTIONS
 	}
 	.init : AT(ADDR(.init) - VIRT_TO_PHYS)
 	{
+		init_start = .;
 		*(.init)
+		init_data_start = .;
+		*(.init.data)
+		init_data_end = .;
+		init_param_start = .;
+		*(.init.param)
+		init_param_end = .;
+		init_end = .;
 	}
 	.text : AT(ADDR(.text) - VIRT_TO_PHYS)
 	{

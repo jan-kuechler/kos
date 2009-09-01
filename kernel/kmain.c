@@ -17,6 +17,7 @@
 #include "keymap.h"
 #include "loader.h"
 #include "module.h"
+#include "params.h"
 #include "pci.h"
 #include "pm.h"
 #include "syscall.h"
@@ -33,7 +34,34 @@ static void banner();
 static void print_info();
 static int32_t sys_answer();
 
+static bool print_sysinfo = false;
+static bool print_pciinfo = false;
+static bool dump_stack    = false;
+static char init_file[256] = "/bin/sh";
+
 multiboot_info_t multiboot_info;
+
+static int initfile(char *val)
+{
+	strncpy(init_file, val, 255);
+	init_file[255] = '\0';
+
+	dbg_printf(DBG_LOAD, "initfile is now %s.\n", val ? val : "NULL");
+
+	return 0;
+}
+BOOT_PARAM("init", initfile);
+
+static int noinit(char *val)
+{
+	init_file[0] = '\0';
+	return 0;
+}
+BOOT_PARAM("noinit", noinit);
+
+BOOT_FLAG(sysinfo, print_sysinfo, true);
+BOOT_FLAG(pciinfo, print_pciinfo, true);
+BOOT_FLAG(stackdump, dump_stack, true);
 
 static void kinit_fs(void)
 {
@@ -69,21 +97,30 @@ void kinit()
 	kinit_fs();
 
 	kout_puts("\n");
-	print_info();
-	pci_print_table();
+	if (print_sysinfo)
+		print_info();
+	if (print_pciinfo)
+		pci_print_table();
 
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
 
-	if (!strstr((char*)multiboot_info.cmdline, " nosh")) {
-
+	if (init_file[0]) {
 		do {
-			pid_t pid = exec_file("/bin/sh", "sh test", getpid());
-			int status = waitpid(pid, NULL, 0);
+			pid_t pid = exec_file(init_file, init_file, getpid());
+			if (!pid) {
+				kout_printf("Error! Cannot execute %s\n", init_file);
+				strcpy(init_file, "/bin/sh"); /* default to shell */
+			}
+			else {
+				int status = waitpid(pid, NULL, 0);
 
-			kout_printf("/bin/sh ended with status %d.\n", status);
-
+				kout_printf("/bin/sh ended with status %d.\n", status);
+			}
 		} while (1);
+	}
+	else {
+		kout_printf("No init!\n");
 	}
 
 	_exit(0);
@@ -104,11 +141,15 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_kout();
 	init_com();
 
-	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 	init_debug();
+
+	memcpy(&multiboot_info, mb_info, sizeof(multiboot_info_t));
 
 	//kout_puts("\t\t\t\t       kOS\n");
 	banner();
+
+	parse_params((char*)multiboot_info.cmdline, (struct parameter*)init_param_start,
+	              num_init_params, false);
 
 	kout_puts("kOS booting...\n");
 
@@ -243,7 +284,6 @@ void print_state(regs_t *regs)
 	          regs->eflags, regs->ds, regs->es, regs->fs, regs->gs);
 
 	dbg_error("Current process: '%s' (%d)\n", cur_proc->cmdline, cur_proc->pid);
-
 }
 
 __attribute__((noreturn)) void shutdown()
@@ -274,7 +314,7 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 	dbg_aerror(fmt, args);
 	dbg_error("\n");
 
-	if (dbg_check(DBG_PANICBT))
+	if (dump_stack)
 		dbg_stack_backtrace();
 
 	dbg_print_last_syscall();

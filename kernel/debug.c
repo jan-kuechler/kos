@@ -1,4 +1,5 @@
 #include <elf.h>
+#include <errno.h>
 #include <minc.h>
 #include <stdarg.h>
 #include <string.h>
@@ -6,7 +7,10 @@
 #include <kos/config.h>
 #include "debug.h"
 #include "com.h"
+#include "gdt.h"
+#include "idt.h"
 #include "kernel.h"
+#include "params.h"
 #include "pm.h"
 #include "tty.h"
 #include "mm/virt.h"
@@ -16,6 +20,9 @@
 #define CLR_ERR  0x04
 #define CLR_DBG  0x02
 #define CLR_VDBG 0x0A
+
+#define PAGE_FAULT 14
+#define GENERAL_PROTECTION_FAULT 13
 
 #ifdef CONF_DEBUG
 dword dbg_lsc_calln;
@@ -57,7 +64,7 @@ static int com_loglvl = 1;
 static Elf32_Shdr *symtab;
 static Elf32_Shdr *strtab;
 
-static byte dbg_flags[26];
+static byte dbg_flags[26] = {0};
 
 static inline Elf32_Sym *find_sym(dword addr)
 {
@@ -157,35 +164,114 @@ void init_stack_backtrace(void)
 	}
 }
 
+static inline uint32_t get_cr2()
+{
+	dword val = 0;
+	asm volatile("mov %%cr2, %0" : "=r"(val) :);
+	return val;
+}
+
+static enum excpt_policy pf_handler(uint32_t *esp)
+{
+	enum {
+		PROT  = 0x01,
+		WRITE = 0x02,
+		USER  = 0x04,
+		RSVD  = 0x08,
+		INSTR = 0x10,
+	};
+
+	regs_t *regs = (regs_t*)*esp;
+
+	kout_select();
+	dbg_error("Page Fault in %s mode.\n", IS_USER(regs->ds) ? "user" : "kernel");
+
+	print_state(regs);
+
+	dbg_error("%s while %s in %s mode%s%s\n",
+	  (regs->errc & PROT) ? "Protection fault" : "Page n/a",
+	  (regs->errc & WRITE) ? "writing" : "reading",
+	  (regs->errc & USER)  ? "user" : "kernel",
+		(regs->errc & RSVD) ? " (reserved bit in PDE)" : "",
+		(regs->errc & INSTR) ? " (during instruction fetch)" : "."
+	);
+
+	uint32_t cr2 = get_cr2();
+	dbg_error("Virtual address: %p\n", cr2);
+	if (cr2 < 1024) { /* NULL pointer access or structure at NULL */
+		dbg_error("Thou shalt not follow the NULL pointer, for chaos and madness await thee at its end.\n");
+	}
+	else if (cr2 < USER_SPACE_START && (regs->errc & USER)) {
+		dbg_error("Tztztz... Bad user! The kernel lives here... and it bites.\n");
+	}
+
+	return EP_DEFAULT;
+}
+
+static enum excpt_policy gpf_handler(uint32_t *esp)
+{
+	enum {
+		TBL_MASK = 0x0006, /* bits 2 & 3 */
+		IDX_MASK = 0xFFF8, /* high 13 bits of a word */
+	};
+	enum {
+		EXTERN = 0x01,
+	};
+	enum {
+		GDT  = 0x0,
+		IDT1 = 0x1,
+		LDT  = 0x2,
+		IDT2 = 0x3,
+	};
+
+	regs_t *regs = (regs_t*)*esp;
+
+	kout_select();
+	dbg_error("General Protection Fault in %s mode.\n", IS_USER(regs->ds) ? "user" : "kernel");
+
+	print_state(regs);
+
+	bool external = regs->errc & EXTERN;
+	uint8_t tab = (regs->errc & TBL_MASK) >> 1;
+	uint16_t index = (regs->errc & IDX_MASK) >> 3;
+
+	dbg_error("Selector %x in %s%s\n", index,
+		tab == GDT ? "GDT" : (tab == LDT ? "LDT" : "IDT"),
+		external ? " (external origin)." : "."
+	);
+
+	return EP_DEFAULT;
+}
+
 void init_debug(void)
 {
-	memset(dbg_flags, 0, 26);
-
-#ifdef CONF_DEBUG
-	const char *opts = strstr((char*)multiboot_info.cmdline, "debug=");
-	if (opts) {
-		opts += 6;
-
-		while (*opts && *opts != ' ') {
-			char o = *opts++;
-
-			if (o >= 'a' && o <= 'z')
-				dbg_flags[o - 'a'] = 1;
-			else if (o >= 'A' && o <= 'Z')
-				dbg_flags[o - 'A'] = 2;
-		}
-	}
-
-	const char *com = strstr((char*)multiboot_info.cmdline, "com=");
-	if (com) {
-		com += 4;
-
-		if (*com >= '0' && *com <= '9') {
-			com_loglvl = *com - '0';
-		}
-	}
-#endif
+	idt_set_exception_handler(PAGE_FAULT, pf_handler);
+	idt_set_exception_handler(GENERAL_PROTECTION_FAULT, gpf_handler);
 }
+
+static int parse_debug(char *opts)
+{
+	while (*opts) {
+		char o = *opts++;
+
+		if (o >= 'a' && o <= 'z')
+			dbg_flags[o - 'a'] = 1;
+		else if (o >= 'A' && o <= 'Z')
+			dbg_flags[o - 'A'] = 2;
+	}
+	return 0;
+}
+BOOT_PARAM("debug", parse_debug);
+
+static int parse_com(char *com)
+{
+	if (!com) return -EINVAL;
+	if (*com >= '0' && *com <= '9') {
+		com_loglvl = *com - '0';
+	}
+	return 0;
+}
+BOOT_PARAM("com", parse_com);
 
 int dbg_check(char flag)
 {

@@ -15,6 +15,7 @@
 idt_entry_t   idt[IDT_SIZE] __attribute__((aligned(8)));
 irq_handler_t irq_handlers[NUM_IRQ] = {0}; // a list of functions to be called
                                       // when an IRQ happens
+exception_handler_t exception_handler[IRQ_BASE] = {0};
 static volatile uint32_t irq_counter[NUM_IRQ] = {0};
 
 /* assembler stubs exported by int.s */
@@ -60,6 +61,8 @@ extern void irq_stub_15(void);
 
 extern void syscall_stub(void);
 
+static enum excpt_policy default_exception_handler(uint32_t *esp);
+
 /* messages for (nearly) all exceptions */
 static const char *fault_msg[] = {
 	"Devide Error",
@@ -96,15 +99,77 @@ static const char *fault_msg[] = {
 	"Reserved",
 };
 
+enum excpt_type
+{
+	FAULT, TRAP, ABORT, RSVD, BOTH,
+};
+
+static enum excpt_type exception_type[] =
+{
+	FAULT, BOTH, ABORT, TRAP,
+	TRAP, FAULT, FAULT, FAULT,
+	ABORT, FAULT, FAULT, FAULT,
+	FAULT, FAULT, FAULT, RSVD,
+	FAULT, FAULT, ABORT, FAULT,
+	RSVD, RSVD, RSVD, RSVD,
+	RSVD, RSVD, RSVD, RSVD,
+	RSVD, RSVD, RSVD, RSVD,
+};
+
 static void idt_handle_exception(dword *esp)
+{
+	regs_t *regs = (regs_t*)*esp;
+	uint8_t ex = regs->intr;
+
+	enum excpt_policy policy = EP_UNKNOWN;
+	if (exception_handler[ex]) {
+		policy = exception_handler[ex]((uint32_t*)esp);
+	}
+	else {
+		policy = default_exception_handler((uint32_t*)esp);
+	}
+
+	if (policy == EP_DEFAULT) {
+		policy = IS_USER(regs->ds) ? EP_ABORT : EP_PANIC;
+	}
+
+	enum excpt_type type = exception_type[regs->intr];
+
+	switch (policy) {
+	case EP_PANIC:
+		panic("Critical exception!");
+		break;
+
+	case EP_ABORT:
+		pm_destroy(cur_proc);
+		break;
+
+	case EP_RETRY: /* IP one step back and return */
+		if (type == FAULT) {
+			return;
+		}
+		panic("EP_RETRY is not implemented for non-faults...");
+		break;
+
+	case EP_GO_ON: /* IP to next instr and return */
+		if (type == TRAP) {
+			return;
+		}
+		panic("EP_GO_ON is not implemented for non-traps...");
+		break;
+
+	default:
+		panic("This one is so fucked up, I even don't know how to go on...");
+	}
+}
+
+static enum excpt_policy default_exception_handler(uint32_t *esp)
 {
 	regs_t *regs = (regs_t*)*esp;
 
 	kout_select();
 
-	bool user = (regs->ds == (GDT_SEL_UDATA + 0x03));
-
-	if (user) {
+	if (IS_USER(regs->ds)) {
 		dbg_error("%s triggered an exception.\n", cur_proc->cmdline);
 	}
 	else {
@@ -118,14 +183,7 @@ static void idt_handle_exception(dword *esp)
 
 	dbg_error("\n");
 
-	if (user) {
-		dbg_error("Abortin process %d.\n", cur_proc->pid);
-		dbg_print_last_syscall();
-		pm_destroy(cur_proc);
-	}
-	else {
-		panic("Kernel Exception\n");
-	}
+	return EP_DEFAULT;
 }
 
 static void idt_handle_irq(dword *esp)
@@ -218,6 +276,13 @@ bool idt_clr_irq_handler(uint8_t irq)
 
 	irq_handlers[irq] = 0;
 	return true;
+}
+
+void idt_set_exception_handler(uint8_t intr, exception_handler_t handler)
+{
+	kassert(intr < IRQ_BASE);
+
+	exception_handler[intr] = handler;
 }
 
 void idt_reset_irq_counter(uint8_t irq)

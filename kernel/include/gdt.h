@@ -16,6 +16,8 @@
 
 #define GDT_SIZE 6 /* Number of gdt entries */
 
+#define IS_USER(sel) (((sel) & 0x03) == 0x03)
+
 /*
 Change these whenever you change the order
 of the gdt_set_desc calls in init_gdt!

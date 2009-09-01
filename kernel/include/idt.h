@@ -54,10 +54,23 @@ void init_idt(void);
 void idt_set_gate(int intr, uint16_t selector, void *handler,
                   uint8_t dpl, uint8_t type);
 
+enum excpt_policy
+{
+	EP_DEFAULT,
+	EP_PANIC,
+	EP_ABORT,
+	EP_RETRY,
+	EP_GO_ON,
+	EP_UNKNOWN,
+};
+
 typedef void (*irq_handler_t)(int, dword*);
+typedef enum excpt_policy (*exception_handler_t)(uint32_t*);
 
 bool idt_set_irq_handler(uint8_t irq, irq_handler_t handler);
 bool idt_clr_irq_handler(uint8_t irq);
+
+void idt_set_exception_handler(uint8_t intr, exception_handler_t handler);
 
 void idt_reset_irq_counter(uint8_t irq);
 bool idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout);
