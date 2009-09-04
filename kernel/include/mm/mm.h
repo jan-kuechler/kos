@@ -1,7 +1,7 @@
 #ifndef MM_H
 #define MM_H
 
-#include <types.h>
+#include "mm/types.h"
 
 void init_mm(void);
 

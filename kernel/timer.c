@@ -20,7 +20,7 @@ extern proc_t procs[MAX_PROCS];
  * Handles sleeping processes and calls
  * the scheduler.
  */
-void timer_irq(int irq, dword *esp)
+void timer_irq(int irq, uint32_t *esp)
 {
  	timer_ticks++;
 
@@ -51,7 +51,7 @@ void timer_irq(int irq, dword *esp)
  * Blocks the process and schedules it's unblocking
  * to happen in msec milliseconds.
  */
-void timer_sleep(proc_t *proc, dword msec)
+void timer_sleep(struct proc *proc, uint32_t msec)
 {
 	if (pm_block(proc, BR_SLEEPING)) {
 		dword wakeup = timer_ticks + (msec * TIMER_HZ/1000);

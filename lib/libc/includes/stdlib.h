@@ -91,25 +91,36 @@ void srand( unsigned int seed );
 
 /* Memory management functions */
 
+#ifdef KERNEL
+
+#include "mm/kmalloc.h"
+
+#define malloc  kmalloc
+#define free    kfree
+#define calloc  kcalloc
+#define realloc krealloc
+
+#endif
+
 /* Allocate a chunk of heap memory of given size. If request could not be
    satisfied, return NULL. Otherwise, return a pointer to the allocated
    memory. Memory contents are undefined.
 */
-void * malloc( size_t size );
+//!!KOS void * malloc( size_t size );
 
 /* Allocate a chunk of heap memory that is large enough to hold nmemb elements
    of the given size, and zero-initialize that memory. If request could not be
    satisfied, return NULL. Otherwise, return a pointer to the allocated
    memory.
 */
-void * calloc( size_t nmemb, size_t size );
+//!!KOS void * calloc( size_t nmemb, size_t size );
 
 /* De-allocate a chunk of heap memory previously allocated using malloc(),
    calloc(), or realloc(), and pointed to by ptr. If ptr does not match a
    pointer previously returned by the mentioned allocation functions, or
    free() has already been called for this ptr, behaviour is undefined.
 */
-void free( void * ptr );
+//!!KOS void free( void * ptr );
 
 /* Resize a chunk of memory previously allocated with malloc() and pointed to
    by ptr to the given size (which might be larger or smaller than the original
@@ -120,7 +131,7 @@ void free( void * ptr );
    memory beyond the original size is undefined. If ptr is NULL, realloc()
    behaves like malloc().
 */
-void * realloc( void * ptr, size_t size );
+//!!KOS void * realloc( void * ptr, size_t size );
 
 /* Communication with the environment */
 
@@ -140,14 +151,14 @@ void * realloc( void * ptr, size_t size );
    temporary files before exiting with EXIT_FAILURE.
    abort() does not return.
 */
-void abort( void );
+//!!KOS void abort( void );
 
 /* Register a function that will be called on exit(), _Exit(), or when main()
    returns. At least 32 functions can be registered this way, and will be
    called in reverse order of registration (last-in, first-out).
    Returns zero if registration is successfull, nonzero if it failed.
 */
-int atexit( void (*func)( void ) );
+//!!KOS int atexit( void (*func)( void ) );
 
 /* Normal process termination. Functions registered by atexit() (see above) are
    called, streams flushed, files closed and temporary files removed before the
@@ -155,7 +166,7 @@ int atexit( void (*func)( void ) );
    and EXIT_FAILURE above.)
    exit() does not return.
 */
-void exit( int status );
+//!!KOS void exit( int status );
 
 /* Normal process termination. Functions registered by atexit() (see above) are
    NOT CALLED. This implementation DOES flush streams, close files and removes
@@ -163,7 +174,7 @@ void exit( int status );
    comment for EXIT_SUCCESS and EXIT_FAILURE above.)
    _Exit() does not return.
 */
-void _Exit( int status );
+//!!KOS void _Exit( int status );
 
 /* Search an environment-provided key-value map for the given key name, and
    return a pointer to the associated value string (or NULL if key name cannot
@@ -172,14 +183,14 @@ void _Exit( int status );
    Details on the provided keys and how to set / change them are determined by
    the hosting OS and its glue function.
 */
-char * getenv( const char * name );
+//!!KOS char * getenv( const char * name );
 
 /* If string is a NULL pointer, system() returns nonzero if a command processor
    is available, and zero otherwise. If string is not a NULL pointer, it is
    passed to the command processor. If system() returns, it does so with a
    value that is determined by the hosting OS and its glue function.
 */
-int system( const char * string );
+//!!KOS int system( const char * string );
 
 /* Searching and sorting */
 

@@ -1,6 +1,6 @@
 #include <elf.h>
 #include <errno.h>
-#include <minc.h>
+#include <libutil.h>
 #include <stdarg.h>
 #include <string.h>
 #include <types.h>

@@ -1,0 +1,13 @@
+floppya: 1_44="img/kos.img", status=inserted
+boot: floppy
+
+megs: 32
+cpu: count=1, reset_on_triple_fault=0
+
+debugger_log: debug.txt
+#log: log.txt
+
+#debug: action=report
+#info: action=report
+#error: action=report
+panic: action=ask

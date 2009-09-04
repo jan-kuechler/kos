@@ -1,12 +1,12 @@
 #ifndef MM_KMALLOC_H
 #define MM_KMALLOC_H
 
-#include <types.h>
+#include <stdlib.h>
 
-void *kmalloc(size_t size)             __attribute__((malloc));
-void *kmallocu(size_t size)            __attribute__((malloc));
-void *kcalloc(size_t num, size_t size) __attribute__((malloc));
-void *krealloc(void *ptr, size_t size) __attribute__((malloc));
+void *kmalloc(size_t size);
+void *kmallocu(size_t size);
+void *kcalloc(size_t num, size_t size);
+void *krealloc(void *ptr, size_t size);
 
 void  kfree(void *ptr);
 

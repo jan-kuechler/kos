@@ -2,7 +2,6 @@
 #define TIMER_H
 
 #include <stdint.h>
-#include <types.h>
 
 #include "pm.h"
 
@@ -18,7 +17,7 @@
 extern volatile uint64_t timer_ticks;
 
 void init_timer(void);
-void timer_sleep(proc_t *proc, dword msec);
+void timer_sleep(struct proc *proc, uint32_t msec);
 
 void ksleep(uint32_t msec);
 

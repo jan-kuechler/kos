@@ -1,6 +1,6 @@
 #include <bitop.h>
 #include <errno.h>
-#include <minc.h>
+#include <libutil.h>
 #include <ports.h>
 #include <stdlib.h>
 #include <string.h>

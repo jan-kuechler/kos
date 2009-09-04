@@ -23,6 +23,8 @@
 
 struct fs_handle;
 
+typedef uint32_t pid_t;
+
 typedef enum proc_status
 {
 	PS_SLOT_FREE = 0,

@@ -1,5 +1,5 @@
 # Version updater for kOS
-FILE=include/kos/version.h
+FILE=share/include/kos/version.h
 VER="kos_version = \"`git describe`\";"
 DATE="kos_builddate = \"`date +"%T - %d.%m.%y"`\";"
 

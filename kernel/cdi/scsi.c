@@ -3,6 +3,8 @@
 #include "cdi_impl.h"
 #include "mm/kmalloc.h"
 
+static void init_scsi_storage(struct cdi_scsi_device* device);
+
 struct cdi_scsi_packet* cdi_scsi_packet_alloc(size_t size)
 { LOG
 	cdi_check_init(NULL);
@@ -36,16 +38,37 @@ void cdi_scsi_driver_init(struct cdi_scsi_driver* driver)
 }
 
 void cdi_scsi_driver_destroy(struct cdi_scsi_driver* driver)
-{
-	UNIMPLEMENTED
+{ LOG
+	cdi_check_init();
+	cdi_check_arg(driver, != NULL);
+
+	cdi_driver_destroy(&driver->drv);
 }
 
 void cdi_scsi_driver_register(struct cdi_scsi_driver* driver)
-{
-	UNIMPLEMENTED
+{ LOG
+	cdi_check_init();
+	cdi_check_arg(driver, != NULL);
+
+	cdi_driver_register(&driver->drv);
 }
 
 void cdi_scsi_device_init(struct cdi_scsi_device* device)
+{ LOG
+	cdi_check_init();
+	cdi_check_arg(device, != NULL);
+
+	switch (device->type) {
+	case CDI_STORAGE:
+		init_scsi_storage(device);
+		break;
+
+	default:
+		cdi_error("SCSI Devices of this type are not supported.");
+	}
+}
+
+static void init_scsi_storage(struct cdi_scsi_device* device)
 {
-	UNIMPLEMENTED
+	// todo
 }

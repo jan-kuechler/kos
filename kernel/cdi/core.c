@@ -8,7 +8,6 @@ int cdi_initialized = 0;
 
 void cdi_init()
 {	LOG
-
 	if (!cdi_initialized) {
 		cdi_drivers = list_create();
 
@@ -18,6 +17,7 @@ void cdi_init()
 
 void cdi_run_drivers(void)
 {	LOG
+	cdi_check_init();
 
 	list_entry_t *e;
 	list_iterate(e, cdi_drivers) {
@@ -27,17 +27,16 @@ void cdi_run_drivers(void)
 		list_iterate(de, driver->devices->list) {
 			struct cdi_device *dev = de->data;
 			dev->driver = driver;
+
 			if (driver->init_device) {
 				driver->init_device(dev);
 			}
 		}
-
 	}
 }
 
 void cdi_driver_init(struct cdi_driver *driver)
 {	LOG
-
 	cdi_check_init();
 	cdi_check_arg(driver, != NULL);
 
@@ -46,7 +45,6 @@ void cdi_driver_init(struct cdi_driver *driver)
 
 void cdi_driver_destroy(struct cdi_driver *driver)
 {	LOG
-
 	cdi_check_init();
 	cdi_check_arg(driver, != NULL);
 
@@ -55,7 +53,6 @@ void cdi_driver_destroy(struct cdi_driver *driver)
 
 void cdi_driver_register(struct cdi_driver *driver)
 {	LOG
-
 	cdi_check_init();
 	cdi_check_arg(driver, != NULL);
 

@@ -37,6 +37,7 @@ static int32_t sys_answer();
 static bool print_sysinfo = false;
 static bool print_pciinfo = false;
 static bool dump_stack    = false;
+static bool run_cdi       = false;
 static char init_file[256] = "/bin/sh";
 
 multiboot_info_t multiboot_info;
@@ -62,6 +63,7 @@ BOOT_PARAM("noinit", noinit);
 BOOT_FLAG(sysinfo, print_sysinfo, true);
 BOOT_FLAG(pciinfo, print_pciinfo, true);
 BOOT_FLAG(stackdump, dump_stack, true);
+BOOT_FLAG(cdi, run_cdi, true);
 
 static void kinit_fs(void)
 {
@@ -101,6 +103,9 @@ void kinit()
 		print_info();
 	if (print_pciinfo)
 		pci_print_table();
+
+	if (run_cdi)
+		cdi_run_drivers();
 
 	// HACK!!
 	cur_proc->tty = "/dev/tty0";
@@ -190,7 +195,8 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
 
-	//init_cdi_driver();
+	if (run_cdi)
+		init_cdi_driver();
 
 	cx_set(CX_INIT_DONE);
 	kout_puts("kOS booted.\n\n");

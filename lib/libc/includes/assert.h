@@ -21,9 +21,9 @@
 #ifndef _PDCLIB_ASSERT_H
 #define _PDCLIB_ASSERT_H _PDCLIB_ASSERT_H
 #if _PDCLIB_C_VERSION == 99
-void _PDCLIB_assert( char const * const, char const * const, char const * const );
+//!!KOS void _PDCLIB_assert( char const * const, char const * const, char const * const );
 #else
-void _PDCLIB_assert( char const * const );
+//!!KOS void _PDCLIB_assert( char const * const );
 #endif
 #endif
 
@@ -31,21 +31,21 @@ void _PDCLIB_assert( char const * const );
 #undef assert
 
 #ifdef NDEBUG
-#define assert( ignore ) ( (void) 0 )
+//!!KOS #define assert( ignore ) ( (void) 0 )
 #else
 #if _PDCLIB_C_VERSION == 99
-#define assert( expression ) ( ( expression ) ? (void) 0 \
-        : _PDCLIB_assert( "Assertion failed: " #expression \
-                          ", function ", __func__, \
-			  ", file " __FILE__ \
-			  ", line " _PDCLIB_symbol2string( __LINE__ ) \
-			  "." _PDCLIB_endl ) )
+//!!KOS #define assert( expression ) ( ( expression ) ? (void) 0 \
+//!!KOS         : _PDCLIB_assert( "Assertion failed: " #expression \
+//!!KOS                           ", function ", __func__, \
+//!!KOS 			  ", file " __FILE__ \
+//!!KOS 			  ", line " _PDCLIB_symbol2string( __LINE__ ) \
+//!!KOS 			  "." _PDCLIB_endl ) )
 #else
-#define assert( expression ) ( ( expression ) ? (void) 0 \
-	: _PDCLIB_assert( "Assertion failed: " #expression \
-	                  ", file " __FILE__ \
-	                  ", line " _PDCLIB_symbol2string( __LINE__ ) \
-	                  "." _PDCLIB_endl ) )
+//!!KOS #define assert( expression ) ( ( expression ) ? (void) 0 \
+//!!KOS 	: _PDCLIB_assert( "Assertion failed: " #expression \
+//!!KOS 	                  ", file " __FILE__ \
+//!!KOS 	                  ", line " _PDCLIB_symbol2string( __LINE__ ) \
+//!!KOS 	                  "." _PDCLIB_endl ) )
 #endif
 #endif
 

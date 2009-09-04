@@ -33,11 +33,11 @@
 #endif
 
 #ifdef CONF_DEBUG
-extern dword dbg_lsc_calln;
-extern dword dbg_lsc_arg0;
-extern dword dbg_lsc_arg1;
-extern dword dbg_lsc_arg2;
-extern pid_t dbg_lsc_proc;
+extern uint32_t dbg_lsc_calln;
+extern uint32_t dbg_lsc_arg0;
+extern uint32_t dbg_lsc_arg1;
+extern uint32_t dbg_lsc_arg2;
+extern uint32_t dbg_lsc_proc;
 
 #  define dbg_set_last_syscall(n,a0,a1,a2) \
 	do {                                     \

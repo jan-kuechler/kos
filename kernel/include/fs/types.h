@@ -1,6 +1,7 @@
 #ifndef FS_TYPES_H
 #define FS_TYPES_H
 
+#include <stdint.h>
 #include <types.h>
 
 /*
@@ -65,10 +66,10 @@ struct inode
 	dword perm;
 	dword length;
 
-	uid_t uid;
-	gid_t gid;
+	uint32_t uid;
+	uint32_t gid;
 
-	dword opencount;
+	uint32_t opencount;
 
 	dword impl;
 

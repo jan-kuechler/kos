@@ -4,6 +4,8 @@
 
 BUILDNAME = Yggdrasil
 
+ARCH = i386
+
 SRCFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.c")
 HDRFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.h")
 ASMFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.s")
@@ -11,14 +13,23 @@ ASMFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.s")
 OBJFILES = $(patsubst kernel/%.c,bin/%.o,$(SRCFILES))
 ASMOBJS  = $(patsubst kernel/%.s,bin/%.s.o,$(ASMFILES))
 
+## Include directories ##
+INCLUDE_DIRS = -Ishare/include \
+               -Ikernel/include -Ikernel/include/arch/$(ARCH) \
+               -Ilib/libc/includes -Ilib/libc/internals \
+               -Ilib/libutil/include \
+               -Ilib/libkos/include \
+               
 ASM = nasm
 ASMFLAGS = -felf
 
-CC = kgcc
-CFLAGS = -Wall -O2 -static -c -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs \
-         -fno-builtin -Iinclude -Iinclude/arch/i386 -Ikernel/include
+CC = i586-elf-gcc
+CFLAGS = -Wall -O2 -std=gnu99 -static -c -g -DKERNEL -ffreestanding -nostdlib  \
+         -nostartfiles -nodefaultlibs -fno-builtin $(INCLUDE_DIRS)
+         
+# using std=gnu99 to get the gnu asm statement
 
-LD = kld
+LD = i586-elf-ld
 LDFLAGS = -Llib -static -Tlink.ld
 
 LIBS = -lutil -lc -lutil -lk -lgcc

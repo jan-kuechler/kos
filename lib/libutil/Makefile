@@ -5,13 +5,13 @@ NAME=libutil
 BASE=../..
 #BASE=/c/osdev/kos
 
-CC=kgcc
+CC=i586-elf-gcc
 #CC_INCL=-I$(BASE)/include -I$(BASE)/include/arch/i386 -I$(BASE)/kernel/include -Iinclude
 CC_FLAGS=$(CC_INCL) -O3 -static -g -ffreestanding -nostdlib -nostartfiles -nodefaultlibs  -Wall -c
 
 all: objs archive install clean
 
-SRCS = $(wildcard *.c)
+SRCS = $(wildcard src/*.c)
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 
 objs:

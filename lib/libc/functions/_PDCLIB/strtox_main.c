@@ -11,7 +11,7 @@
 #define _PDCLIB_INT_H _PDCLIB_INT_H
 #include <_PDCLIB_int.h>
 #include <ctype.h>
-#include <errno.h>
+//!!KOS #include <errno.h>
 #include <string.h>
 
 _PDCLIB_uintmax_t _PDCLIB_strtox_main( const char ** p, unsigned int base, _PDCLIB_uintmax_t error, _PDCLIB_uintmax_t limval, _PDCLIB_uintmax_t limdigit, char * sign )
@@ -29,7 +29,7 @@ _PDCLIB_uintmax_t _PDCLIB_strtox_main( const char ** p, unsigned int base, _PDCL
         }
         else
         {
-            errno = ERANGE;
+            //!!KOS errno = ERANGE;
             /* TODO: Only if endptr != NULL - but do we really want *another* parameter? */
             while ( memchr( _PDCLIB_digits, tolower(**p), base ) != NULL ) ++(*p);
             /* TODO: This is ugly, but keeps caller from negating the error value */

@@ -1,6 +1,7 @@
 #ifndef MM_VIRT_H
 #define MM_VIRT_H
 
+#include <stdlib.h>
 #include <types.h>
 #include "mm/types.h"
 

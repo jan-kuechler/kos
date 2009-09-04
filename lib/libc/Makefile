@@ -11,7 +11,7 @@ REGFILES := $(filter-out $(patsubst %,functions/_PDCLIB/%.r,$(INTFILES)),$(patsu
 DEPFILES := $(patsubst %.c,%.d,$(SRCFILES))
 ALLFILES := $(SRCFILES) $(HDRFILES) $(AUXFILES)
 
-CC = kgcc
+CC = i586-elf-gcc
 CFLAGS = -Wall -fno-builtin
 
 .PHONY: clean dist test testdrivers regtest
@@ -19,7 +19,10 @@ CFLAGS = -Wall -fno-builtin
 all: pdclib.a
 
 pdclib.a: $(OBJFILES)
-	@ar r pdclib.a $?
+	@i586-elf-ar r pdclib.a $?
+	
+install: pdclib.a
+	cp pdclib.a ..
 
 test: testdrivers
 	-@rc=0; for file in $(TSTFILES); do ./$$file; rc=`expr $$rc + $$?`; done; echo; echo "Tests failed: $$rc"
