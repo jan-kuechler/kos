@@ -14,12 +14,12 @@ OBJFILES = $(patsubst kernel/%.c,bin/%.o,$(SRCFILES))
 ASMOBJS  = $(patsubst kernel/%.s,bin/%.s.o,$(ASMFILES))
 
 ## Include directories ##
-INCLUDE_DIRS = -Ishare/include \
-               -Ikernel/include -Ikernel/include/arch/$(ARCH) \
+INCLUDE_DIRS = -Ikernel/include -Ikernel/include/arch/$(ARCH) \
+               -Ishare/include \
                -Ilib/libc/includes -Ilib/libc/internals \
                -Ilib/libutil/include \
-               -Ilib/libkos/include \
-               
+               -Ilib/libkos/include 
+
 ASM = nasm
 ASMFLAGS = -felf
 
@@ -32,7 +32,7 @@ CFLAGS = -Wall -O2 -std=gnu99 -static -c -g -DKERNEL -ffreestanding -nostdlib  \
 LD = i586-elf-ld
 LDFLAGS = -Llib -static -Tlink.ld
 
-LIBS = -lutil -lc -lutil -lk -lgcc
+LIBS = -lutil -lc -lutil -lkos -lgcc
 
 QFLAGS = -m 32 -soundhw all -serial file:kos.log -L ../tools/qemu -no-kqemu
 

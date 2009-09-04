@@ -213,7 +213,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 static void banner()
 {
 	/* Banner: kos *version* *name* (*builddate*) */
-	int len = 4 + strlen(kos_version) + 3 + strlen(kos_builddate);
+	int len = 4 + strlen(kos_version) + 1 + strlen(kos_buildname) + 2 + strlen(kos_builddate) + 1;
 
 	int linerest = 80 - len;
 	int begin = linerest / 2;
@@ -225,6 +225,8 @@ static void banner()
 	byte oc = kout_set_status(0x04);
 	kout_puts("kOS ");
 	kout_puts(kos_version);
+	kout_puts(" ");
+	kout_puts(kos_buildname);
 	kout_puts(" (");
 	kout_puts(kos_builddate);
 	kout_puts(")\n");
