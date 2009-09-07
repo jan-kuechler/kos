@@ -18,7 +18,7 @@ install:
 	@cp -f $(NAME) ..
 	
 install-shared:
-	@cp -f $(NAME) ../../share/i586-elf/lib
+	@cp -f $(NAME) ../../share/lib
 	
 clean:
 	@rm -rf *.o

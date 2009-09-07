@@ -147,7 +147,19 @@ int32_t sys_readwrite(int32_t fd, int32_t buffer, int32_t count)
 end:
 	if (result != -EAGAIN)
 		km_free_addr(kbuf, count);
-	return (dword)result;
+	return (int32_t)result;
+}
+
+int32_t sys_getcwd(void *bufaddr, uint32_t count)
+{
+	char *buffer = vm_user_to_kernel(syscall_proc->as->pdir, bufaddr, count);
+
+	strncpy(buffer, syscall_proc->cwd->name, count);
+	buffer[count-1] = '\0';
+
+	km_free_addr(buffer, count);
+
+	return (int32_t)bufaddr;
 }
 
 int32_t sys_stat(int32_t path, int32_t sbuf)
@@ -164,35 +176,44 @@ int32_t sys_isatty(int32_t fd)
 	return tty_isatty(file);
 }
 
-int32_t sys_readdir(dword calln, dword fname, dword index, dword buffer)
+int32_t sys_readdir(uint32_t path, uint32_t userbuf, int index)
 {
+	int err = 0;
+
 	size_t namelen = 0;
-	char *name = vm_map_string(syscall_proc->as->pdir, (vaddr_t)fname, &namelen);
-	size_t buflen = 0;
-	char *buf = vm_map_string(syscall_proc->as->pdir, (vaddr_t)buffer, &buflen);
-	struct inode *inode = vfs_lookup(name, syscall_proc->cwd);
-	int status = -ENOSYS;
+	char *name = vm_map_string(syscall_proc->as->pdir, (vaddr_t)path, &namelen);
+	size_t size = 0;
+	char *buffer =  vm_map_string(syscall_proc->as->pdir, userbuf, &size);
 
-	if (!inode) {
-		status = -ENOENT;
+	if (!name || !buffer) {
+		err = -ENOMEM;
 		goto end;
 	}
 
-	struct dirent *entry = vfs_readdir(inode, index);
+	dbg_printf(DBG_FS, "readdir %s %d\n", name, index);
 
-	if (!entry) {
-		status = -ENOENT;
+
+	struct inode *dir = vfs_lookup(name, syscall_proc->cwd);
+	if (!dir) {
+		err = -ENOENT;
 		goto end;
 	}
 
-	size_t len = buflen < FS_MAX_NAME ? buflen : FS_MAX_NAME;
-	strncpy(buf, entry->name, len);
-	buf[len] = '\0';
-	status = 0;
+	struct dirent *dirent = vfs_readdir(dir, index);
+	if (!dirent) {
+		err = vfs_geterror();
+		goto end;
+	}
+
+	strncpy(buffer, dirent->name, size > FS_MAX_NAME ? FS_MAX_NAME : size);
+
 end:
-	km_free_addr(name, namelen);
-	km_free_addr(buf, buflen);
-	return (dword)status;
+	if (name)
+		km_free_addr(name, namelen);
+	if (buffer)
+		km_free_addr(buffer, size);
+
+	return err;
 }
 
 int32_t sys_mount(int32_t mountp, int32_t ftype, int32_t device)
@@ -277,8 +298,9 @@ void init_fs(void)
 
 	syscall_register(SC_STAT, sys_stat, 2);
 
-	//syscall_register(SC_READDIR, sys_readdir);
-	//syscall_register(SC_MOUNT, sys_mount);
+	syscall_register(SC_GETCWD, sys_getcwd, 2);
+	syscall_register(SC_READDIR, sys_readdir, 3);
+
 	syscall_register(SC_OPEN_STD, sys_open_std, 0);
 
 	dbg_printf(DBG_FS, "done\n");

@@ -54,6 +54,9 @@
 #define SC_EXECUTE      30
 #define SC_GETCMDLINE   31
 
-#define NUM_SYSCALLS    32
+#define SC_GETCWD       32
+#define SC_READDIR      33
+
+#define NUM_SYSCALLS    34
 
 #endif /*SYSCALLN_H*/

@@ -113,5 +113,15 @@ struct inode *vfs_lookup(const char *path, struct inode *start)
 
 	}
 
+	if (ino && bisset(ino->flags, FS_MOUNTP)) {
+		dbg_printf(DBG_FS, "vfs_lookup returning mountpoint: %s\n", path);
+
+		ino = ino->link;
+	}
+
+	//if (bisset(ino->flags, FS_MOUNTP) && ino->link) {
+	//	ino = ino->link;
+	//}
+
 	return ino;
 }

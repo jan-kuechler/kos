@@ -125,8 +125,9 @@ struct dirent *vfs_readdir(struct inode *ino, dword index)
 	if (bnotset(ino->flags, FS_DIR))
 		ret_null_and_err(-EINVAL);
 
-	if (inode_has_op(ino, readdir))
+	if (inode_has_op(ino, readdir)) {
 		return ino->ops->readdir(ino, index);
+	}
 
 	ret_null_and_err(-ENOSYS);
 }

@@ -1,4 +1,5 @@
 #include <bitop.h>
+#include <errno.h>
 #include <string.h>
 #include <kos/initrd.h>
 #include "debug.h"
@@ -117,6 +118,7 @@ static struct dirent *id_readdir(struct inode *ino, dword index)
 	}
 
 	kfree(dirent);
+	fs_error = -ENOENT;
 	return NULL;
 }
 
@@ -205,30 +207,32 @@ static struct inode *parse_dir(struct id_entry *dir, void *disk)
 		panic("Tried to parse %s as a dir, but it's a file.\n", (char*)id_get(dir, name, disk));
 	}
 
-	dbg_vprintf(DBG_FS, "creating dir...\n");
+	dbg_vprintf(DBG_FS, "creating dir %s\n", (char*)id_get(dir, name, disk));
 
 	struct inode *ino = new_inode(dir, disk);
 	ino->flags = FS_DIR;
 	list_t *entries = list_create();
 	ino->impl = (dword)entries;
 
-	struct id_entry *entry = id_get(dir, content, disk);
+	if (id_get(dir, count, disk) > 0) {
+		struct id_entry *entry = id_get(dir, content, disk);
 
-	while (entry) {
-		struct inode *e = NULL;
-		if (entry->type == ID_TYPE_FILE) {
-			e = parse_file(entry, disk);
-		}
-		else if (entry->type == ID_TYPE_DIR) {
-			e = parse_dir(entry, disk);
-		}
-		else {
-			panic("Invalid type: %d\n", entry->type);
-		}
+		while (entry) {
+			struct inode *e = NULL;
+			if (entry->type == ID_TYPE_FILE) {
+				e = parse_file(entry, disk);
+			}
+			else if (entry->type == ID_TYPE_DIR) {
+				e = parse_dir(entry, disk);
+			}
+			else {
+				panic("Invalid type: %d\n", entry->type);
+			}
 
-		list_add_back(entries, e);
+			list_add_back(entries, e);
 
-		entry = id_get(entry, next, disk);
+			entry = id_get(entry, next, disk);
+		}
 	}
 
 	dbg_vprintf(DBG_FS, "dir done!\n");

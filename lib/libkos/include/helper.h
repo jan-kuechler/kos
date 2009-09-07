@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <kos/strparam.h>
+#include <kos/syscalln.h>
 #include <string.h>
 
 extern int32_t do_syscall(int32_t, int32_t, int32_t, int32_t);
