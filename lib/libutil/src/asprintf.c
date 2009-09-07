@@ -26,9 +26,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "stdlib.h"
-#include "string.h"
-#include "types.h"
+#include <stdlib.h>
+#include <string.h>
+
+#define malloc  kmalloc
+#define realloc krealloc
+#define free    kfree
+#define calloc  kcalloc
 
 #include "jprintf.h"
 
@@ -63,7 +67,7 @@ int vasprintf(char ** buffer, const char * format, va_list ap)
     struct asprintf_args args;
     struct jprintf_args asnprintf_handler = { (pfn_putc)&asprintf_putc, 0, (void*)&args };
     int retval;
-    
+
     if(buffer == NULL)
     {
         return -1;
@@ -74,7 +78,7 @@ int vasprintf(char ** buffer, const char * format, va_list ap)
     {
         return -1;
     }
-    
+
     args.buflen = ASPRINTF_INITIAL_BUFFER_SIZE;
     args.bytes_written = 0;
 

@@ -1,5 +1,7 @@
 #include <ctype.h>
 
+#define CTYPE_PTR __ctype_ptr__
+
 #ifndef _CONST
 #define _CONST const
 #endif
@@ -52,9 +54,9 @@ static _CONST char _ctype_b[128 + 256] = {
 };
 
 #  if defined(__CYGWIN__)
-_CONST char __declspec(dllexport) *__ctype_ptr = _ctype_b + 128;
+_CONST char __declspec(dllexport) *CTYPE_PTR = _ctype_b + 128;
 #  else
-_CONST char *__ctype_ptr = _ctype_b + 128;
+_CONST char *CTYPE_PTR = _ctype_b + 128;
 #  endif
 
 #  if defined(_HAVE_ARRAY_ALIASING)
@@ -90,5 +92,5 @@ _CONST char _ctype_[1 + 256] = {
 	_CTYPE_DATA_128_256
 };
 
-_CONST char *__ctype_ptr = _ctype_ + 1;
+_CONST char *CTYPE_PTR = _ctype_ + 1;
 #endif

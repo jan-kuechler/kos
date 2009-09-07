@@ -1,22 +1,12 @@
-# use win32 or linux
-HOST = win32
-
-OUT_WIN32=mkid.exe
-OUT_LINUX=mkid
-
-#TEST=-DDUMMY
-TEST=
+NAME = mkid.exe
 
 CC=gcc
 CFLAGS=-g -Wall 
 
-all: $(HOST)
+all: $(NAME)
 
-win32: main-win32.c initrd.c initrd.h
-	$(CC) $(CFLAGS) $(TEST) -o$(OUT_WIN32) main-win32.c initrd.c
+$(NAME): main.c initrd.c initrd.h
+	$(CC) $(CFLAGS) -o$(NAME) main.c initrd.c
 	
-linux: main-linux.c initrd.c initrd.h
-	$(CC) $(CFLAGS) $(TEST) -o$(OUT_LINUX) main-linux.c initrd.c
-
-install:
-	cp mkid.exe ../..
+install: $(NAME)
+	cp $(NAME) ../../bin

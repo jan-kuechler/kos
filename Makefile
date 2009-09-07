@@ -5,6 +5,7 @@
 BUILDNAME = Yggdrasil
 
 ARCH = i386
+COMPILER = gcc
 
 SRCFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.c")
 HDRFILES = $(shell find kernel -mindepth 1 -maxdepth 4 -name "*.h")
@@ -15,10 +16,10 @@ ASMOBJS  = $(patsubst kernel/%.s,bin/%.s.o,$(ASMFILES))
 
 ## Include directories ##
 INCLUDE_DIRS = -Ikernel/include -Ikernel/include/arch/$(ARCH) \
-               -Ishare/include \
+               -Ishare/include -Ishare/include/compiler/$(COMPILER)  \
                -Ilib/libc/includes -Ilib/libc/internals \
                -Ilib/libutil/include \
-               -Ilib/libkos/include 
+               -Ilib/libkos/include
 
 ASM = nasm
 ASMFLAGS = -felf
@@ -34,7 +35,7 @@ LDFLAGS = -Llib -static -Tlink.ld
 
 LIBS = -lutil -lc -lutil -lkos -lgcc
 
-QFLAGS = -m 32 -soundhw all -serial file:kos.log -L ../tools/qemu -no-kqemu
+QFLAGS = -m 32 -serial file:kos.log -L ../tools/qemu -no-kqemu
 
 .PHONY: all clean version verupdate initrd floppy iso run run-iso
 
@@ -59,8 +60,9 @@ stats:
 
 kernel: bin/kos.bin
 
-initrd:
-	mkid initrd bin/initrd
+tf: kernel floppy run
+
+ti: kernel iso run-iso
 
 floppy: 
 	@./cpyfiles.sh floppy

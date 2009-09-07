@@ -1,5 +1,14 @@
 #include <stdarg.h>
 
+static int bufns(char *buffer, const char *str, int n)
+{
+	int x = 0;
+	while (n--) {
+		buffer[x++] = *str++;
+	}
+	return x;
+}
+
 static int bufs(char *buffer, const char *str)
 {
 	int n = 0;
@@ -111,6 +120,10 @@ int strafmt(char *buffer, const char *fmt, va_list args)
 
 			case 's':
 				n += bufs(&buffer[n], va_arg(args, char*));
+				break;
+
+			case 'S':
+				n += bufns(&buffer[n], va_arg(args, char*), pad);
 				break;
 
 			case '%':

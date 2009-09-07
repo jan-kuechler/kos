@@ -2,6 +2,6 @@ default 0
 timeout 2
 
 title kOS
-kernel /kos.bin sysinfo pciinfo stackdump debug=lBD com=2
+kernel /kos.bin sysinfo pciinfo stackdump cdi debug=lBD com=2
 module /initrd
 root (fd0)

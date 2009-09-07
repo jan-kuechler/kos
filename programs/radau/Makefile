@@ -1,22 +1,24 @@
-CC = kgcc
-CFLAGS = -Wall 
+NAME = radau
 
-TESTCC = mingw32-gcc
-TESTCFLAGS = -Wall -DTEST
+CC = i586-elf-gcc 
+CFLAGS = -Wall
 
-SRCFILES = $(shell echo "*.c")
+LD = i586-elf-ld
+LDFLAGS = -L../../share/lib -L../../share/i586-elf/lib -Tkos.ld
 
-all: radau tests
+SRCFILES = $(wildcard *.c)
+OBJFILES = $(patsubst %.c,%.o,$(SRCFILES))
 
-radau: $(SRCFILES)
-	@$(CC) $(CFLAGS) -oradau $(SRCFILES) -lk
+all: $(NAME)
+	
+$(NAME): $(OBJFILES)
+	@$(LD) $(LDFLAGS) -o$(NAME) $(OBJFILES) ../../share/lib/crt0.o -lkos -lc -lkos
 
 install:
-	@cp radau ../../initrd/bin
-
-# Maintain this list manually, not every file has a test
-tests:
+	@cp $(NAME) ../../initrd/bin
 
 clean:
-	rm -f radau
-	rm -f *.exe
+	@rm -f $(NAME)
+
+%.o: %.c
+	@$(CC) $(CFLAGS) -o$@ -c $<

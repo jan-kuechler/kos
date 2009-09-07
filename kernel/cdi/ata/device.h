@@ -1,4 +1,4 @@
-/*  
+/*
  * Copyright (c) 2007-2009 The tyndur Project. All rights reserved.
  *
  * This code is derived from software contributed to the tyndur Project
@@ -20,23 +20,23 @@
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR 
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR 
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _ATA_DEVICE_H_
 #define _ATA_DEVICE_H_
 
-#undef DEBUG_ENABLE
+#define DEBUG_ENABLE
 
 #include <stdint.h>
 
@@ -135,7 +135,8 @@
 
 // Debug
 #ifdef DEBUG_ENABLE
-    #define DEBUG(fmt, ...) printf("ata: " fmt, __VA_ARGS__)
+    #include "debug.h"
+    #define DEBUG(fmt, ...) dbg_printf(DBG_CDI, "ata: " fmt, ## __VA_ARGS__)
 #else
     #define DEBUG(...)
 #endif
@@ -328,7 +329,7 @@ struct ata_device {
     // In der Partitionstruktur ist dieses Feld null, um Partitionen erkennen
     // zu koennen.
     struct ata_controller*      controller;
-    
+
     // Liste mit den Partitionen
     cdi_list_t                  partition_list;
 
@@ -385,7 +386,7 @@ struct ata_controller {
 
 struct ata_request {
     struct ata_device* dev;
-    
+
     enum {
         NON_DATA,
         PIO,
@@ -398,13 +399,13 @@ struct ata_request {
             READ,
             WRITE
         } direction;
-        
+
         // 1 fuer Polling; 0 fuer Interrupts
         uint8_t poll;
-        
+
         // 1 fuer ATAPI; 0 fuer ata
         uint8_t ata;
-        
+
         // 1 Wenn das LBA-Bit im Geraeteregister
         uint8_t lba;
     } flags;
@@ -430,7 +431,7 @@ struct ata_request {
 
     // Anzahl der Blocks die uebertragen werden sollen
     uint16_t block_count;
-    
+
     // Groesse eines Blocks
     uint16_t block_size;
 
@@ -440,7 +441,7 @@ struct ata_request {
     // Puffer in den die Daten geschrieben werden sollen/aus dem sie gelesen
     // werden sollen.
     void* buffer;
-    
+
     // Moegliche Fehler
     enum {
         NO_ERROR = 0,
@@ -512,7 +513,7 @@ static inline uint8_t ata_reg_inb(struct ata_controller* controller,
 /**
  * Byte in Kontrollerregister schreiben
  */
-static inline void ata_reg_outb(struct ata_controller* controller, 
+static inline void ata_reg_outb(struct ata_controller* controller,
     uint8_t reg, uint8_t value)
 {
     uint16_t base = ata_reg_base(controller, reg);

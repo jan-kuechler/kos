@@ -75,23 +75,87 @@ static struct file_ops tty_file_ops = {
 	.seek = tty_seek,
 };
 
+static inline void cga_write(uint8_t reg, uint8_t value)
+{
+	outb(CGA_PORT_CMD,  reg);
+	outb(CGA_PORT_DATA, value);
+}
+
+static inline uint8_t cga_read(uint8_t reg)
+{
+	outb(CGA_PORT_CMD, reg);
+	return inb(CGA_PORT_DATA);
+}
+
+static void set_start_line(uint8_t line)
+{
+	uint16_t addr = line * 80;
+	cga_write(CGA_START_LO, addr);
+	cga_write(CGA_START_HI, addr >> 8);
+}
+
 /**
  *  scroll(tty, lines)
  */
-static void scroll(tty_t *tty, int lines)
+static void scroll(tty_t *tty)
 {
-	dword offs = lines * TTY_SCREEN_X * 2;
-	dword count = (TTY_SCREEN_Y - lines) * TTY_SCREEN_X * 2;
-	dword ncount = lines * TTY_SCREEN_X; // * 2;
+	tty->outstart++;
 
-	if (tty == cur_tty) {
-		memmove(((byte*)vmem), ((byte*)vmem) + offs, count);
-		memsetw(((int8_t*)vmem) + count, ' ' | (tty->status << 8), ncount);
+	if (tty->outstart > CON_MAX_START_LINE) {
+		int bytes = CON_MEM_SIZE - 160;
+		int words = bytes / 2;
+
+		memmove(tty->outbuf, ((uint8_t*)tty->outbuf) + 160, bytes);
+		memsetw(tty->outbuf + words, ' ' | (tty->status << 8), 80);
+
+		if (tty == cur_tty) {
+			memmove(vmem, ((uint8_t*)vmem) + 160, bytes);
+			memsetw(vmem + words, ' ' | (tty->status << 8), 80);
+		}
+
+		tty->outstart--;
+		tty->y--;
 	}
 
-	memmove(((byte*)tty->outbuf), ((byte*)tty->outbuf) + offs, count);
-	memsetw(((int8_t*)tty->outbuf) + count, ' ' | (tty->status << 8), ncount);
-	tty->y -= lines;
+	if (tty == cur_tty) {
+		set_start_line(tty->outstart);
+	}
+	tty->screenY--;
+}
+
+static void scroll_line_up()
+{
+	if (cur_tty->outstart) {
+		cur_tty->outstart--;
+		set_start_line(cur_tty->outstart);
+	}
+}
+
+static void scroll_line_down()
+{
+	if (cur_tty->outstart	 < CON_MAX_START_LINE) {
+		cur_tty->outstart++;
+		set_start_line(cur_tty->outstart);
+	}
+}
+
+static void scroll_to_top()
+{
+	cur_tty->outstart = 0;
+	set_start_line(cur_tty->outstart);
+}
+
+static void scroll_to_bottom(struct tty *tty)
+{
+	uint8_t end = 0;
+
+	if (tty->y > 24) {
+		end = tty->y - 24;
+	}
+
+	tty->outstart = end;
+	if (tty == cur_tty)
+		set_start_line(tty->outstart);
 }
 
 /**
@@ -100,7 +164,9 @@ static void scroll(tty_t *tty, int lines)
 static inline void flush(tty_t *tty)
 {
 	if (tty == cur_tty) {
-		memcpy(vmem, tty->outbuf, TTY_SCREEN_SIZE * 2);
+		memcpy(vmem, tty->outbuf, CON_MEM_SIZE);
+
+		set_start_line(tty->outstart);
 	}
 }
 
@@ -109,7 +175,8 @@ static inline void flush(tty_t *tty)
  */
 static inline void clear(tty_t *tty)
 {
-	memsetw(tty->outbuf, ' ' | (tty->status << 8), TTY_SCREEN_SIZE);
+	memsetw(tty->outbuf, ' ' | (tty->status << 8), CON_MEM_CHARS);
+	tty->outstart = 0;
 }
 
 /**
@@ -122,10 +189,9 @@ static inline void update_cursor(tty_t *tty)
 		if (list_size(tty->requests) > 0) {
 			pos = CPOS(tty);
 		}
-		outb(0x3D4, 15);
-		outb(0x3D5, pos);
-		outb(0x3D4, 14);
-		outb(0x3D5, pos >> 8);
+
+		cga_write(CGA_CURSOR_LO, pos);
+		cga_write(CGA_CURSOR_HI, pos >> 8);
 	}
 }
 
@@ -138,6 +204,7 @@ static void putc(tty_t *tty, char c)
 	case '\n':
 		tty->x = 0;
 		tty->y++;
+		tty->screenY++;
 		break;
 
 	case '\r':
@@ -171,8 +238,8 @@ static void putc(tty_t *tty, char c)
 		tty->x = 0;
 	}
 
-	while (tty->y >= TTY_SCREEN_Y) {
-		scroll(tty, 1);
+	while (tty->screenY >= TTY_SCREEN_Y) {
+		scroll(tty);
 	}
 
 	update_cursor(tty);
@@ -465,7 +532,30 @@ static inline byte handle_raw(byte code)
 		return 1;
 	}
 
-	return 0;
+	switch (code) {
+	case KEYC_F12:
+		select_tty(kout_tty);
+		return 1;
+
+	case KEYC_PAGE_UP:
+		scroll_line_up();
+		return 1;
+
+	case KEYC_PAGE_DOWN:
+		scroll_line_down();
+		return 1;
+
+	case KEYC_HOME:
+		scroll_to_top();
+		return 1;
+
+	case KEYC_END:
+		scroll_to_bottom(cur_tty);
+		return 1;
+
+	default:
+		return 0;
+	}
 }
 
 static inline byte handle_cbreak_input(byte c)
@@ -525,8 +615,10 @@ static inline void handle_input(byte code)
 		return;
 	}
 
-	if ((cur_tty->flags & TTY_ECHO) && c != EOT)
+	if ((cur_tty->flags & TTY_ECHO) && c != EOT) {
 		putc(cur_tty, c);
+		scroll_to_bottom(cur_tty);
+	}
 
 	cur_tty->inbuf[cur_tty->incount++] = c;
 
@@ -668,7 +760,6 @@ void init_tty(void)
 
 	// anything else for kout_tty is done in init_kout
 	kout_tty->requests = list_create();
-//	devfs_register(&kout_tty->inode);
 
 	modifiers.shift = 0;
 	modifiers.ctrl  = 0;

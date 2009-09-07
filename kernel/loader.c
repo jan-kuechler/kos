@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <elf.h>
 #include <page.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <kos/config.h>
@@ -151,10 +152,10 @@ static void elf32_cleanup(struct proc *proc)
 	list_destroy(proc->ldata);
 }
 
-static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *linfo)
+static bool elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *linfo)
 {
 	if (!phdr->p_memsz)
-		return;
+		return true;
 
 	dbg_vprintf(DBG_LOADER, "Loading ELF segment...\n");
 	dbg_vprintf(DBG_LOADER, "Program Header:\n"
@@ -171,8 +172,11 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	                        phdr->p_memsz, phdr->p_align);
 
 	vaddr_t base = (vaddr_t)PAGE_ALIGN_ROUND_DOWN(phdr->p_vaddr);
-	if (base < (vaddr_t)CONF_PROG_BASE_MIN)
-		base = (vaddr_t)CONF_PROG_BASE_MIN;
+	if (base < (vaddr_t)CONF_PROG_BASE_MIN) {
+		dbg_printf(DBG_LOADER, "Error loading segment: Base addr is too low. %p < %p",
+		           base, (vaddr_t)CONF_PROG_BASE_MIN);
+		return false;
+	}
 
 	int memsz_pages = NUM_PAGES(phdr->p_memsz);
 	elf32_alloc_mem(pdir, base, memsz_pages);
@@ -186,7 +190,7 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	/* the data may begin anywhere on the first page... */
 	int first_page_bytes = elf32_first_page_bytes(phdr);
 
-	vaddr_t src = (vaddr_t)((dword)mem + phdr->p_offset);
+	vaddr_t src = (vaddr_t)((uint32_t)mem + phdr->p_offset);
 	paddr_t pdst = vm_resolve_virt(pdir, (vaddr_t)phdr->p_vaddr);
 
 	dbg_vprintf(DBG_LOADER,"  Copy first %d bytes to first page %p (%p)\n"
@@ -228,13 +232,15 @@ static void elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 
 		vm_set_p(pdst, 0, PAGE_SIZE);
 	}
+
+	return true;
 }
 
 pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 {
 	Elf32_Ehdr *hdr = mem;
 
-	Elf32_Phdr *phdr = (Elf32_Phdr*)((dword)hdr + hdr->e_phoff);
+	Elf32_Phdr *phdr = (Elf32_Phdr*)((uint32_t)hdr + hdr->e_phoff);
 
 	struct proc *proc = NULL;
 
@@ -245,19 +251,24 @@ pid_t elf32_exec(void *mem, const char *args, pid_t parent)
 	                        "  #Phdr: %d\n",
 	                        hdr->e_type, hdr->e_entry, hdr->e_phnum);
 
+	proc = pm_create((void*)hdr->e_entry, args, PM_USER, parent, PS_BLOCKED);
+
+	if (!proc) {
+		dbg_error("Failed to load %s: Could not create process data.", args);
+		return 0;
+	}
+
+	proc->cleanup = elf32_cleanup;
+	proc->ldata   = list_create();
 
 	int i=0;
 	for (; i < hdr->e_phnum; ++i, ++phdr) {
 		if (phdr->p_type == PT_LOAD) {
-			if (elf32_has_entry(phdr, hdr)) {
-				proc = pm_create((void*)hdr->e_entry, args, PM_USER, parent, PS_BLOCKED);
-
-				proc->cleanup = elf32_cleanup;
-				proc->ldata   = list_create();
+			if (!elf32_map_segment(proc->as->pdir, phdr, mem, proc->ldata)) {
+				dbg_error("Failed to load %s: Error while mapping segment\n", args);
+				pm_destroy(proc);
+				return 0;
 			}
-			if (!proc) return 0;
-
-			elf32_map_segment(proc->as->pdir, phdr, mem, proc->ldata);
 
 			elf32_getbrk(phdr, &proc->mem_brk, &proc->brk_page);
 		}

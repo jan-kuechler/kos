@@ -136,6 +136,9 @@ static int write_file(struct entry *file, FILE *out, int offset, FILE *log, int 
 	int datapos = namepos + namelen;
 	int newoffs = datapos + count;
 
+	space(stdout, idt * 2);
+	printf("%-20s - %4d kb\n", file->name, count / 1024);
+
 	struct id_entry entry;
 	entry.type    = 0;
 	entry.name    = namepos;
@@ -165,10 +168,7 @@ static int write_file(struct entry *file, FILE *out, int offset, FILE *log, int 
 	LOG("|- Writing content with length %d\n", count);
 	LOG("|- New offset should be %d\n", ftell(out) + count);
 	int written = fwrite(buffer, count, 1, out);
-	if (written != count) {
-		fprintf(stderr, "fwrite has written %d of %d bytes => %d\n", written, count, count - written);
-		fprintf(stderr, "Errno: %d => %s\n", ferror(out), strerror(errno));
-	}
+
 	free(buffer);
 	LOFFS();
 
@@ -179,6 +179,9 @@ static int write_file(struct entry *file, FILE *out, int offset, FILE *log, int 
 
 static int write_dir(struct entry *dir, FILE *out, int offset, FILE *log, int idt)
 {
+	space(stdout, idt * 2);
+	printf("/%s\n", dir->name);
+
 	LOG("~ Offset is  %d\n", offset);
 	LOG("~ Filepos is %d\n", ftell(out));
 
@@ -256,7 +259,8 @@ void id_write(const char *file, const char *logfile)
 	}
 
 	int offs = write_header(f, log);
-	write_dir(root, f, offs, log, 0);
+	int size = write_dir(root, f, offs, log, 0);
+	printf("Total size: %d kb\n", size / 1024);
 	fclose(f);
 	fclose(log);
 }

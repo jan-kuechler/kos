@@ -2,11 +2,11 @@
  * Copyright (c) 2007 Antoine Kaufmann
  *
  * This program is free software. It comes without any warranty, to
- * the extent permitted by applicable law. You can redistribute it 
- * and/or modify it under the terms of the Do What The Fuck You Want 
+ * the extent permitted by applicable law. You can redistribute it
+ * and/or modify it under the terms of the Do What The Fuck You Want
  * To Public License, Version 2, as published by Sam Hocevar. See
  * http://sam.zoy.org/projects/COPYING.WTFPL for more details.
- */  
+ */
 
 /**
  * Treiber fuer Massenspeichergeraete
@@ -29,7 +29,7 @@ struct cdi_storage_device {
 
 struct cdi_storage_driver {
     struct cdi_driver   drv;
-    
+
     /**
      * Liest Blocks ein
      *
@@ -42,7 +42,7 @@ struct cdi_storage_driver {
      */
     int (*read_blocks)(struct cdi_storage_device* device, uint64_t start,
         uint64_t count, void* buffer);
-    
+
     /**
      * Schreibt Blocks
      *
@@ -55,6 +55,10 @@ struct cdi_storage_driver {
      */
     int (*write_blocks)(struct cdi_storage_device* device, uint64_t start,
         uint64_t count, void* buffer);
+
+    /* kOS specific */
+    int (*open)(struct cdi_storage_device* device);
+    int (*close)(struct cdi_storage_device* device);
 };
 
 

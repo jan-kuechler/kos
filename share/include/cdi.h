@@ -33,8 +33,8 @@ struct cdi_device {
     const char*         name;
     struct cdi_driver*  driver;
 
-    // tyndur-spezifisch
-    void*               backdev;
+    /* kOS specific */
+    void* impl;
 };
 
 struct cdi_driver {

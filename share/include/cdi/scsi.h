@@ -52,12 +52,8 @@ struct cdi_scsi_device {
     /// Geraetetyp, der ueber SCSI angesteuert wird
     cdi_device_type_t type;
 
-    /**
-     * tyndur-spezifisch: Frontend-Geraet (z.B. CDI_STORAGE-Geraet, das ueber
-     * SCSI angesteuert wird)
-     */
-    void* frontdev;
-
+    /* kOS specific */
+    void* impl;
 };
 
 /// SCSI-Treiber

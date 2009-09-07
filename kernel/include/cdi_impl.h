@@ -16,17 +16,15 @@ struct cdi_list_implementation
 #define UNIMPLEMENTED panic("The CDI function %s:%s is not implemented.", __FILE__, __func__);
 
 #ifdef CONF_CDI_ERR_FATAL
-#  define cdi_error(msg, ...) \
+#  define cdi_error(fmt, ...) \
 		do { \
-			panic("Error in CDI function %s: %s.", __func__, msg); \
-			return __VA_ARGS__; \
+			panic("[CDI] Error in %s: " fmt, __func__, ## __VA_ARGS__); \
 		} while (0)
 #else
 #  include "debug.h"
-#  define cdi_error(msg, ...) \
+#  define cdi_error(fmt, ...) \
 		do { \
-			dbg_error("Error in CDI function %s: %s.", __func__, msg); \
-			return __VA_ARGS__; \
+			dbg_error("[CDI] Error in %s: " fmt, __func__, ## __VA_ARGS__); \
 		} while (0)
 #endif
 
@@ -35,12 +33,14 @@ struct cdi_list_implementation
 		do { \
 			extern int cdi_initialized; \
 			if (!cdi_initialized) { \
-				cdi_error("CDI is not initialized", __VA_ARGS__); \
+				cdi_error("CDI is not initialized"); \
+				return __VA_ARGS__; \
 			} \
 		} while (0)
 #  define cdi_check_arg(arg, check, ...) \
 	  if (!(arg check)) { \
-			cdi_error("Argument " #arg " is invalid", __VA_ARGS__); \
+			cdi_error("Argument " #arg " is invalid"); \
+			return __VA_ARGS__; \
 		}
 #else
 #  define cdi_check_init(...)

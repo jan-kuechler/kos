@@ -2,11 +2,31 @@
 #define TTY_H
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <types.h>
 #include "keymap.h"
 #include "pm.h"
 #include "fs/types.h"
 #include "util/list.h"
+
+#define CON_MEM_START 0xB8000
+#define CON_MEM_END   0xC0000
+#define CON_MEM_SIZE  (CON_MEM_END - CON_MEM_START)
+#define CON_MEM_CHARS (CON_MEM_SIZE / 2)
+
+#define CON_MAX_START_LINE 175
+#define CON_MAX_LINE       200
+
+#define CGA_PORT_CMD  0x3D4
+#define CGA_PORT_DATA 0x3D5
+
+enum cga_register
+{
+	CGA_START_HI  = 12,
+	CGA_START_LO  = 13,
+	CGA_CURSOR_HI = 14,
+	CGA_CURSOR_LO = 15,
+};
 
 #define NUM_TTYS 8
 
@@ -28,17 +48,20 @@ typedef struct tty
 	dword incount;
 	dword eotcount;
 
-	word  outbuf[TTY_SCREEN_SIZE];
+	uint16_t outbuf[CON_MEM_CHARS];
+	uint8_t outstart;
+	uint8_t lastline;
 
-	byte  x, y;
-	byte  status;
+	uint8_t x, y;
+	uint8_t screenY;
+	uint8_t status;
 
-	byte  flags;
+	uint8_t flags;
 
 	list_t *requests;
 
 	int    opencount;
-	proc_t *owner;
+	struct proc *owner;
 } tty_t;
 
 #define kout_id (NUM_TTYS-1)

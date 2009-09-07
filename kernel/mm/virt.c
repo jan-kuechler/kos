@@ -98,7 +98,8 @@ void init_paging(void)
 	km_map_range(kernel_phys_start, kernel_phys_start, PE_PRESENT | PE_READWRITE,
 	             NUM_PAGES((dword)kernel_phys_end - (dword)kernel_phys_start));
 
-	km_map_range((paddr_t)0xB8000, (vaddr_t)0xB8000, PE_PRESENT | PE_READWRITE, NUM_PAGES(2*25*80));
+	//km_map_range((paddr_t)0xB8000, (vaddr_t)0xB8000, PE_PRESENT | PE_READWRITE, NUM_PAGES(2*25*80));
+	km_identity_map((paddr_t)CON_MEM_START,  PE_PRESENT | PE_READWRITE, CON_MEM_SIZE);
 
 	//km_map_range(mm_get_mmap(), mm_get_mmap(), PE_PRESENT | PE_READWRITE,
 	//             NUM_PAGES(mm_get_mmap_size()));

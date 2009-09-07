@@ -70,6 +70,12 @@ static int dev_open(struct inode *ino, struct file *file, dword flags)
 	file->pos = 0;
 	file->fops = &fops;
 
+	struct cdi_storage_device *dev = (struct cdi_storage_device*)file->inode->impl;
+	struct cdi_storage_driver *drv = (struct cdi_storage_driver*)dev->dev.driver;
+
+	if (drv->open) {
+		return drv->open(dev);
+	}
 	return 0;
 }
 
@@ -205,5 +211,12 @@ static int dev_write(struct file *file, void *buffer, dword size, dword offset)
 
 static int dev_close(struct file *file)
 {
+	struct cdi_storage_device *dev = (struct cdi_storage_device*)file->inode->impl;
+	struct cdi_storage_driver *drv = (struct cdi_storage_driver*)dev->dev.driver;
+
+	if (drv->close) {
+		return drv->close(dev);
+	}
+	return 0;
 	return 0;
 }

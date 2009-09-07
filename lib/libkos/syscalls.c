@@ -149,7 +149,7 @@ ssize_t write(int file, const void *ptr, size_t len)
 		return SYSCALL3(SC_WRITE, file, (int)ptr, len);
 }
 
-int gettimeofday(struct timeval *p, struct timezone *z)
+int gettimeofday(struct timeval *p, void *z)
 {
 	return -1;
 }

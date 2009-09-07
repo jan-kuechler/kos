@@ -24,6 +24,10 @@
 
 #define bmask(var,mask) (var & mask)
 
+#define big_endian_word(x)  ((((x) & 0xFF) << 8) | (((x) & 0xFF00) >> 8))
+#define big_endian_dword(x) \
+	((big_endian_word((x) & 0xFFFF) << 16) | (big_endian_word(x) >> 16))
+
 #include <kos/config.h>
 
 /* There is no invalid return value to mark an error, so make

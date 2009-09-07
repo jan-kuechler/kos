@@ -1,7 +1,7 @@
 rm -rf tmp
 mkdir tmp
 
-make initrd
+mkid initrd bin/initrd
 
 cp bin/kos.bin tmp
 cp bin/initrd tmp
