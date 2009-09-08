@@ -1,6 +1,8 @@
 #ifndef BITOP_H
 #define BITOP_H
 
+#include <stdint.h>
+
 #define bset(map,bit) (map |= bit)
 #define bclr(map,bit) (map &= ~bit)
 
@@ -23,10 +25,6 @@
 #define BMASK_DWORD 0xFFFFFFFF
 
 #define bmask(var,mask) (var & mask)
-
-#define big_endian_word(x)  ((((x) & 0xFF) << 8) | (((x) & 0xFF00) >> 8))
-#define big_endian_dword(x) \
-	((big_endian_word((x) & 0xFFFF) << 16) | (big_endian_word(x) >> 16))
 
 #include <kos/config.h>
 
@@ -51,6 +49,34 @@ static inline unsigned char bscanfwd(unsigned int map)
 	            : "r"(map));
 	return ret;
 #endif
+}
+
+static inline void bswap(const void *src, void *dst, uint8_t size)
+{
+	size -= size%2;
+	if (size) {
+		const uint8_t *bsrc = src;
+		uint8_t *bdst = dst;
+
+		uint8_t i=0;
+		for (; i < size; ++i) {
+			bdst[size - i - 1] = bsrc[i];
+		}
+	}
+}
+
+static inline uint16_t bigendian_word(uint16_t in)
+{
+	uint16_t out;
+	bswap(&in, &out, 2);
+	return out;
+}
+
+static inline uint32_t bigendian_dword(uint32_t in)
+{
+	uint32_t out;
+	bswap(&in, &out, 4);
+	return out;
 }
 
 #endif /*BITOP_H*/

@@ -4,26 +4,6 @@
 #include <compiler.h>
 #include <stdint.h>
 
-union scsi_cmd
-{
-	struct {
-		uint8_t  opcode;
-		uint8_t  rsvd0;
-		uint32_t addr;
-		uint8_t  rsvd1;
-		uint16_t len;
-		uint8_t  rsvd2;
-	} __packed dfl;
-
-	struct {
-		uint8_t  opcode;
-		uint8_t  rsvd0;
-		uint32_t addr;
-		uint32_t len;
-		uint16_t rsvd1;
-	} __packed ext;
-} __packed;
-
 enum scsi_opcodes
 {
 	SCSI_OP_REQSENSE  = 0x03,
@@ -32,6 +12,9 @@ enum scsi_opcodes
 	SCSI_OP_CAPACITY  = 0x25,
 	SCSI_OP_READ_12   = 0xA8,
 };
+
+#define SCSI_CMDSIZE 12
+#define SCSI_OPCODE 0
 
 enum scsi_motor_media_cmd
 {

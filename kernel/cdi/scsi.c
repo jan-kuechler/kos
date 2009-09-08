@@ -105,9 +105,9 @@ static int send_inquiry(struct cdi_scsi_device *dev)
 	packet.direction = CDI_SCSI_READ;
 	packet.buffer    = &impl->inquiry;
 	packet.bufsize   = sizeof(impl->inquiry);
-	packet.cmdsize   = 6;
+	packet.cmdsize   = SCSI_CMDSIZE;
 
-	packet.command[0] = SCSI_OP_INQUIRY;
+	packet.command[SCSI_OPCODE] = SCSI_OP_INQUIRY;
 	packet.command[4] = sizeof(impl->inquiry);
 
 	int err = drv->request(dev, &packet);
@@ -122,14 +122,13 @@ static int ctrl_motor(struct cdi_scsi_device *dev, enum scsi_motor_media_cmd ctr
 {
 	struct cdi_scsi_driver *drv = (struct cdi_scsi_driver*)dev->dev.driver;
 	struct cdi_scsi_packet packet;
-	union scsi_cmd *cmd = (union scsi_cmd*)&packet.command;
 
 	memset(&packet, 0, sizeof(packet));
 
 	packet.direction = CDI_SCSI_NODATA;
-	packet.cmdsize   = 6;
+	packet.cmdsize   = SCSI_CMDSIZE;
 
-	packet.command[0] = SCSI_OP_STARTSTOP;
+	packet.command[SCSI_OPCODE] = SCSI_OP_STARTSTOP;
 	packet.command[4] = (uint8_t)ctrl;
 
 	return drv->request(dev, &packet);
@@ -140,7 +139,6 @@ static int get_capacity(struct cdi_scsi_device *dev,
 {
 	struct cdi_scsi_driver *drv = (struct cdi_scsi_driver*)dev->dev.driver;
 	struct cdi_scsi_packet packet;
-	union scsi_cmd *cmd = (union scsi_cmd*)&packet.command;
 	uint32_t data[2];
 
 	memset(&packet, 0, sizeof(packet));
@@ -149,15 +147,15 @@ static int get_capacity(struct cdi_scsi_device *dev,
 	packet.direction = CDI_SCSI_READ;
 	packet.buffer    = data;
 	packet.bufsize   = sizeof(data);
-	packet.cmdsize   = 10;
+	packet.cmdsize   = SCSI_CMDSIZE;
 
-	cmd->ext.opcode = SCSI_OP_CAPACITY;
+	packet.command[SCSI_OPCODE] = SCSI_OP_CAPACITY;
 
 	int err = drv->request(dev, &packet);
 
 	if (!err) {
-		*scount = big_endian_dword(data[0]);
-		*ssize  = big_endian_dword(data[1]);
+		*scount = bigendian_dword(data[0]); //big_endian_dword(data[0]);
+		*ssize  = bigendian_dword(data[1]); //big_endian_dword(data[1]);
 	}
 	return err;
 }
@@ -167,17 +165,16 @@ static int read_sector(struct cdi_scsi_device *dev, uint32_t sector,
 {
 	struct cdi_scsi_driver *drv = (struct cdi_scsi_driver*)dev->dev.driver;
 	struct cdi_scsi_packet packet;
-	union scsi_cmd *cmd = (union scsi_cmd*)&packet.command;
 
 	memset(&packet, 0, sizeof(packet));
 	packet.direction = CDI_SCSI_READ;
 	packet.buffer    = buffer;
 	packet.bufsize   = bsize;
-	packet.cmdsize   = 12;
+	packet.cmdsize   = SCSI_CMDSIZE;
 
-	cmd->ext.opcode = SCSI_OP_READ_12;
-	cmd->ext.addr   = big_endian_dword(sector);
-	cmd->ext.len    = 0x01000000; /* FIXME: Why 0x01000000 ??*/
+	packet.command[SCSI_OPCODE] = SCSI_OP_READ_12;
+	*((uint32_t*)&packet.command[2]) = bigendian_dword(sector);
+	*((uint32_t*)&packet.command[6]) = bigendian_dword(1);
 
 	return drv->request(dev, &packet);
 }
@@ -195,9 +192,9 @@ static int request_sense(struct cdi_scsi_device *dev, uint8_t *key,
 	packet.direction = CDI_SCSI_READ;
 	packet.buffer    = data;
 	packet.bufsize   = sizeof(data);
-	packet.cmdsize   = 12;
+	packet.cmdsize   = SCSI_CMDSIZE;
 
-	cmd->dfl.opcode = SCSI_OP_REQSENSE;
+	packet.command[SCSI_OPCODE] = SCSI_OP_REQSENSE;
 	packet.command[4] = sizeof(data);
 
 	int err = drv->request(dev, &packet);
@@ -260,8 +257,13 @@ static void init_scsi_storage(struct cdi_scsi_device* device)
 
 	uint32_t sector_count = 0;
 	uint32_t sector_size = 0;
-	get_capacity(device, &sector_count, &sector_size);
-	dbg_printf(DBG_CDI, "Capacity for %s: %d x %d b\n", device->dev.name, sector_count, sector_size);
+	err = get_capacity(device, &sector_count, &sector_size);
+	if (!err) {
+		dbg_printf(DBG_CDI, "Capacity for %s: %d x %d b\n", device->dev.name, sector_count, sector_size);
+	}
+	else {
+		dbg_printf(DBG_CDI, "Capacity for %s: unknown\n", device->dev.name);
+	}
 
 	struct cdi_storage_device *front = kcalloc(1, sizeof(*front));
 
