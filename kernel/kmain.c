@@ -1,11 +1,14 @@
 #include <elf.h>
+#include <errno.h>
 #include <multiboot.h>
 #include <page.h>
 #include <string.h>
 #include <stdarg.h>
 #include <kos/syscall.h>
 #include <kos/version.h>
+#include <sys/utsname.h>
 #include "acpi.h"
+#include "arch.h"
 #include "cdi_driver.h"
 #include "com.h"
 #include "context.h"
@@ -33,6 +36,9 @@
 static void banner();
 static void print_info();
 static int32_t sys_answer();
+static int32_t sys_uname(struct utsname *buf, uint32_t flen);
+
+static const char *kos_name = "kOS";
 
 static bool print_sysinfo = false;
 static bool print_pciinfo = false;
@@ -194,6 +200,7 @@ void kmain(int mb_magic, multiboot_info_t *mb_info)
 	init_loader();
 
 	syscall_register(SC_ANSWER, sys_answer, 0);
+	syscall_register(SC_UNAME, sys_uname, 2);
 
 	if (run_cdi)
 		init_cdi_driver();
@@ -269,6 +276,34 @@ static void print_info()
 int32_t sys_answer()
 {
 	return 42;
+}
+
+#define safe_strncpy(d,s,l) do { strncpy((d), (s), (l)); (d)[(l)-1] = '\0'; } while (0);
+
+int32_t sys_uname(struct utsname *buf, uint32_t flen)
+{
+	if (!buf || !flen) return -EINVAL;
+
+	int32_t err = 0;
+	struct utsname *kbuf = vm_user_to_kernel(syscall_proc->as->pdir, buf, sizeof(*buf));
+	if (!kbuf) return -ENOMEM;
+
+	if (!kbuf->sysname || !kbuf->nodename || !kbuf->release ||
+	    !kbuf->version || !kbuf->machine)
+	{
+		err = -EINVAL;
+		goto end;
+	}
+
+	safe_strncpy((char*)kbuf->sysname, kos_name, flen);
+	safe_strncpy((char*)kbuf->nodename, "localhost", flen);
+	safe_strncpy((char*)kbuf->release, kos_buildname, flen);
+	safe_strncpy((char*)kbuf->version, kos_version, flen);
+	safe_strncpy((char*)kbuf->machine, ARCH_NAME, flen);
+
+end:
+	km_free_addr(kbuf, sizeof(*kbuf));
+	return err;
 }
 
 static inline dword get_cr2()
