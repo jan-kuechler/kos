@@ -104,4 +104,12 @@ struct dirent
 	struct inode *inode;
 };
 
+struct fs_proc_data
+{
+	struct dirent *cwd;
+
+	struct file **files;
+	uint32_t numfiles;
+};
+
 #endif /*FS_TYPES_H*/

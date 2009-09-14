@@ -33,7 +33,7 @@ pid_t exec_file(const char *filename, const char *args, pid_t parent)
 
 size_t load_file_to_mem(const char *filename, void **mem)
 {
-	struct inode *ino = vfs_lookup(filename, cur_proc->cwd);
+	struct inode *ino = vfs_lookup(filename, cur_proc->fs_data->cwd->inode);
 	if (!ino) return 0;
 
 	size_t len = ino->length;

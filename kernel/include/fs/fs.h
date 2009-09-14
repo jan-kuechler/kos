@@ -57,8 +57,14 @@ int vfs_register(struct fstype *type);
 int vfs_unregister(struct fstype *type);
 struct fstype *vfs_gettype(char *name);
 
+struct fs_proc_data *vfs_create_procdata();
+struct fs_proc_data *vfs_clone_procdata(struct fs_proc_data *data);
+void vfs_free_procdata(struct fs_proc_data *data);
+
 int vfs_mount(struct fstype *type, struct inode *point, char *device, dword flags);
 int vfs_umount(struct inode *point);
+
+int vfs_change_dir(struct proc *proc, const char *dir);
 
 struct inode *vfs_lookup(const char *path, struct inode *start);
 struct dirent *vfs_lookup_dir(const char *path, struct inode *start);

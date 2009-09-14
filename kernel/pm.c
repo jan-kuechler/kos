@@ -97,9 +97,15 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
 	proc->msgbuffer = rbuf_create(sizeof(msg_t), 24, false);
 
 	proc->tty = pproc ? pproc->tty : "/dev/tty7";
-	proc->cwd = fs_root;
-	memset(proc->fds, 0, PROC_NUM_FDS * sizeof(struct file *));
-	proc->numfds = 0;
+	//proc->cwd = fs_root;
+	//memset(proc->fds, 0, PROC_NUM_FDS * sizeof(struct file *));
+	//proc->numfds = 0;
+
+	proc->fs_data = vfs_create_procdata();
+	if (pproc && pproc->fs_data->cwd) {
+		// FIXME: pm shouldn't have to access fs_data...
+		vfs_change_dir(proc, pproc->fs_data->cwd->name);
+	}
 
 	proc->ldata   = NULL;
 	proc->cleanup = 0;

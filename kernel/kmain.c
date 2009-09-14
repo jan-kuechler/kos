@@ -118,7 +118,7 @@ void kinit()
 
 	if (init_file[0]) {
 		do {
-			pid_t pid = exec_file(init_file, init_file, getpid());
+			pid_t pid = execute(init_file, init_file);
 			if (!pid) {
 				kout_printf("Error! Cannot execute %s\n", init_file);
 				strcpy(init_file, "/bin/sh"); /* default to shell */
