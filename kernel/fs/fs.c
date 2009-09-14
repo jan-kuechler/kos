@@ -16,12 +16,7 @@ static struct inode root = {
 	.flags = FS_DIR,
 };
 struct inode *fs_root = &root;
-int fs_error = 0;
-
-int vfs_geterror()
-{
-	return fs_error;
-}
+int fs_error = -ENOSYS;
 
 int vfs_register(struct fstype *type)
 {
@@ -86,7 +81,7 @@ int32_t sys_open(int32_t fname, int32_t flags)
 	char *name = vm_map_string(syscall_proc->as->pdir, (vaddr_t)fname, &namelen);
 	int result = -1;
 
-	dbg_vprintf(DBG_FS, "name is '%s' (len: %d)\n", name, namelen);
+	dbg_printf(DBG_SC, "sys_open(\"%s\", %d)\n", name, flags);
 
 	struct inode *inode = vfs_lookup(name, syscall_proc->cwd);
 
@@ -110,6 +105,9 @@ int32_t sys_open(int32_t fname, int32_t flags)
 	result = syscall_proc->numfds++;
 end:
 	km_free_addr(name, namelen);
+
+	dbg_printf(DBG_SC, "sys_open: result is %d\n", result);
+
 	return result;
 }
 

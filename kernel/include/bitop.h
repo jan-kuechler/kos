@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define bit(n) (1 << n)
+
 #define bset(map,bit) (map |= bit)
 #define bclr(map,bit) (map &= ~bit)
 

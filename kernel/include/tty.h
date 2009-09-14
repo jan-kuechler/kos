@@ -22,6 +22,8 @@
 
 enum cga_register
 {
+	CGA_CURSOR_DEF_START = 10,
+	CGA_CURSOR_DEF_END   = 11,
 	CGA_START_HI  = 12,
 	CGA_START_LO  = 13,
 	CGA_CURSOR_HI = 14,

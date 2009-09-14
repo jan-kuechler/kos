@@ -1,13 +1,5 @@
 #include <stdarg.h>
-
-static int bufns(char *buffer, const char *str, int n)
-{
-	int x = 0;
-	while (n--) {
-		buffer[x++] = *str++;
-	}
-	return x;
-}
+#include <string.h>
 
 static int bufs(char *buffer, const char *str)
 {
@@ -16,6 +8,17 @@ static int bufs(char *buffer, const char *str)
 		buffer[n++] = *str++;
 	}
 	return n;
+}
+
+static int bufsp(char *buffer, const char *str, int pad, char padc)
+{
+	int n = 0;
+	int len = strlen(str);
+	while (pad > len) {
+		buffer[n++] = padc;
+		pad--;
+	}
+	return n + bufs(buffer + n, str);
 }
 
 int numfmt(char *buffer, int num, int base, int pad, char pc)
@@ -119,11 +122,7 @@ int strafmt(char *buffer, const char *fmt, va_list args)
 				break;
 
 			case 's':
-				n += bufs(&buffer[n], va_arg(args, char*));
-				break;
-
-			case 'S':
-				n += bufns(&buffer[n], va_arg(args, char*), pad);
+				n += bufsp(&buffer[n], va_arg(args, char*), pad, padc);
 				break;
 
 			case '%':
@@ -154,5 +153,3 @@ int strfmt(char *buffer, const char *fmt, ...)
 	va_end(args);
 	return n;
 }
-
-

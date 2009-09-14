@@ -43,7 +43,15 @@
 extern struct inode *fs_root;
 extern int fs_error;
 
-int vfs_geterror();
+inline int vfs_geterror()
+{
+	return fs_error;
+}
+
+inline void vfs_seterror(int err)
+{
+	fs_error = err;
+}
 
 int vfs_register(struct fstype *type);
 int vfs_unregister(struct fstype *type);

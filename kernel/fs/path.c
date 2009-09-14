@@ -5,7 +5,7 @@
 #include "mm/kmalloc.h"
 #include "fs/fs.h"
 
-#define ret_null_and_err(err) do { fs_error = err; return NULL; } while (0);
+#define ret_null_and_err(err) do { vfs_seterror(err); return NULL; } while (0);
 
 /**
  *  next_part(path, start)
@@ -123,5 +123,6 @@ struct inode *vfs_lookup(const char *path, struct inode *start)
 	//	ino = ino->link;
 	//}
 
+	dbg_vprintf(DBG_FS, "vfs_lookup: returning %p\n", ino);
 	return ino;
 }

@@ -61,15 +61,21 @@ const char *dbg_lsc_name[] = {
 
 static int com_loglvl = 1;
 
-static Elf32_Shdr *symtab;
-static Elf32_Shdr *strtab;
+static Elf32_Shdr *symtab = 0;
+static Elf32_Shdr *strtab = 0;
 
 static byte dbg_flags[26] = {0};
 
 static inline Elf32_Sym *find_sym(dword addr)
 {
-	if (!symtab)
+	static bool once = false;
+	if (!symtab) {
+		if (!once) {
+			dbg_error("No symtab!\n");
+			once = true;
+		}
 		return 0;
+	}
 
 	Elf32_Sym *sym = (Elf32_Sym*)symtab->sh_addr;
 	int i=0;
@@ -84,7 +90,7 @@ static inline Elf32_Sym *find_sym(dword addr)
 static inline const char *get_str(Elf32_Word index)
 {
 	if (!strtab)
-		return 0;
+		return "<no strtab>";
 	return (const char*)strtab->sh_addr + index;
 }
 
@@ -161,6 +167,9 @@ void init_stack_backtrace(void)
 	if (symtab && strtab) {
 		km_identity_map((paddr_t)symtab->sh_addr, VM_COMMON_FLAGS, symtab->sh_size);
 		km_identity_map((paddr_t)strtab->sh_addr, VM_COMMON_FLAGS, strtab->sh_size);
+	}
+	else {
+		dbg_error("No symbol tables found.\n");
 	}
 }
 

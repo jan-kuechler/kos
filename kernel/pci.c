@@ -87,22 +87,48 @@ static void add_dev(uint32_t bus, uint32_t dev, uint32_t func)
 	list_add_back(pci_devices, device);
 }
 
+static const char *classes[] =
+{
+	"Old PCI 1.x device",
+	"Mass storage controller",
+	"Network controller",
+	"Display controller",
+	"Multimedia device",
+	"Memory controller",
+	"Bridge device",
+	"Simple com. controller",
+	"Base system peripheral",
+	"Input device",
+	"Docking station",
+	"Processor",
+	"Serial bus controller",
+};
+static const unsigned int num_classes = sizeof(classes) / sizeof(classes[0]);
+
 void pci_print_table(void)
 {
 	kout_printf("PCI Devices: \n");
-	kout_printf("+-----+-----+------+-----------+-----------+-------+----------+-----------+\n");
-	kout_printf("| Bus | Dev | Func | Vendor ID | Device ID | Class | Subclass | Interface |\n");
-	kout_printf("+-----+-----+------+-----------+-----------+-------+----------+-----------+\n");
+	kout_printf("+-----+-----+----+--------+---------+-------------------------+------+---------+");
+	kout_printf("| Bus | Dev | F. | Ven.ID | Dev. ID |                   Class | Sub. | Interf. |");
+	kout_printf("+-----+-----+----+--------+---------+-------------------------+------+---------+");
 
 	list_entry_t *e;
 	list_iterate(e, pci_devices) {
 		struct pci_dev *dev = e->data;
-		kout_printf("|   %d |  %02d |    %d |    0x%04x |    0x%04x |  0x%02x |     0x%02x |      0x%02x |\n",
+		if (dev->classcode < num_classes) {
+			const char *c = classes[dev->classcode];
+			kout_printf("|   %d |  %02d |  %d | 0x%04x |  0x%04x | %23s | 0x%02x |    0x%02x |",
+		            dev->bus, dev->dev, dev->func, dev->vendor_id, dev->device_id,
+		            c, dev->subclass, dev->prog_if);
+		}
+		else {
+			kout_printf("|   %d |  %02d |  %d |  0x%04x |  0x%04x |                  0x%02x |  0x%02x |    0x%02x |",
 		            dev->bus, dev->dev, dev->func, dev->vendor_id, dev->device_id,
 		            dev->classcode, dev->subclass, dev->prog_if);
+		}
 	}
 
-	kout_printf("+-----+-----+------+-----------+-----------+-------+----------+-----------+\n");
+	kout_printf("+-----+-----+----+--------+---------+-------------------------+------+---------+\n");
 }
 
 void init_pci(void)

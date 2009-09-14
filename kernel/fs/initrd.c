@@ -134,10 +134,10 @@ static struct inode *id_finddir(struct inode *ino, char *name)
 		if (strcmp(e->name, name) == 0) {
 			return e;
 		}
-
 	}
 
 	dbg_vprintf(DBG_FS, " nothing found )-:\n");
+	vfs_seterror(-ENOENT);
 	return NULL;
 }
 

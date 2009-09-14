@@ -310,9 +310,9 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
-	if (cur_proc != last_proc) {
-		vm_select_addrspace(cur_proc->as);
+	vm_select_addrspace(cur_proc->as);
 
+	if (cur_proc != last_proc) {
 		*esp = cur_proc->esp;
 
 		tss.esp0 = cur_proc->kstack;
@@ -328,11 +328,11 @@ void pm_pick(dword *esp)
  */
 void pm_restore(dword *esp)
 {
+	vm_select_addrspace(&kernel_addrspace);
+
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
 	}
-
-	//vm_select_addrspace(kernel_addrspace);
 }
 
 /**
