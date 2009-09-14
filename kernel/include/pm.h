@@ -72,9 +72,8 @@ struct proc {
 	regs_t *sc_regs;
 
 	const char *tty;
-	struct inode *cwd;
-	struct file  *fds[PROC_NUM_FDS];
-	dword  numfds;
+
+	struct fs_proc_data *fs_data;
 
 	int   cmdline_mapped;
 	char *cmdline;

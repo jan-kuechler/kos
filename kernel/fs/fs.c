@@ -18,6 +18,11 @@ static struct inode root = {
 struct inode *fs_root = &root;
 int fs_error = -ENOSYS;
 
+static inline struct inode *proc_cwd(struct proc *proc)
+{
+	return proc->fs_data->cwd->inode;
+}
+
 int vfs_register(struct fstype *type)
 {
 	if (!type)
@@ -63,14 +68,92 @@ struct fstype *vfs_gettype(char *name)
 	return NULL;
 }
 
+struct fs_proc_data *vfs_create_procdata()
+{
+	struct fs_proc_data *data = kmalloc(sizeof(*data));
+
+	data->cwd = kmalloc(sizeof(struct dirent));
+	strcpy(data->cwd->name, "/");
+	data->cwd->inode = fs_root;
+
+	data->numfiles = 32;
+	data->files = kmalloc(data->numfiles * sizeof(struct file*));
+	memset(data->files, 0, data->numfiles * sizeof(struct file*));
+
+	return data;
+}
+
+struct fs_proc_data *vfs_clone_procdata(struct fs_proc_data *data)
+{
+	/* TODO */
+	return NULL;
+}
+
+void vfs_free_procdata(struct fs_proc_data *data)
+{
+	int i=0;
+	for (; i < data->numfiles; ++i) {
+		if (data->files[i]) {
+			vfs_close(data->files[i]);
+		}
+	}
+	kfree(data->cwd);
+	kfree(data->files);
+	kfree(data);
+}
+
+int vfs_change_dir(struct proc *proc, const char *dir)
+{
+	if (!dir)
+		return -EINVAL;
+
+	struct dirent *old = proc->fs_data->cwd;
+
+	struct dirent *newd = kmalloc(sizeof(*newd));
+	strncpy(newd->name, dir, FS_MAX_NAME);
+	newd->name[FS_MAX_NAME - 1] = '\0';
+	newd->inode = vfs_lookup(newd->name, fs_root);
+
+	if (!newd->inode) {
+		kfree(newd);
+		return vfs_geterror();
+	}
+
+	kfree(old);
+	proc->fs_data->cwd = newd;
+
+	return 0;
+}
+
 /* FS Syscalls */
 
-static inline struct file *fd2file(dword fd)
+static inline struct file *fd2file(struct proc *proc, int fd)
 {
-	if (fd >= syscall_proc->numfds)
-		return NULL;
+	struct fs_proc_data *data = proc->fs_data;
 
-	return syscall_proc->fds[fd];
+	if (fd >= data->numfiles) {
+		return NULL;
+	}
+	return data->files[fd];
+}
+
+static inline int newfd(struct proc *proc)
+{
+	struct fs_proc_data *data = proc->fs_data;
+
+	int i=0;
+	for (; i < data->numfiles; ++i) {
+		if (!data->files[i]) {
+			return i;
+		}
+	}
+	/* no free slots, make some */
+	uint32_t oldnum = data->numfiles;
+	data->numfiles += 32;
+	data->files = krealloc(data->files, data->numfiles * sizeof(struct file*));
+	memset(data->files + oldnum, 0, (data->numfiles - oldnum) * sizeof(struct file*));
+
+	return data->numfiles - 32;
 }
 
 int32_t sys_open(int32_t fname, int32_t flags)
@@ -83,15 +166,10 @@ int32_t sys_open(int32_t fname, int32_t flags)
 
 	dbg_printf(DBG_SC, "sys_open(\"%s\", %d)\n", name, flags);
 
-	struct inode *inode = vfs_lookup(name, syscall_proc->cwd);
+	struct inode *inode = vfs_lookup(name, proc_cwd(syscall_proc));
 
 	if (!inode) {
 		result = vfs_geterror();
-		goto end;
-	}
-
-	if (syscall_proc->numfds >= PROC_NUM_FDS) {
-		result = -EMFILE;
 		goto end;
 	}
 
@@ -101,8 +179,9 @@ int32_t sys_open(int32_t fname, int32_t flags)
 		goto end;
 	}
 
-	syscall_proc->fds[syscall_proc->numfds] = file;
-	result = syscall_proc->numfds++;
+	int fd = newfd(syscall_proc);
+	syscall_proc->fs_data->files[fd] = file;
+	result = fd;
 end:
 	km_free_addr(name, namelen);
 
@@ -111,25 +190,25 @@ end:
 	return result;
 }
 
-int32_t sys_close(int32_t fd)
+int32_t sys_close(int fd)
 {
-	struct file *file = fd2file(fd);
+	struct file *file = fd2file(syscall_proc, fd);
 
 	if (!file)
 		return (dword)-ENOENT;
 
 	int err = vfs_close(file);
 	if (!err) {
-		syscall_proc->fds[fd] = NULL;
+		syscall_proc->fs_data->files[fd] = NULL;
 	}
 
 	return err;
 }
 
-int32_t sys_readwrite(int32_t fd, int32_t buffer, int32_t count)
+int32_t sys_readwrite(int fd, int32_t buffer, int32_t count)
 {
 	void *kbuf = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)buffer, count);
-	struct file *file = fd2file(fd);
+	struct file *file = fd2file(syscall_proc, fd);
 	int result = -ENOSYS;
 
 	if (!file) {
@@ -152,7 +231,7 @@ int32_t sys_getcwd(void *bufaddr, uint32_t count)
 {
 	char *buffer = vm_user_to_kernel(syscall_proc->as->pdir, bufaddr, count);
 
-	strncpy(buffer, syscall_proc->cwd->name, count);
+	strncpy(buffer, proc_cwd(syscall_proc)->name, count);
 	buffer[count-1] = '\0';
 
 	km_free_addr(buffer, count);
@@ -165,9 +244,9 @@ int32_t sys_stat(int32_t path, int32_t sbuf)
 	return -ENOSYS;
 }
 
-int32_t sys_isatty(int32_t fd)
+int32_t sys_isatty(int fd)
 {
-	struct file *file = fd2file(fd);
+	struct file *file = fd2file(syscall_proc, fd);
 	if (!file)
 		return 0;
 
@@ -191,7 +270,7 @@ int32_t sys_readdir(uint32_t path, uint32_t userbuf, int index)
 	dbg_printf(DBG_FS, "readdir %s %d\n", name, index);
 
 
-	struct inode *dir = vfs_lookup(name, syscall_proc->cwd);
+	struct inode *dir = vfs_lookup(name, proc_cwd(syscall_proc));
 	if (!dir) {
 		err = -ENOENT;
 		goto end;
@@ -230,7 +309,7 @@ int32_t sys_mount(int32_t mountp, int32_t ftype, int32_t device)
 		dev = vm_map_string(syscall_proc->as->pdir, (vaddr_t)device, &devlen);
 
 	struct fstype *driver = vfs_gettype(type);
-	struct inode *inode = vfs_lookup(path, syscall_proc->cwd);
+	struct inode *inode = vfs_lookup(path, proc_cwd(syscall_proc));
 
 	int err = 0;
 
@@ -260,26 +339,24 @@ int32_t sys_open_std()
 		return 0;
 	}
 
-	struct inode *inode = vfs_lookup(tty, syscall_proc->cwd);
+	struct inode *inode = vfs_lookup(tty, proc_cwd(syscall_proc));
 	int n=0;
 
-	if (!syscall_proc->fds[0]) {
-		syscall_proc->fds[0] = vfs_open(inode, FSO_READ);
+	struct fs_proc_data *data = syscall_proc->fs_data;
+	if (!data->files[0]) {
+		data->files[0] = vfs_open(inode, FSO_READ);
 		n++;
 	}
 
-	if (!syscall_proc->fds[1]) {
-		syscall_proc->fds[1] = vfs_open(inode, FSO_WRITE);
+	if (!data->files[1]) {
+		data->files[1] = vfs_open(inode, FSO_WRITE);
 		n++;
 	}
 
-	if (!syscall_proc->fds[2]) {
-		syscall_proc->fds[2] = vfs_open(inode, FSO_WRITE);
+	if (!data->files[2]) {
+		data->files[2] = vfs_open(inode, FSO_WRITE);
 		n++;
 	}
-
-	if (syscall_proc->numfds < 3)
-		syscall_proc->numfds = 3;
 
 	return n;
 }

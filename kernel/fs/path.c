@@ -68,6 +68,9 @@ struct inode *vfs_lookup(const char *path, struct inode *start)
 	//		;
 	//}
 
+	kassert(start != NULL);
+	kassert(path != NULL);
+
 	dbg_vprintf(DBG_FS, "vfs_lookup('%s', inode: '%s')\n", path, start->name);
 	if (advance_root(&path)) {
 		dbg_vprintf(DBG_FS, " was root, path is now '%s'\n", path);
