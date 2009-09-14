@@ -8,6 +8,8 @@
 #include "mm/util.h"
 #include "mm/virt.h"
 
+#include "intern.h"
+
 struct addrspace *vm_create_addrspace()
 {
 	struct addrspace *as = kmalloc(sizeof(*as));
@@ -17,6 +19,12 @@ struct addrspace *vm_create_addrspace()
 	memcpy(as->pdir, kernel_pdir, PAGE_SIZE);
 
 	return as;
+}
+
+struct addrspace *vm_clone_addrspace(struct addrspace *as)
+{
+	vaddr_t start_addr = KERN_SPACE_END + 1;
+
 }
 
 void vm_select_addrspace(struct addrspace *as)
