@@ -128,6 +128,17 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
 		pm_activate(proc);
 }
 
+static struct proc *get_empty_proc(void)
+{
+	int i=0;
+	for (; i < MAX_PROCS; ++i) {
+		if (procs[i].status == PS_SLOT_FREE) {
+			return &procs[i];
+		}
+	}
+	return NULL;
+}
+
 /**
  *  pm_create(entry, cmdline, parent)
  *
@@ -135,21 +146,10 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
  */
 struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, pid_t parent, proc_status_t status)
 {
-	int i=0;
-	int id = MAX_PROCS;
-
-	for (; i < MAX_PROCS; ++i) {
-		if (procs[i].status == PS_SLOT_FREE) {
-			id = i;
-			break;
-		}
-	}
-
-	if (id == MAX_PROCS) {
+	struct proc *proc = get_empty_proc();
+	if (!proc) {
 		panic("No free slot to create another process.\n");
 	}
-
-	struct proc *proc = &procs[id];
 
 	init_proc(proc, entry, cmdline, mode, parent, status);
 
@@ -158,6 +158,13 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 
 struct proc *pm_fork(pid_t pid)
 {
+	struct proc *parent = pm_get_proc(pid);
+	if (!parent)
+		return NULL;
+
+	struct proc *child = get_empty_proc();
+	if (!child)
+		return NULL;
 }
 
 /**
