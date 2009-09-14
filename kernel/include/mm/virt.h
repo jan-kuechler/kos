@@ -29,8 +29,10 @@
 #define USER_SPACE_START 0x40000000
 #define USER_SPACE_END   0xFFFFFFFF
 
-#define USER_CMD_ADDR   0x3FFF0000
-#define USER_STACK_ADDR 0xFFFF0000
+#define USER_CMD_ADDR    0x3FFF0000
+#define USER_STACK_ADDR  0xFFFF0000
+
+#define MAX_PAGE_ADDR    0xFFFFF000
 
 /* the kernel page directory */
 extern pdir_t kernel_pdir;

@@ -4,6 +4,7 @@
 #include "mm/types.h"
 
 struct addrspace *vm_create_addrspace();
+struct addrspace *vm_clone_addrspace(struct addrspace *as);
 void vm_select_addrspace(struct addrspace *as);
 void vm_destroy_addrspace(struct addrspace *as);
 

@@ -156,6 +156,11 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	return proc;
 }
 
+/**
+ *  pm_fork(pid)
+ *
+ * Forks a process and returns it's new child.
+ */
 struct proc *pm_fork(pid_t pid)
 {
 	struct proc *parent = pm_get_proc(pid);
@@ -165,6 +170,8 @@ struct proc *pm_fork(pid_t pid)
 	struct proc *child = get_empty_proc();
 	if (!child)
 		return NULL;
+
+	child->as = vm_clone_addrspace(parent->as);
 }
 
 /**

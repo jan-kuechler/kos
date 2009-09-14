@@ -3,6 +3,7 @@
 
 /* some internal macros for mm */
 
+#include <bitop.h>
 #include <page.h>
 #include "mm/types.h"
 
@@ -35,7 +36,7 @@ static inline dword getflags(pany_entry_t entry)
 // returns a NULL safe first page table index
 #define safe_pti(pdi) ((pdi == 0) ? 1 : 0)
 
-extern ptab_t map_working_table(ptab_t tab);
+extern ptab_t map_working_table(ptab_t tab); /* in mm.c */
 
 static inline ptab_entry_t get_ptab_entry(pdir_t pdir, _unaligned_ vaddr_t vaddr)
 {
