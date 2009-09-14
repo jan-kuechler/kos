@@ -27,6 +27,12 @@ struct proc *idle_proc = &_idle_proc;
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
 
+static pid_t newpid(void)
+{
+	static pid_t cur = 0;
+	return cur++;
+}
+
 static dword *prepare_stack(dword *kstack, void (*entry)(), enum proc_mode mode)
 {
 	dword code_seg = mode == PM_USER ? GDT_SEL_UCODE + 0x03 : GDT_SEL_CODE; // +3 for ring 3
@@ -66,6 +72,8 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
                       enum proc_mode mode, pid_t parent, enum proc_status status)
 {
 	struct proc *pproc = parent ? pm_get_proc(parent) : NULL;
+
+	proc->pid = newpid();
 
 	proc->status = status;
 	if (status != PS_BLOCKED)
@@ -148,6 +156,10 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
 	return proc;
 }
 
+struct proc *pm_fork(pid_t pid)
+{
+}
+
 /**
  *  pm_destroy(proc)
  *
@@ -191,7 +203,13 @@ void pm_destroy(struct proc *proc)
  */
 struct proc *pm_get_proc(pid_t pid)
 {
-	return &procs[pid];
+	int i=0;
+	for (; i < MAX_PROCS; ++i) {
+		if (procs[i].pid == pid)
+			return &procs[i];
+	}
+
+	return NULL;
 }
 
 /**
