@@ -21,10 +21,36 @@ struct addrspace *vm_create_addrspace()
 	return as;
 }
 
+static bool clone_entry(pdir_t oldpd, pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
+{
+	paddr_t newphys = km_alloc_page();
+	if (newphys == NO_PAGE)
+		return false;
+
+	vm_map_page(newpd, vaddr, newphys, getflags(pte));
+	// FIXME: error checking
+
+	vm_cpy_pp(newphys, getaddr(pte), PAGE_SIZE);
+
+	return true;
+}
+
 struct addrspace *vm_clone_addrspace(struct addrspace *as)
 {
-	vaddr_t start_addr = KERN_SPACE_END + 1;
+	struct addrspace *newas = vm_create_addrspace();
 
+	vaddr_t addr = KERN_SPACE_END + 1;
+
+	for (; addr < (MAX_PAGE_ADDR + 1); addr += PAGE_SIZE) {
+		ptab_entry_t pte = get_ptab_entry(as->pdir, addr);
+		if (!pte)
+			continue;
+		if (!clone_entry(as->pdir, newas->pdir, addr, pte)) {
+			return NULL;
+		}
+	}
+
+	return newas;
 }
 
 void vm_select_addrspace(struct addrspace *as)
