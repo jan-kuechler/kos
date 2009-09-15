@@ -205,6 +205,18 @@ struct proc *pm_fork(pid_t pid)
 	child->as = vm_clone_addrspace(parent->as);
 	child->fs_data = vfs_clone_procdata(parent->fs_data);
 
+	/* user stack was cloned in vm_clone_addrspace */
+	child->ustack_addr = vm_resolve_virt(child->as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
+
+	uint32_t *kstack = km_alloc_page();
+	memcpy(kstack, parent->kstack_addr, PAGE_SIZE);
+	child->kstack_addr = kstack;
+
+	uint32_t offs = parent->kstack - (uint32_t)parent->kstack_addr;
+	kstack += offs;
+	child->kstack = kstack;
+	child->esp    = kstack;
+
 	return child;
 }
 

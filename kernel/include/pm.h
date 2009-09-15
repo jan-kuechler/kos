@@ -2,6 +2,7 @@
 #define PM_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <types.h>
 #include <kos/config.h>
 #include <kos/msg.h>
