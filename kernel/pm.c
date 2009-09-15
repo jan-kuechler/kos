@@ -87,7 +87,7 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
 	proc->exit_status = -1;
 	proc->wakeup = 0;
 
-	proc->cmdline_mapped = 0;
+	proc->cmdline_mapped = false;
 	proc->cmdline = kmalloc(strlen(cmdline) + 1);
 	strcpy(proc->cmdline, cmdline);
 
@@ -177,7 +177,35 @@ struct proc *pm_fork(pid_t pid)
 	if (!child)
 		return NULL;
 
+	child->pid = newpid();
+	child->parent = pid;
+
+	child->status = PS_READY;
+	child->block  = BR_NOT_BLOCKED;
+	child->ticks_left = PROC_START_TICKS;
+
+	child->wait_proc = 0;
+	child->wait_for  = 0;
+	child->exit_status = -1;
+	child->wakeup    = 0;
+
+	child->cmdline_mapped = true;
+	child->cmdline = kmalloc(strlen(parent->cmdline) + 1);
+	strcpy(child->cmdline, parent->cmdline);
+
+	child->msg_waitbuf = NULL;
+	child->msgbuffer = rbuf_create(sizeof(msg_t), 24, false);
+
+	child->tty = parent->tty;
+
+	child->mem_brk  = parent->mem_brk;
+	child->brk_page = parent->brk_page;
+	child->num_dyn  = parent->num_dyn;
+
 	child->as = vm_clone_addrspace(parent->as);
+	child->fs_data = vfs_clone_procdata(parent->fs_data);
+
+	return child;
 }
 
 /**
@@ -459,7 +487,7 @@ int32_t sys_getcmdline()
 		vm_map_page(syscall_proc->as->pdir,	page, (vaddr_t)INFO_SPACE_START,
 		            PE_PRESENT | PE_READWRITE | PE_USERMODE);
 
-		syscall_proc->cmdline_mapped = 1;
+		syscall_proc->cmdline_mapped = true;
 	}
 
 	vm_cpy_pv(page, syscall_proc->cmdline, strlen(syscall_proc->cmdline) + 1);

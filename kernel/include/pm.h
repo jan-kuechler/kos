@@ -1,6 +1,7 @@
 #ifndef PM_H
 #define PM_H
 
+#include <stdbool.h>
 #include <types.h>
 #include <kos/config.h>
 #include <kos/msg.h>
@@ -75,7 +76,7 @@ struct proc {
 
 	struct fs_proc_data *fs_data;
 
-	int   cmdline_mapped;
+	bool  cmdline_mapped;
 	char *cmdline;
 
 	int   exit_status;
