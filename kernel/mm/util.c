@@ -10,45 +10,67 @@
 
 #include "intern.h"
 
+static bool vm_cpy_pp_hack = false;
+
 struct addrspace *vm_create_addrspace()
 {
 	struct addrspace *as = kmalloc(sizeof(*as));
 	as->phys = mm_alloc_page();
 	as->pdir = km_alloc_addr(as->phys, VM_COMMON_FLAGS, PAGE_SIZE);
 
-	memcpy(as->pdir, kernel_pdir, PAGE_SIZE);
+	memset(as->pdir, 0, PAGE_SIZE);
+	memcpy(as->pdir, kernel_pdir, PAGE_SIZE / 4);
 
 	return as;
 }
 
-static bool clone_entry(pdir_t oldpd, pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
+static bool clone_entry(pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
 {
+	dbg_printf(DBG_MM, "Clone entry for %p\n", vaddr);
+
 	paddr_t newphys = km_alloc_page();
 	if (newphys == NO_PAGE)
 		return false;
 
-	vm_map_page(newpd, vaddr, newphys, getflags(pte));
+	dbg_vprintf(DBG_MM, " New page at phys:%p\n", newphys);
+	dbg_vprintf(DBG_MM, " Old page at phys:%p\n", getaddr(pte));
+
+	vm_map_page(newpd, newphys, vaddr, getflags(pte));
 	// FIXME: error checking
 
+	dbg_printf(DBG_MM, "vm_cpy_pp(%p, %p, %x)\n", newphys, getaddr(pte), PAGE_SIZE);
+	vm_cpy_pp_hack = true;
 	vm_cpy_pp(newphys, getaddr(pte), PAGE_SIZE);
-
+	vm_cpy_pp_hack = false;
 	return true;
 }
 
-struct addrspace *vm_clone_addrspace(struct addrspace *as)
+struct addrspace *vm_clone_addrspace(struct proc *proc, struct addrspace *as)
 {
 	struct addrspace *newas = vm_create_addrspace();
 
-	vaddr_t addr = KERN_SPACE_END + 1;
+	memset(newas->pdir, 0, PAGE_SIZE);
 
-	for (; addr < (MAX_PAGE_ADDR + 1); addr += PAGE_SIZE) {
+	vaddr_t addr = (vaddr_t)(KERN_SPACE_END + 1);
+
+	for (; addr < proc->brk_page; addr += PAGE_SIZE) {
 		ptab_entry_t pte = get_ptab_entry(as->pdir, addr);
 		if (!pte)
 			continue;
-		if (!clone_entry(as->pdir, newas->pdir, addr, pte)) {
+		if (!clone_entry(newas->pdir, addr, pte)) {
 			return NULL;
 		}
 	}
+
+
+	/*
+	ptab_entry_t pte = get_ptab_entry(as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
+	if (!pte)
+		dbg_error("No userstack??");
+	else {
+		clone_entry(newas->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE), pte);
+	}
+	*/
 
 	return newas;
 }
@@ -135,7 +157,8 @@ void vm_cpy_pp(paddr_t dst, paddr_t src, size_t size)
 	vaddr_t vdst = map(dst);
 	vaddr_t vsrc = map(src);
 
-	memcpy(vdst, vsrc, size);
+	if (!vm_cpy_pp_hack)
+		memcpy(vdst, vsrc, size);
 
 	unmap(vdst);
 	unmap(vsrc);

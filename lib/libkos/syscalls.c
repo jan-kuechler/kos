@@ -38,9 +38,7 @@ int execve(const char *filename, char *const argv [], char *const envp[])
 
 int fork()
 {
-	SYSCALL0(SC_FORK);
-	errno=EAGAIN;
-	return -1;
+	return SYSCALL0(SC_FORK);
 }
 
 int fstat(int file, struct stat *st)

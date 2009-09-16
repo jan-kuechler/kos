@@ -109,6 +109,7 @@ static void elf32_alloc_mem(pdir_t pdir, vaddr_t base, int pages)
 	int i=0;
 	for (; i < pages; ++i) {
 		paddr_t page = mm_alloc_page();
+		dbg_vprintf(DBG_MM, "Loader: New page at phys:%p\n", page);
 		vm_map_page(pdir, page, (vaddr_t)(base + i * PAGE_SIZE), VM_USER_FLAGS);
 	}
 }

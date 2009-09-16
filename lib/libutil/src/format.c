@@ -21,7 +21,7 @@ static int bufsp(char *buffer, const char *str, int pad, char padc)
 	return n + bufs(buffer + n, str);
 }
 
-int numfmt(char *buffer, int num, int base, int pad, char pc)
+int numfmt(char *buffer, signed long long num, int base, int pad, char pc)
 {
 	static char digits[] = "0123456789ABCDEFGHIJKLMOPQRSTUVWXYZ";
 
@@ -56,7 +56,7 @@ int numfmt(char *buffer, int num, int base, int pad, char pc)
 int strafmt(char *buffer, const char *fmt, va_list args)
 {
 	int  n = 0;
-	long val = 0;
+	signed long long  val = 0;
 	int  pad = 0;
 	char padc = ' ';
 
@@ -89,8 +89,8 @@ int strafmt(char *buffer, const char *fmt, va_list args)
 			         *fmt == 'p' || *fmt == 'x' ||
 			         *fmt == 'b')
 			{
-				val = va_arg(args, int);
-				val = val  & 0xffffffff;
+				val = va_arg(args, unsigned int);
+				val = val  & 0xFFFFFFFF;
 			}
 
 
@@ -153,3 +153,16 @@ int strfmt(char *buffer, const char *fmt, ...)
 	va_end(args);
 	return n;
 }
+
+#ifdef TEST
+
+int main(int argc, char **argv)
+{
+	char buffer[512] = {0};
+
+	strfmt(buffer, "%p %p 0x%x", 0xFFFFF000, 0xD00FD00F, 0xDEADBEEF);
+
+	printf(buffer);
+}
+
+#endif

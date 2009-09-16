@@ -27,6 +27,8 @@ struct proc *idle_proc = &_idle_proc;
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
 
+static bool forked = false;
+
 static pid_t newpid(void)
 {
 	static pid_t cur = 0;
@@ -180,8 +182,8 @@ struct proc *pm_fork(pid_t pid)
 	child->pid = newpid();
 	child->parent = pid;
 
-	child->status = PS_READY;
-	child->block  = BR_NOT_BLOCKED;
+	child->status = PS_BLOCKED;
+	child->block  = BR_INIT;
 	child->ticks_left = PROC_START_TICKS;
 
 	child->wait_proc = 0;
@@ -202,20 +204,23 @@ struct proc *pm_fork(pid_t pid)
 	child->brk_page = parent->brk_page;
 	child->num_dyn  = parent->num_dyn;
 
-	child->as = vm_clone_addrspace(parent->as);
+	child->cleanup = NULL;
+	child->ldata   = NULL;
+
+	child->as = vm_clone_addrspace(parent, parent->as);
 	child->fs_data = vfs_clone_procdata(parent->fs_data);
 
 	/* user stack was cloned in vm_clone_addrspace */
-	child->ustack_addr = vm_resolve_virt(child->as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
+	//child->ustack_addr = vm_resolve_virt(child->as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
 
-	uint32_t *kstack = km_alloc_page();
-	memcpy(kstack, parent->kstack_addr, PAGE_SIZE);
-	child->kstack_addr = kstack;
+	//uint32_t *kstack = km_alloc_page();
+	//memcpy(kstack, parent->kstack_addr, PAGE_SIZE);
+	//child->kstack_addr = kstack;
 
-	uint32_t offs = parent->kstack - (uint32_t)parent->kstack_addr;
-	kstack += offs;
-	child->kstack = kstack;
-	child->esp    = kstack;
+	//uint32_t esp_offs = parent->esp - (uint32_t)parent->kstack_addr;
+
+	//child->esp = (uint32_t)kstack + esp_offs;
+	//child->kstack = (uint32_t)kstack + esp_offs;
 
 	return child;
 }
@@ -397,6 +402,12 @@ void pm_pick(dword *esp)
 
 		last_proc = cur_proc;
 	}
+
+	if (forked) {
+		forked = false;
+
+		print_state((regs_t*)*esp);
+	}
 }
 
 /**
@@ -407,6 +418,14 @@ void pm_pick(dword *esp)
 void pm_restore(dword *esp)
 {
 	vm_select_addrspace(&kernel_addrspace);
+
+	regs_t *regs = (regs_t*)*esp;
+
+	if (regs->intr == 0x30) {
+		if (regs->eax == SC_FORK) {
+			print_state(regs);
+		}
+	}
 
 	if (cur_proc) {
 		cur_proc->esp = (dword)*esp;
@@ -488,6 +507,17 @@ int32_t sys_getpid()
 	return syscall_proc->pid;
 }
 
+int32_t sys_fork()
+{
+	struct proc *child = pm_fork(syscall_proc->pid);
+	forked = true;
+	//if (!child)
+	//	return -1;
+
+	//sc_late_result(child, 0); /* to child process */
+	return child->pid; /* to parent process */
+}
+
 int32_t sys_getcmdline()
 {
 	if (!syscall_proc->cmdline) return 0;
@@ -537,6 +567,8 @@ void init_pm(void)
 	syscall_register(SC_GETPID,     sys_getpid, 0);
 	syscall_register(SC_WAITPID,    sys_waitpid, 3);
 	syscall_register(SC_GETCMDLINE, sys_getcmdline, 0);
+
+	syscall_register(SC_FORK,       sys_fork, 0);
 
 	/* create special process 0: idle */
 	struct proc *idle_proc  = pm_create(idle, "idle", 0, 0, PS_BLOCKED);
