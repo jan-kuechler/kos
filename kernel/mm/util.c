@@ -28,7 +28,7 @@ static bool clone_entry(pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
 {
 	dbg_printf(DBG_MM, "Clone entry for %p\n", vaddr);
 
-	paddr_t newphys = km_alloc_page();
+	paddr_t newphys = mm_alloc_page();
 	if (newphys == NO_PAGE)
 		return false;
 
@@ -39,9 +39,8 @@ static bool clone_entry(pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
 	// FIXME: error checking
 
 	dbg_printf(DBG_MM, "vm_cpy_pp(%p, %p, %x)\n", newphys, getaddr(pte), PAGE_SIZE);
-	vm_cpy_pp_hack = true;
 	vm_cpy_pp(newphys, getaddr(pte), PAGE_SIZE);
-	vm_cpy_pp_hack = false;
+
 	return true;
 }
 
@@ -157,8 +156,7 @@ void vm_cpy_pp(paddr_t dst, paddr_t src, size_t size)
 	vaddr_t vdst = map(dst);
 	vaddr_t vsrc = map(src);
 
-	if (!vm_cpy_pp_hack)
-		memcpy(vdst, vsrc, size);
+	memcpy(vdst, vsrc, size);
 
 	unmap(vdst);
 	unmap(vsrc);

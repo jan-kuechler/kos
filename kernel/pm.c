@@ -169,9 +169,8 @@ struct proc *pm_create(void (*entry)(), const char *cmdline, proc_mode_t mode, p
  *
  * Forks a process and returns it's new child.
  */
-struct proc *pm_fork(pid_t pid)
+struct proc *pm_fork(struct proc *parent, uint32_t stackptr)
 {
-	struct proc *parent = pm_get_proc(pid);
 	if (!parent)
 		return NULL;
 
@@ -180,10 +179,10 @@ struct proc *pm_fork(pid_t pid)
 		return NULL;
 
 	child->pid = newpid();
-	child->parent = pid;
+	child->parent = parent->pid;
 
-	child->status = PS_BLOCKED;
-	child->block  = BR_INIT;
+	child->status = PS_READY;
+	child->block  = BR_NOT_BLOCKED;
 	child->ticks_left = PROC_START_TICKS;
 
 	child->wait_proc = 0;
@@ -211,16 +210,27 @@ struct proc *pm_fork(pid_t pid)
 	child->fs_data = vfs_clone_procdata(parent->fs_data);
 
 	/* user stack was cloned in vm_clone_addrspace */
-	//child->ustack_addr = vm_resolve_virt(child->as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
+	child->ustack_addr = vm_resolve_virt(child->as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
 
-	//uint32_t *kstack = km_alloc_page();
-	//memcpy(kstack, parent->kstack_addr, PAGE_SIZE);
-	//child->kstack_addr = kstack;
+	uint32_t *kstack = km_alloc_page();
+	memcpy(kstack, parent->kstack_addr, PAGE_SIZE);
+	child->kstack_addr = kstack;
 
-	//uint32_t esp_offs = parent->esp - (uint32_t)parent->kstack_addr;
+	uint32_t esp_offs = stackptr - (uint32_t)parent->kstack_addr;
 
-	//child->esp = (uint32_t)kstack + esp_offs;
-	//child->kstack = (uint32_t)kstack + esp_offs;
+	regs_t *regs = (regs_t*)stackptr;
+	dbg_error("esp %p for proc %d:\n", stackptr, parent->pid);
+	print_state(regs);
+
+	child->esp = (uint32_t)kstack + esp_offs;
+	child->kstack = (uint32_t)kstack + esp_offs;
+
+	regs = (regs_t*)child->esp;
+	dbg_error("esp %p for child:\n", child->esp);
+	print_state(regs);
+
+	dbg_printf(DBG_MM, "%d\n", cur_proc->pid);
+	dbg_printf(DBG_MM, "Child activated.");
 
 	return child;
 }
@@ -393,6 +403,9 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
+	if (forked)
+		dbg_error("%d\n", cur_proc->pid);
+
 	vm_select_addrspace(cur_proc->as);
 
 	if (cur_proc != last_proc) {
@@ -406,6 +419,7 @@ void pm_pick(dword *esp)
 	if (forked) {
 		forked = false;
 
+		dbg_error("esp %p for proc %d:\n", *esp, cur_proc->pid);
 		print_state((regs_t*)*esp);
 	}
 }
@@ -423,6 +437,7 @@ void pm_restore(dword *esp)
 
 	if (regs->intr == 0x30) {
 		if (regs->eax == SC_FORK) {
+			dbg_error("esp %p for proc %d:\n", *esp, cur_proc->pid);
 			print_state(regs);
 		}
 	}
@@ -509,12 +524,17 @@ int32_t sys_getpid()
 
 int32_t sys_fork()
 {
-	struct proc *child = pm_fork(syscall_proc->pid);
+	disable_intr();
+	struct proc *child = pm_fork(syscall_proc, syscall_proc->esp);
 	forked = true;
-	//if (!child)
-	//	return -1;
+	if (!child) {
+		enable_intr();
+		return -1;
+	}
 
-	//sc_late_result(child, 0); /* to child process */
+	sc_late_result(child, 0); /* to child process */
+	enable_intr();
+	pm_activate(child);
 	return child->pid; /* to parent process */
 }
 

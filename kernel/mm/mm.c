@@ -1,6 +1,7 @@
 #include <bitop.h>
 #include <multiboot.h>
 #include <page.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "debug.h"
@@ -52,7 +53,9 @@ static paddr_t find_free_page()
 		if ((mmap[i] & BMASK_DWORD) == 0)
 			continue;
 		int p = bscanfwd(mmap[i]);
-		return (paddr_t)(idx_to_addr(i) + pos_to_offs(p));
+
+		paddr_t page = (paddr_t)(idx_to_addr(i) + pos_to_offs(p));
+		return page;
 	}
 	return NO_PAGE;
 }
