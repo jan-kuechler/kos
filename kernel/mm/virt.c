@@ -100,13 +100,7 @@ void init_paging(void)
 	syscall_register(SC_SBRK, sys_sbrk, 1);
 }
 
-/**
- *  vm_map_page(pdir, paddr, vaddr, flags)
- *
- * Maps a virtual addr to a physical addr in the given page
- * directory with the given flags.
- */
-void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags)
+static void do_map(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags, bool force)
 {
 	CHECK_ALIGN(vaddr);
 	CHECK_ALIGN(paddr);
@@ -130,7 +124,7 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 		ptab = map_working_table(getaddr(pde));
 	}
 
-	if (bisset(ptab[ptab_index(vaddr)], PE_PRESENT) && bisset(flags, PE_PRESENT)) {
+	if (!force && bisset(ptab[ptab_index(vaddr)], PE_PRESENT) && bisset(flags, PE_PRESENT)) {
 		/* attempt to create a new mapping to an addr that allready exists */
 
 		ptab_entry_t pte = ptab[ptab_index(vaddr)];
@@ -159,6 +153,22 @@ void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, 
 				panic("vm_map_page: Overflow in kernel page directory revision (%d => %d)", old, kpdir_rev);
 		}
 	}
+}
+
+/**
+ *  vm_map_page(pdir, paddr, vaddr, flags)
+ *
+ * Maps a virtual addr to a physical addr in the given page
+ * directory with the given flags.
+ */
+void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags)
+{
+	do_map(pdir, paddr, vaddr, flags, false);
+}
+
+void vm_force_map(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags)
+{
+	do_map(pdir, paddr, vaddr, flags, true);
 }
 
 /**

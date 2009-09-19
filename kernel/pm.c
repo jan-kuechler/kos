@@ -28,6 +28,7 @@ struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
 
 static bool forked = false;
+static struct proc *fork_proc = NULL;
 
 static pid_t newpid(void)
 {
@@ -218,19 +219,18 @@ struct proc *pm_fork(struct proc *parent, uint32_t stackptr)
 
 	uint32_t esp_offs = stackptr - (uint32_t)parent->kstack_addr;
 
-	regs_t *regs = (regs_t*)stackptr;
-	dbg_error("esp %p for proc %d:\n", stackptr, parent->pid);
-	print_state(regs);
+	regs_t *regs;
+	//regs = (regs_t*)stackptr;
+	//dbg_error("esp %p for proc %d:\n", stackptr, parent->pid);
+	//print_state(regs);
 
 	child->esp = (uint32_t)kstack + esp_offs;
 	child->kstack = (uint32_t)kstack + esp_offs;
+	child->sc_regs = child->esp;
 
 	regs = (regs_t*)child->esp;
 	dbg_error("esp %p for child:\n", child->esp);
 	print_state(regs);
-
-	dbg_printf(DBG_MM, "%d\n", cur_proc->pid);
-	dbg_printf(DBG_MM, "Child activated.");
 
 	return child;
 }
@@ -392,7 +392,8 @@ void pm_schedule()
 		cur_proc->status = PS_RUNNING;
 	}
 	else {
-		cur_proc = &procs[IDLE_PROC];
+		cur_proc = idle_proc;
+		dbg_error("Schedule to idle");
 	}
 }
 
@@ -403,9 +404,6 @@ void pm_schedule()
  */
 void pm_pick(dword *esp)
 {
-	if (forked)
-		dbg_error("%d\n", cur_proc->pid);
-
 	vm_select_addrspace(cur_proc->as);
 
 	if (cur_proc != last_proc) {
@@ -414,13 +412,6 @@ void pm_pick(dword *esp)
 		tss.esp0 = cur_proc->kstack;
 
 		last_proc = cur_proc;
-	}
-
-	if (forked) {
-		forked = false;
-
-		dbg_error("esp %p for proc %d:\n", *esp, cur_proc->pid);
-		print_state((regs_t*)*esp);
 	}
 }
 
@@ -433,18 +424,8 @@ void pm_restore(dword *esp)
 {
 	vm_select_addrspace(&kernel_addrspace);
 
-	regs_t *regs = (regs_t*)*esp;
-
-	if (regs->intr == 0x30) {
-		if (regs->eax == SC_FORK) {
-			dbg_error("esp %p for proc %d:\n", *esp, cur_proc->pid);
-			print_state(regs);
-		}
-	}
-
-	if (cur_proc) {
-		cur_proc->esp = (dword)*esp;
-	}
+	kassert(cur_proc != NULL);
+	cur_proc->esp = (dword)*esp;
 }
 
 /**
@@ -526,7 +507,8 @@ int32_t sys_fork()
 {
 	disable_intr();
 	struct proc *child = pm_fork(syscall_proc, syscall_proc->esp);
-	forked = true;
+	//forked = true;
+	//fork_proc = syscall_proc;
 	if (!child) {
 		enable_intr();
 		return -1;

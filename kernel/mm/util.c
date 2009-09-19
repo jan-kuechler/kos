@@ -19,7 +19,7 @@ struct addrspace *vm_create_addrspace()
 	as->pdir = km_alloc_addr(as->phys, VM_COMMON_FLAGS, PAGE_SIZE);
 
 	memset(as->pdir, 0, PAGE_SIZE);
-	memcpy(as->pdir, kernel_pdir, PAGE_SIZE / 4);
+	memcpy(as->pdir, kernel_pdir, PAGE_SIZE);
 
 	return as;
 }
@@ -35,7 +35,7 @@ static bool clone_entry(pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
 	dbg_vprintf(DBG_MM, " New page at phys:%p\n", newphys);
 	dbg_vprintf(DBG_MM, " Old page at phys:%p\n", getaddr(pte));
 
-	vm_map_page(newpd, newphys, vaddr, getflags(pte));
+	vm_force_map(newpd, newphys, vaddr, getflags(pte));
 	// FIXME: error checking
 
 	dbg_printf(DBG_MM, "vm_cpy_pp(%p, %p, %x)\n", newphys, getaddr(pte), PAGE_SIZE);
@@ -48,8 +48,6 @@ struct addrspace *vm_clone_addrspace(struct proc *proc, struct addrspace *as)
 {
 	struct addrspace *newas = vm_create_addrspace();
 
-	memset(newas->pdir, 0, PAGE_SIZE);
-
 	vaddr_t addr = (vaddr_t)(KERN_SPACE_END + 1);
 
 	for (; addr < proc->brk_page; addr += PAGE_SIZE) {
@@ -61,15 +59,12 @@ struct addrspace *vm_clone_addrspace(struct proc *proc, struct addrspace *as)
 		}
 	}
 
-
-	/*
 	ptab_entry_t pte = get_ptab_entry(as->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE));
 	if (!pte)
 		dbg_error("No userstack??");
 	else {
 		clone_entry(newas->pdir, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE), pte);
 	}
-	*/
 
 	return newas;
 }

@@ -45,6 +45,7 @@ extern struct addrspace kernel_addrspace;
 void init_paging(void);
 
 void vm_map_page(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags);
+void vm_force_map(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr, dword flags);
 void vm_unmap_page(pdir_t pdir, _aligned_ vaddr_t vaddr);
 
 void vm_map_range(pdir_t pdir, _aligned_ paddr_t pstart, _aligned_ vaddr_t vstart, dword flags, int num);

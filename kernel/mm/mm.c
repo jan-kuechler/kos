@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "debug.h"
+#include "elf.h"
 #include "kernel.h"
 #include "mm/mm.h"
 
@@ -222,5 +223,16 @@ void init_mm(void)
 			mark_range_used((paddr_t)mod->cmdline, NUM_PAGES(strlen((char*)mod->cmdline)));
 		}
 	}
+
+	paddr_t sec_addr = (paddr_t)multiboot_info.u.elf_sec.addr;
+	size_t  sec_size = multiboot_info.u.elf_sec.size;
+	size_t  sec_num  = multiboot_info.u.elf_sec.num;
+	mark_range_used(sec_addr, NUM_PAGES(sec_size));
+
+	Elf32_Shdr *shdr = (Elf32_Shdr*)sec_addr;
+	for (i=0; i < sec_num; ++i) {
+		mark_range_used((paddr_t)shdr[i].sh_addr, NUM_PAGES(shdr[i].sh_size));
+	}
+
 	mark_used((paddr_t)0x00);
 }
