@@ -2,6 +2,7 @@
 #define DEBUG_H
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <types.h>
 #include <kos/config.h>
 
@@ -77,5 +78,6 @@ void init_stack_backtrace(void);
 void dbg_stack_backtrace(void);
 void dbg_stack_backtrace_ex(dword ebp, dword eip);
 void dbg_proc_backtrace(struct proc *proc);
+char *dbg_get_sym(uint32_t eip);
 
 #endif /*DEBUG_H*/

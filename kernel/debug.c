@@ -94,12 +94,25 @@ static inline const char *get_str(Elf32_Word index)
 	return (const char*)strtab->sh_addr + index;
 }
 
+char *dbg_get_sym(uint32_t eip)
+{
+	static char buffer[256] = {0};
+
+	Elf32_Sym *sym = find_sym(eip);
+	if (!sym)
+		return NULL;
+
+	strfmt(buffer, "<%s + 0x%x>", get_str(sym->st_name), eip - sym->st_value);
+	return buffer;
+}
+
 static inline void print_sym(dword ebp, dword eip)
 {
-	Elf32_Sym *sym = find_sym(eip);
 	dbg_error("ebp 0x%08x eip 0x%08x", ebp, eip);
+
+	const char *sym = dbg_get_sym(eip);
 	if (sym) {
-		dbg_error(" <%s + 0x%x>", get_str(sym->st_name), eip - sym->st_value);
+		dbg_error(" %s", sym);
 	}
 	dbg_error("\n");
 }

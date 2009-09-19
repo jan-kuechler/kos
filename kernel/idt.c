@@ -183,6 +183,13 @@ static enum excpt_policy default_exception_handler(uint32_t *esp)
 
 	dbg_error("\n");
 
+	if (!IS_USER(regs->ds)) {
+		char *sym = dbg_get_sym(regs->eip);
+		if (!sym)
+			sym = "<unknown>";
+		dbg_error("Error at: %p %s\n", regs->eip, sym);
+	}
+
 	return EP_DEFAULT;
 }
 

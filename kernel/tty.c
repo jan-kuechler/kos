@@ -519,6 +519,9 @@ static inline byte handle_raw(byte code)
 				acpi_poweroff();
 				puts(cur_tty, "\nCould not shutdown. Sorry.\n");
 			}
+			else if (code == KEYC_HOME) {
+				asm volatile("int $0x03");
+			}
 		}
 
 		if (code >= KEYC_F1 && code <= KEYC_F8) {
