@@ -6,6 +6,8 @@
  */
 enum error_code
 {
+	OK = 0,       /** No error, everything is ok */
+	E_ALIGN,      /** Address is not page aligned */
 	E_NO_MEM,     /** Not enough memory */
 	E_INVALID,    /** Invalid parameter */
 	E_UNKNOWN,    /** Unknown error */

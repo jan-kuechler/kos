@@ -20,14 +20,14 @@ enum block_type
 	END_OF_BLOCKS,
 };
 
-#define addr_to_idx(a) (((dword)a / PAGE_SIZE) / 32)
-#define idx_to_addr(i) (i * PAGE_SIZE * 32)
-
-#define page_to_pos(p) (((dword)p / PAGE_SIZE) & 31)
-#define pos_to_offs(p) ((dword)p * PAGE_SIZE)
-
 // this is enough for 4GB memory
 #define MMAP_SIZE 0x8000
+
+#define addr_to_idx(a) (((uintptr_t)a / PAGE_SIZE) / 32)
+#define idx_to_addr(i) (i * PAGE_SIZE * 32)
+
+#define page_to_pos(p) (((uintptr_t)p / PAGE_SIZE) & 31)
+#define pos_to_offs(p) ((uintptr_t)p * PAGE_SIZE)
 
 static uint32_t mmap[MMAP_SIZE];
 static size_t mmap_length;
@@ -47,7 +47,7 @@ static inline void mark_range_free(paddr_t start, size_t num)
 {
 	int i=0;
 	for (; i < num; ++i)
-		mark_free((paddr_t)((char*)start + (i*PAGE_SIZE)));
+		mark_free((paddr_t)((uint8_t*)start + (i*PAGE_SIZE)));
 }
 
 static inline void mark_range_used(paddr_t start, size_t num)
@@ -100,83 +100,72 @@ static paddr_t find_free_range(size_t msize)
 	return NO_PAGE;
 }
 
-/**
- *  mm_alloc_page()
- *
- * Returns the address of a 4k page of usable memory.
- */
 paddr_t mm_alloc_page()
 {
 	paddr_t page = find_free_page();
-	if (page == NO_PAGE)
-		panic("Not enough memory to alloc 1 page.");
+	if (page == NO_PAGE) {
+		seterr(E_NO_MEM);
+		return NO_PAGE;
+	}
 	mark_used(page);
 	return page;
 }
 
-/**
- *  mm_free_page(page)
- *
- * Frees a previously allocated page.
- */
 void mm_free_page(paddr_t page)
 {
-	mark_free(page);
+	if (page == NO_PAGE)
+		return;
+	if (!IS_PAGE_ALIGNED(page))
+		seterr(E_ALIGN);
+	else
+		mark_free(page);
 }
 
-/**
- *  mm_alloc_range(num)
- *
- * Returns the address of num sequenced pages.
- */
+
 paddr_t mm_alloc_range(size_t num)
 {
+	if (!num) {
+		seterr(E_INVALID);
+		return NO_PAGE;
+	}
+
 	paddr_t start = find_free_range(num);
-	if (start == NO_PAGE)
-		panic("Not enough memory to alloc %d pages.", num);
+	if (start == NO_PAGE) {
+		seterr(E_NO_MEM);
+		return NO_PAGE;
+	}
+
 	mark_range_used(start, num);
 	return start;
 }
 
-/**
- *  mm_free_range(start, num)
- *
- * Frees num sequenced pages starting from start.
- */
+
 void mm_free_range(paddr_t start, size_t num)
 {
-	mark_range_free(start, num);
+	if (start == NO_PAGE)
+		return;
+
+	if (!IS_PAGE_ALIGNED(start))
+		seterr(E_ALIGN);
+	else if (!num)
+		seterr(E_INVALID);
+	else
+		mark_range_free(start, num);
 }
 
-/**
- *  mm_total_mem()
- *
- * Returns the ammount of total memory in the system
- */
 size_t mm_total_mem()
 {
 	return total_mem;
 }
 
-
-/**
- *  mm_num_pages()
- *
- * Returns the number of usable (=> not kernel owned) pages in the system.
- */
 size_t mm_num_pages()
 {
-	return mmap_length * 32; /* 32 pages per mmap entry */
+	return total_mem / PAGE_SIZE;
 }
 
-/**
- *  mm_num_free_pages()
- *
- * Returns the number of free pages in the system.
- */
 size_t mm_num_free_pages()
 {
-	dword num = 0;
+	size_t num = 0;
 	int i=0;
 
 	for(; i < mmap_length; ++i) {
@@ -188,23 +177,6 @@ size_t mm_num_free_pages()
 	}
 
 	return num;
-}
-
-/**
- *  mm_get_mmap();
- *
- * Returns a pointer to the memory map.
- * This should only be used by mm/virt.c and is
- * not exported in mm/mm.h.
- */
-dword *mm_get_mmap(void)
-{
-	return mmap;
-}
-
-dword mm_get_mmap_size(void)
-{
-	return (MMAP_SIZE * sizeof(dword));
 }
 
 static enum block_type get_avail_block(paddr_t *start, size_t *len, size_t i)
@@ -220,17 +192,12 @@ static enum block_type get_avail_block(paddr_t *start, size_t *len, size_t i)
 	if (mb_mmap->type != 1)
 		return UNUSABLE_BLOCK;
 
-	*start = (paddr_t)((uint32_t)mb_mmap->base_addr); // truncate 64 bit value
+	*start = (paddr_t)((uintptr_t)mb_mmap->base_addr);
 	*len   = mb_mmap->length;
 
 	return USABLE_BLOCK;
 }
 
-/**
- *  init_mm()
- *
- * Initializes the physical memory manager.
- */
 void init_mm(void)
 {
 	// mark everything as not available
@@ -257,7 +224,7 @@ void init_mm(void)
 		dbg_printf(DBG_MM, "Memory: %dkb at %p\n", len/1024, start);
 
 		if (!IS_PAGE_ALIGNED(start)) {
-			paddr_t aligned = PAGE_ALIGN_ROUND_UP((uint32_t)start);
+			paddr_t aligned = PAGE_ALIGN_ROUND_UP(start);
 			dbg_vprintf(DBG_MM, " align %p to %p\n", start, aligned);
 			ptrdiff_t offs = aligned - start;
 			len -= offs;
