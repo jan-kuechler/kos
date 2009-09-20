@@ -21,6 +21,7 @@ typedef void (*fscallback_t)(struct file *, int, void *, dword);
 struct file_ops
 {
 	int (*close)(struct file *file);
+	int (*dup)(struct file *file, struct file *newf);
 
 	int (*read)(struct file *file, void *buffer, dword size, dword offset);
 	int (*write)(struct file *file, void *buffer, dword size, dword offset);

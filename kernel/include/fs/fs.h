@@ -73,6 +73,7 @@ struct inode *vfs_create(struct inode *dir, char *name, dword flags);
 int vfs_unlink(struct inode *ino);
 struct file *vfs_open(struct inode *ino, dword flags);
 int vfs_close(struct file *file);
+struct file *vfs_dup(struct file *file);
 
 int vfs_read(struct file *file, void *buffer, dword count, dword offset);
 int vfs_write(struct file *file, void *buffer, dword count, dword offset);

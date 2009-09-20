@@ -11,6 +11,16 @@
 #define inode_has_op(ino, op) ((ino)->ops && (ino)->ops->op)
 #define file_has_op(file, op) ((file)->fops && (file)->fops->op)
 
+#define FILE_OP(file,op) ((file)->fops->op ? (file)->fops->op : def_##op)
+
+static int def_dup(struct file *file, struct file *newf)
+{
+	newf->inode = file->inode;
+	newf->pos = file->pos;
+	newf->fops = file->fops;
+	return 0;
+}
+
 struct inode *vfs_create(struct inode *dir, char *name, dword flags)
 {
 	if (!dir || !name)
@@ -75,6 +85,22 @@ int vfs_close(struct file *file)
 		}
 	}
 	return err;
+}
+
+struct file *vfs_dup(struct file *file)
+{
+	if (!file)
+		ret_null_and_err(-EINVAL);
+
+	struct file *newf = kmalloc(sizeof(*file));
+	memset(newf, 0, sizeof(*newf));
+
+	int err = FILE_OP(file, dup)(file, newf);
+	if (err) {
+		kfree(file);
+		ret_null_and_err(err);
+	}
+	return newf;
 }
 
 int vfs_read(struct file *file, void *buffer, dword count, dword offset)

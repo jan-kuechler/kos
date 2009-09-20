@@ -77,8 +77,7 @@ struct fs_proc_data *vfs_create_procdata()
 	data->cwd->inode = fs_root;
 
 	data->numfiles = 32;
-	data->files = kmalloc(data->numfiles * sizeof(struct file*));
-	memset(data->files, 0, data->numfiles * sizeof(struct file*));
+	data->files = kcalloc(data->numfiles, sizeof(struct file*));
 
 	return data;
 }
@@ -87,10 +86,20 @@ struct fs_proc_data *vfs_clone_procdata(struct fs_proc_data *data)
 {
 	struct fs_proc_data *newdata = kmalloc(sizeof(*newdata));
 
+	newdata->cwd = kmalloc(sizeof(struct dirent));
+	strcpy(newdata->cwd->name, data->cwd->name);
+	newdata->cwd->inode = data->cwd->inode;
 
+	newdata->numfiles = data->numfiles;
+	newdata->files = kcalloc(data->numfiles, sizeof(struct file*));
+	int i=0;
+	for (; i < newdata->numfiles; ++i) {
+		if (data->files[i]) {
+			newdata->files[i] = vfs_dup(data->files[i]);
+		}
+	}
 
-	/* TODO */
-	return NULL;
+	return newdata;
 }
 
 void vfs_free_procdata(struct fs_proc_data *data)
