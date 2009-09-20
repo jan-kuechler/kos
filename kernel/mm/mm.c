@@ -20,7 +20,7 @@ enum block_type
 	END_OF_BLOCKS,
 };
 
-// this is enough for 4GB memory
+/* FIXME: Move this to an arch header */
 #define MMAP_SIZE 0x8000
 
 #define addr_to_idx(a) (((uintptr_t)a / PAGE_SIZE) / 32)
@@ -30,7 +30,6 @@ enum block_type
 #define pos_to_offs(p) ((uintptr_t)p * PAGE_SIZE)
 
 static uint32_t mmap[MMAP_SIZE];
-static size_t mmap_length;
 static size_t total_mem;
 
 static inline void mark_free(paddr_t page)
@@ -61,8 +60,8 @@ static paddr_t find_free_page()
 {
 	int i=0;
 
-	for (; i < mmap_length; ++i) {
-		if ((mmap[i] & BMASK_DWORD) == 0)
+	for (; i < MMAP_SIZE; ++i) {
+		if ((mmap[i] & BMASK_DWORD) == 0) // nothing free here
 			continue;
 		int p = bscanfwd(mmap[i]);
 
@@ -78,8 +77,8 @@ static paddr_t find_free_range(size_t msize)
 	int found = 0;
 	paddr_t start = NO_PAGE;
 
-	for (; i < mmap_length; ++i) {
-		if ((mmap[i] & BMASK_DWORD) == 0) {
+	for (; i < MMAP_SIZE; ++i) {
+		if ((mmap[i] & BMASK_DWORD) == 0) { // nothing free here
 			found = 0;
 			continue;
 		}
@@ -121,7 +120,6 @@ void mm_free_page(paddr_t page)
 		mark_free(page);
 }
 
-
 paddr_t mm_alloc_range(size_t num)
 {
 	if (!num) {
@@ -138,7 +136,6 @@ paddr_t mm_alloc_range(size_t num)
 	mark_range_used(start, num);
 	return start;
 }
-
 
 void mm_free_range(paddr_t start, size_t num)
 {
@@ -168,7 +165,7 @@ size_t mm_num_free_pages()
 	size_t num = 0;
 	int i=0;
 
-	for(; i < mmap_length; ++i) {
+	for(; i < MMAP_SIZE; ++i) {
 		int j=0;
 		for (; j < 32; ++j) {
 			if (bissetn(mmap[i], j))
@@ -202,7 +199,6 @@ void init_mm(void)
 {
 	// mark everything as not available
 	memset(mmap, 0, 4 * MMAP_SIZE); // mmap_size is in dwords
-	mmap_length = MMAP_SIZE;
 
 	total_mem = 0;
 
