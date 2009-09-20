@@ -5,6 +5,8 @@
 
 #define __section(s) __attribute__((section(#s)))
 
+#define __align(n)  __attribute__((aligned(n))
+
 #define __init      __section(.init)
 #define __initdata  __section(.init.data)
 #define __initparam __section(.init.param)
