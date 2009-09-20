@@ -2,6 +2,6 @@ default 0
 timeout 2
 
 title kOS
-kernel /kos.bin stackdump debug=lBRP com=2 init=/bin/fork
+kernel /kos.bin stackdump cdi debug=lB com=2
 module /initrd
 root (cd)

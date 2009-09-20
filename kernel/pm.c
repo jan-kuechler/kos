@@ -27,9 +27,6 @@ struct proc *idle_proc = &_idle_proc;
 struct proc *cur_proc = NULL;
 struct proc *last_proc = NULL;
 
-static bool forked = false;
-static struct proc *fork_proc = NULL;
-
 static pid_t newpid(void)
 {
 	static pid_t cur = 0;
@@ -219,18 +216,9 @@ struct proc *pm_fork(struct proc *parent, uint32_t stackptr)
 
 	uint32_t esp_offs = stackptr - (uint32_t)parent->kstack_addr;
 
-	regs_t *regs;
-	//regs = (regs_t*)stackptr;
-	//dbg_error("esp %p for proc %d:\n", stackptr, parent->pid);
-	//print_state(regs);
-
 	child->esp = (uint32_t)kstack + esp_offs;
 	child->kstack = (uint32_t)kstack + esp_offs;
 	child->sc_regs = child->esp;
-
-	regs = (regs_t*)child->esp;
-	dbg_error("esp %p for child:\n", child->esp);
-	print_state(regs);
 
 	return child;
 }
@@ -507,8 +495,6 @@ int32_t sys_fork()
 {
 	disable_intr();
 	struct proc *child = pm_fork(syscall_proc, syscall_proc->esp);
-	//forked = true;
-	//fork_proc = syscall_proc;
 	if (!child) {
 		enable_intr();
 		return -1;
