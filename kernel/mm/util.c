@@ -126,8 +126,10 @@ vaddr_t vm_map_string(pdir_t pdir, vaddr_t vaddr, size_t *length)
  */
 vaddr_t vm_user_to_kernel(pdir_t pdir, vaddr_t vaddr, size_t size)
 {
+	dbg_vprintf(DBG_MM, "vm_user_to_kernel(%p, %p, %x)", pdir, vaddr, size);
 	paddr_t paddr = vm_resolve_virt(pdir, vaddr);
 	vaddr_t kaddr = km_alloc_addr(paddr, VM_COMMON_FLAGS, size);
+	dbg_vprintf(DBG_MM, " => %p\n", kaddr);
 	return kaddr;
 }
 

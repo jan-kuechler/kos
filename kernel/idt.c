@@ -18,6 +18,8 @@ irq_handler_t irq_handlers[NUM_IRQ] = {0}; // a list of functions to be called
 exception_handler_t exception_handler[IRQ_BASE] = {0};
 static volatile uint32_t irq_counter[NUM_IRQ] = {0};
 
+static void mask_irq(uint8_t irq, bool disable);
+
 /* assembler stubs exported by int.s */
 extern void isr_null_handler(void);
 
@@ -231,6 +233,7 @@ dword idt_handle_int(dword esp)
 
 	// let interrupts don't get enabled until we have finished
 	cx_set(CX_IRQ);
+	mask_irq(regs->intr, true);
 
 	pm_restore(&esp);
 
@@ -251,6 +254,7 @@ dword idt_handle_int(dword esp)
 
 	pm_pick(&esp);
 
+	mask_irq(regs->intr, false);
 	cx_set(CX_PROC);
 
 	return esp;
@@ -311,6 +315,20 @@ bool idt_wait_irq(uint8_t irq, bool since_reset, uint32_t timeout)
 	return irq_counter[irq] >= should;
 }
 
+static void mask_irq(uint8_t irq, bool disable)
+{
+	uint32_t port = irq < 8 ? PIC1_DATA : PIC2_DATA;
+	uint8_t offs = irq < 8 ? 0 : 8;
+	uint8_t val = inb(port);
+	if (disable) {
+		bsetn(val, irq - offs);
+	}
+	else {
+		bclrn(val, irq - offs);
+	}
+	outb(port, val);
+}
+
 /**
  *  init_idt()
  *
@@ -363,7 +381,7 @@ void init_idt(void)
 	idt_set_gate(IRQ_BASE + 14, GDT_SEL_CODE, irq_stub_14, 0, IDT_INTR_GATE);
 	idt_set_gate(IRQ_BASE + 15, GDT_SEL_CODE, irq_stub_15, 0, IDT_INTR_GATE);
 
-	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_TRAP_GATE);
+	idt_set_gate(SYSCALL, GDT_SEL_CODE, syscall_stub, 3, IDT_INTR_GATE);
 
 	/* PIC */
 	dbg_printf(DBG_IDT, "Initializing PIC\n");

@@ -85,6 +85,10 @@ struct fs_proc_data *vfs_create_procdata()
 
 struct fs_proc_data *vfs_clone_procdata(struct fs_proc_data *data)
 {
+	struct fs_proc_data *newdata = kmalloc(sizeof(*newdata));
+
+
+
 	/* TODO */
 	return NULL;
 }
@@ -207,8 +211,11 @@ int32_t sys_close(int fd)
 
 int32_t sys_readwrite(int fd, int32_t buffer, int32_t count)
 {
+	dbg_vprintf(DBG_MM, "sys_readwrite(%d, %p, %d) for %d\n", fd, buffer, count, syscall_proc->pid);
 	void *kbuf = vm_user_to_kernel(syscall_proc->as->pdir, (vaddr_t)buffer, count);
+	dbg_vprintf(DBG_MM, " get file\n");
 	struct file *file = fd2file(syscall_proc, fd);
+	dbg_vprintf(DBG_MM, " got file!\n");
 	int result = -ENOSYS;
 
 	if (!file) {
@@ -216,14 +223,19 @@ int32_t sys_readwrite(int fd, int32_t buffer, int32_t count)
 		goto end;
 	}
 
-	if (syscall_proc->sc_regs->eax == SC_READ)
+	if (syscall_proc->sc_regs->eax == SC_READ) {
+		dbg_vprintf(DBG_MM, "  reading\n");
 		result = vfs_read(file, kbuf, count, file->pos);
-	else
+	}
+	else {
+		dbg_vprintf(DBG_MM, "  writing\n");
 		result = vfs_write(file, kbuf, count, file->pos);
+	}
 
 end:
 	if (result != -EAGAIN)
 		km_free_addr(kbuf, count);
+	dbg_vprintf(DBG_MM, "Result is %d\n", result);
 	return (int32_t)result;
 }
 

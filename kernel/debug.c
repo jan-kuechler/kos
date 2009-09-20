@@ -227,6 +227,13 @@ static enum excpt_policy pf_handler(uint32_t *esp)
 		dbg_error("Hint: Tztztz... Bad user! The kernel lives here... and it bites.\n");
 	}
 
+	if (!IS_USER(regs->ds)) {
+		char *sym = dbg_get_sym(regs->eip);
+		if (!sym)
+			sym = "<unknown>";
+		dbg_error("Error at: %p %s\n", regs->eip, sym);
+	}
+
 	return EP_DEFAULT;
 }
 
@@ -261,6 +268,13 @@ static enum excpt_policy gpf_handler(uint32_t *esp)
 		tab == GDT ? "GDT" : (tab == LDT ? "LDT" : "IDT"),
 		external ? " (external origin)." : "."
 	);
+
+	if (!IS_USER(regs->ds)) {
+		char *sym = dbg_get_sym(regs->eip);
+		if (!sym)
+			sym = "<unknown>";
+		dbg_error("Error at: %p %s\n", regs->eip, sym);
+	}
 
 	return EP_DEFAULT;
 }
