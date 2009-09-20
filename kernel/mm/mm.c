@@ -2,12 +2,23 @@
 #include <multiboot.h>
 #include <page.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "debug.h"
+#include "error.h"
 #include "elf.h"
 #include "kernel.h"
 #include "mm/mm.h"
+
+#include "intern.h"
+
+enum block_type
+{
+	USABLE_BLOCK,
+	UNUSABLE_BLOCK,
+	END_OF_BLOCKS,
+};
 
 #define addr_to_idx(a) (((dword)a / PAGE_SIZE) / 32)
 #define idx_to_addr(i) (i * PAGE_SIZE * 32)
@@ -18,9 +29,9 @@
 // this is enough for 4GB memory
 #define MMAP_SIZE 0x8000
 
-static dword mmap[MMAP_SIZE];
-static dword mmap_length;
-static dword total_mem;
+static uint32_t mmap[MMAP_SIZE];
+static size_t mmap_length;
+static size_t total_mem;
 
 static inline void mark_free(paddr_t page)
 {
@@ -32,14 +43,14 @@ static inline void mark_used(paddr_t page)
 	bclrn(mmap[addr_to_idx(page)], page_to_pos(page));
 }
 
-static inline void mark_range_free(paddr_t start, dword num)
+static inline void mark_range_free(paddr_t start, size_t num)
 {
 	int i=0;
 	for (; i < num; ++i)
 		mark_free((paddr_t)((char*)start + (i*PAGE_SIZE)));
 }
 
-static inline void mark_range_used(paddr_t start, dword num)
+static inline void mark_range_used(paddr_t start, size_t num)
 {
 	int i=0;
 	for (; i < num; ++i)
@@ -61,7 +72,7 @@ static paddr_t find_free_page()
 	return NO_PAGE;
 }
 
-static paddr_t find_free_range(dword msize)
+static paddr_t find_free_range(size_t msize)
 {
 	int i=0;
 	int found = 0;
@@ -118,7 +129,7 @@ void mm_free_page(paddr_t page)
  *
  * Returns the address of num sequenced pages.
  */
-paddr_t mm_alloc_range(dword num)
+paddr_t mm_alloc_range(size_t num)
 {
 	paddr_t start = find_free_range(num);
 	if (start == NO_PAGE)
@@ -132,7 +143,7 @@ paddr_t mm_alloc_range(dword num)
  *
  * Frees num sequenced pages starting from start.
  */
-void mm_free_range(paddr_t start, dword num)
+void mm_free_range(paddr_t start, size_t num)
 {
 	mark_range_free(start, num);
 }
@@ -142,7 +153,7 @@ void mm_free_range(paddr_t start, dword num)
  *
  * Returns the ammount of total memory in the system
  */
-dword mm_total_mem()
+size_t mm_total_mem()
 {
 	return total_mem;
 }
@@ -153,7 +164,7 @@ dword mm_total_mem()
  *
  * Returns the number of usable (=> not kernel owned) pages in the system.
  */
-dword mm_num_pages()
+size_t mm_num_pages()
 {
 	return mmap_length * 32; /* 32 pages per mmap entry */
 }
@@ -163,7 +174,7 @@ dword mm_num_pages()
  *
  * Returns the number of free pages in the system.
  */
-dword mm_num_free_pages()
+size_t mm_num_free_pages()
 {
 	dword num = 0;
 	int i=0;
@@ -196,6 +207,25 @@ dword mm_get_mmap_size(void)
 	return (MMAP_SIZE * sizeof(dword));
 }
 
+static enum block_type get_avail_block(paddr_t *start, size_t *len, size_t i)
+{
+	struct multiboot_mmap *mb_mmap =
+		(struct multiboot_mmap*)multiboot_info.mmap_addr;
+	struct multiboot_mmap *mb_end = mb_mmap + multiboot_info.mmap_length;
+
+	mb_mmap += i;
+
+	if (mb_mmap > mb_end)
+		return END_OF_BLOCKS;
+	if (mb_mmap->type != 1)
+		return UNUSABLE_BLOCK;
+
+	*start = (paddr_t)((uint32_t)mb_mmap->base_addr); // truncate 64 bit value
+	*len   = mb_mmap->length;
+
+	return USABLE_BLOCK;
+}
+
 /**
  *  init_mm()
  *
@@ -207,15 +237,39 @@ void init_mm(void)
 	memset(mmap, 0, 4 * MMAP_SIZE); // mmap_size is in dwords
 	mmap_length = MMAP_SIZE;
 
-	mark_range_free((paddr_t)0x000000, NUM_PAGES(multiboot_info.mem_lower * 1024));
-	mark_range_free((paddr_t)0x100000, NUM_PAGES((multiboot_info.mem_upper * 1024) - 0x100000));
+	total_mem = 0;
 
-	total_mem = (multiboot_info.mem_upper * 1024);
+	if (!bisset(multiboot_info.flags, MB_MMAP)) {
+		panic("No mulitboot memory map available.");
+	}
+
+	int i=0;
+	while (true) {
+		paddr_t start = NULL;
+		size_t  len   = 0;
+		enum block_type type = get_avail_block(&start, &len, i++);
+
+		if (type == END_OF_BLOCKS)
+			break;
+		if (type == UNUSABLE_BLOCK)
+			continue;
+
+		dbg_printf(DBG_MM, "Memory: %dkb at %p\n", len/1024, start);
+
+		if (!IS_PAGE_ALIGNED(start)) {
+			paddr_t aligned = PAGE_ALIGN_ROUND_UP((uint32_t)start);
+			dbg_vprintf(DBG_MM, " align %p to %p\n", start, aligned);
+			ptrdiff_t offs = aligned - start;
+			len -= offs;
+			start = aligned;
+		}
+		total_mem += len;
+		mark_range_free(start, NUM_PAGES(len));
+	}
 
 	mark_range_used(kernel_phys_start, NUM_PAGES(kernel_phys_end - kernel_phys_start));
 	multiboot_mod_t *mod = (multiboot_mod_t*)multiboot_info.mods_addr;
-	int i=0;
-	for (; i < multiboot_info.mods_count; ++i) {
+	for (i=0; i < multiboot_info.mods_count; ++i) {
 		mark_range_used((paddr_t)mod, NUM_PAGES(sizeof(multiboot_mod_t)));
 		mark_range_used((paddr_t)mod->mod_start, NUM_PAGES(mod->mod_end - mod->mod_start));
 		if (mod->cmdline) {

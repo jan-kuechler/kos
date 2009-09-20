@@ -5,6 +5,7 @@
 
 #include <bitop.h>
 #include <page.h>
+#include "mm/virt.h"
 #include "mm/types.h"
 
 /* some helper functions to clarify the code */
