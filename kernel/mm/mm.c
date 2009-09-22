@@ -36,8 +36,8 @@ static const paddr_t dma_addrs[NUM_DMA] =
 	(paddr_t)0x70000,
 	(paddr_t)0x80000,
 };
-static const paddr_t dma_start = DMA_BEGIN;
-static const paddr_t dma_end = DMA_BEGIN + (NUM_DMA * DMA_RANGE_LENGTH);
+static const paddr_t dma_start = (paddr_t)DMA_BEGIN;
+static const paddr_t dma_end = (paddr_t)(DMA_BEGIN + (NUM_DMA * DMA_RANGE_LENGTH));
 
 /* FIXME: Move this to an arch header */
 #define MMAP_SIZE 0x8000
@@ -316,7 +316,7 @@ static enum block_type get_avail_block(paddr_t *start, size_t *len, size_t i)
 void init_mm(void)
 {
 	// mark everything as not available
-	memset(mmap, 0, 4 * MMAP_SIZE); // mmap_size is in dwords
+	memset(mmap, 0, MMAP_SIZE * sizeof(MMAP_TYPE));
 
 	total_mem = 0;
 	mem_end   = NULL;
@@ -346,7 +346,7 @@ void init_mm(void)
 			start = aligned;
 		}
 		total_mem += len;
-		paddr_t this_end = (paddr_t)((uint8_t)start + len);
+		paddr_t this_end = (paddr_t)((uint8_t*)start + len);
 		if (this_end > mem_end)
 			mem_end = this_end;
 		mark_range_free(start, NUM_PAGES(len));
