@@ -40,9 +40,15 @@ void mm_free_range(_aligned_ paddr_t start, size_t num);
 
 /**
  * Allocates a DMA feasible memory range of 64kb.
- * @return Start address of the memory range.
+ * @return Start address of the memory range
  */
 _aligned_ paddr_t mm_alloc_dma(void);
+
+/**
+ * Frees a DMA memory range.
+ * @param start Start address of memory range
+ */
+void mm_free_dma(_aligned_ paddr_t start);
 
 /**
  * Reserves num pages from start for any use.

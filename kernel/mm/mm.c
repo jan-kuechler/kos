@@ -27,15 +27,16 @@ enum block_type
 
 static const paddr_t dma_addrs[NUM_DMA] =
 {
-	0x10000,
-	0x20000,
-	0x30000,
-	0x40000,
-	0x50000,
-	0x60000,
-	0x70000,
-	0x80000,
+	(paddr_t)0x10000,
+	(paddr_t)0x20000,
+	(paddr_t)0x30000,
+	(paddr_t)0x40000,
+	(paddr_t)0x50000,
+	(paddr_t)0x60000,
+	(paddr_t)0x70000,
+	(paddr_t)0x80000,
 };
+static const paddr_t dma_start = DMA_BEGIN;
 static const paddr_t dma_end = DMA_BEGIN + (NUM_DMA * DMA_RANGE_LENGTH);
 
 /* FIXME: Move this to an arch header */
@@ -51,7 +52,7 @@ static const paddr_t dma_end = DMA_BEGIN + (NUM_DMA * DMA_RANGE_LENGTH);
 
 static MMAP_TYPE mmap[MMAP_SIZE];
 static size_t total_mem;
-static paddr_t last_addr;
+static paddr_t mem_end;
 
 static inline void mark_free(paddr_t page)
 {
@@ -61,11 +62,6 @@ static inline void mark_free(paddr_t page)
 static inline void mark_used(paddr_t page)
 {
 	bclrn(mmap[addr_to_idx(page)], page_to_pos(page));
-}
-
-static inline bool is_free(paddr_t page)
-{
-	return bissetn(mmap[addr_to_idx(page)], page_to_pos(page));
 }
 
 static inline void mark_range_free(paddr_t start, size_t num)
@@ -82,7 +78,41 @@ static inline void mark_range_used(paddr_t start, size_t num)
 		mark_used(start + (i*PAGE_SIZE));
 }
 
-static paddr_t find(size_t size, paddr_t start, paddr_t end)
+static inline bool is_free(paddr_t page)
+{
+	return bissetn(mmap[addr_to_idx(page)], page_to_pos(page));
+}
+
+static inline bool is_range_free(paddr_t start, size_t num)
+{
+	int i=0;
+	for (; i < num; ++i) {
+		if (!is_free(start + (i * PAGE_SIZE)))
+			return false;
+	}
+	return true;
+}
+
+/* helper function for find */
+static inline bool test(int idx, int pos, size_t num, int *count, paddr_t *result)
+{
+	if (bissetn(mmap[idx], pos)) {
+		if (!*count)
+			*result = (paddr_t)(idx_to_addr(idx) + pos_to_offs(pos));
+
+		if (++*count >= num)
+			return true;
+	}
+	else {
+		*count = 0;
+	}
+	return false;
+}
+
+/*
+ * Finds num contigious pages between start and end.
+ */
+static paddr_t find(size_t num, paddr_t start, paddr_t end)
 {
 	int start_index = addr_to_idx(start);
 	int end_index   = addr_to_idx(end);
@@ -100,17 +130,10 @@ static paddr_t find(size_t size, paddr_t start, paddr_t end)
 	if (start_pos) {
 		int i=0;
 		for (i = start_pos; i < MMAP_BITS; ++i) {
-			if (bissetn(mmap[start_index], i)) {
-				if (!count)
-					result = (paddr_t)(idx_to_addr(start_index) + pos_to_offs(i));
-
-				if (++count > size)
-					return result;
-			}
-			else {
-				count = 0;
-			}
+			if (test(start_index, i, num, &count, &result))
+				return result;
 		}
+		start_index++;
 	}
 
 	for (i=start_index; i < end_index; ++i) {
@@ -121,43 +144,24 @@ static paddr_t find(size_t size, paddr_t start, paddr_t end)
 
 		int p=0;
 		for (; p < MMAP_BITS; ++p) {
-			if (bissetn(mmap[i], p)) {
-				if (!count)
-					result = (paddr_t)(idx_to_addr(i) + pos_to_offs(p));
-
-				if (++count > size)
-					return result;
-			}
-			else {
-				count = 0;
-			}
+			if (test(i, p, num, &count, &result))
+				return result;
 		}
 	}
 
 	if (end_pos) {
 		end_index++;
-
 		for (i=0; i < end_pos; ++i) {
-			if (bissetn(mmap[end_index], i)) {
-				if (!count)
-					result = (paddr_t)(idx_to_addr(end_index) + pos_to_offs(i));
-
-				if (++count > size)
-					return result;
-			}
-			else {
-				count = 0;
-			}
+			if (test(end_index, i, num, &count, &result))
+				return result;
 		}
 	}
-
 	return NO_PAGE;
 }
 
 paddr_t mm_alloc_page(void)
 {
-	//paddr_t page = find_free_page();
-	paddr_t page = find(1, 0x00, last_addr);
+	paddr_t page = find(1, dma_end, mem_end);
 	if (page == NO_PAGE) {
 		seterr(E_NO_MEM);
 		return NO_PAGE;
@@ -183,8 +187,7 @@ paddr_t mm_alloc_range(size_t num)
 		return NO_PAGE;
 	}
 
-	//paddr_t start = find_free_range(num);
-	paddr_t start = find(num, 0x00, last_addr);
+	paddr_t start = find(num, dma_end, mem_end);
 	if (start == NO_PAGE) {
 		seterr(E_NO_MEM);
 		return NO_PAGE;
@@ -243,6 +246,28 @@ void mm_free_phys_range(paddr_t start, size_t num)
 	mark_range_free(start, num);
 }
 
+paddr_t mm_alloc_dma(void)
+{
+	int i=0;
+	for (; i < NUM_DMA; ++i) {
+		if (is_range_free(dma_addrs[i], DMA_RANGE_LENGTH)) {
+			mark_range_used(dma_addrs[i], DMA_RANGE_LENGTH);
+			return dma_addrs[i];
+		}
+	}
+	seterr(E_NO_MEM);
+	return NO_PAGE;
+}
+
+void mm_free_dma(paddr_t start)
+{
+	if (start == NO_PAGE)
+		return;
+
+	/* TODO: Add checks for non-dma addrs? */
+	mark_range_free(start, DMA_RANGE_LENGTH);
+}
+
 size_t mm_total_mem(void)
 {
 	return total_mem;
@@ -294,6 +319,7 @@ void init_mm(void)
 	memset(mmap, 0, 4 * MMAP_SIZE); // mmap_size is in dwords
 
 	total_mem = 0;
+	mem_end   = NULL;
 
 	if (!bisset(multiboot_info.flags, MB_MMAP)) {
 		panic("No mulitboot memory map available.");
@@ -320,7 +346,9 @@ void init_mm(void)
 			start = aligned;
 		}
 		total_mem += len;
-		last_addr = (paddr_t)((uint8_t*)start + len);
+		paddr_t this_end = (paddr_t)((uint8_t)start + len);
+		if (this_end > mem_end)
+			mem_end = this_end;
 		mark_range_free(start, NUM_PAGES(len));
 	}
 
