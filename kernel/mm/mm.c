@@ -9,6 +9,7 @@
 #include "error.h"
 #include "elf.h"
 #include "kernel.h"
+#include "mm/dma.h"
 #include "mm/mm.h"
 
 #include "intern.h"
@@ -20,8 +21,27 @@ enum block_type
 	END_OF_BLOCKS,
 };
 
+#define NUM_DMA 8
+
+#define DMA_BEGIN 0x10000
+
+static const paddr_t dma_addrs[NUM_DMA] =
+{
+	0x10000,
+	0x20000,
+	0x30000,
+	0x40000,
+	0x50000,
+	0x60000,
+	0x70000,
+	0x80000,
+};
+static const paddr_t dma_end = DMA_BEGIN + (NUM_DMA * DMA_RANGE_LENGTH);
+
 /* FIXME: Move this to an arch header */
 #define MMAP_SIZE 0x8000
+#define MMAP_TYPE uint32_t
+#define MMAP_BITS (sizeof(MMAP_TYPE) * 8)
 
 #define addr_to_idx(a) (((uintptr_t)a / PAGE_SIZE) / 32)
 #define idx_to_addr(i) (i * PAGE_SIZE * 32)
@@ -29,8 +49,9 @@ enum block_type
 #define page_to_pos(p) (((uintptr_t)p / PAGE_SIZE) & 31)
 #define pos_to_offs(p) ((uintptr_t)p * PAGE_SIZE)
 
-static uint32_t mmap[MMAP_SIZE];
+static MMAP_TYPE mmap[MMAP_SIZE];
 static size_t total_mem;
+static paddr_t last_addr;
 
 static inline void mark_free(paddr_t page)
 {
@@ -40,6 +61,11 @@ static inline void mark_free(paddr_t page)
 static inline void mark_used(paddr_t page)
 {
 	bclrn(mmap[addr_to_idx(page)], page_to_pos(page));
+}
+
+static inline bool is_free(paddr_t page)
+{
+	return bissetn(mmap[addr_to_idx(page)], page_to_pos(page));
 }
 
 static inline void mark_range_free(paddr_t start, size_t num)
@@ -56,42 +82,71 @@ static inline void mark_range_used(paddr_t start, size_t num)
 		mark_used(start + (i*PAGE_SIZE));
 }
 
-static paddr_t find_free_page()
+static paddr_t find(size_t size, paddr_t start, paddr_t end)
 {
+	int start_index = addr_to_idx(start);
+	int end_index   = addr_to_idx(end);
+	int start_pos   = page_to_pos(start);
+	int end_pos     = page_to_pos(end);
+
+	int count = 0;
+	paddr_t result = NO_PAGE;
+
 	int i=0;
 
-	for (; i < MMAP_SIZE; ++i) {
-		if ((mmap[i] & BMASK_DWORD) == 0) // nothing free here
-			continue;
-		int p = bscanfwd(mmap[i]);
+	if (end_pos)
+		end_index--;
 
-		paddr_t page = (paddr_t)(idx_to_addr(i) + pos_to_offs(p));
-		return page;
-	}
-	return NO_PAGE;
-}
+	if (start_pos) {
+		int i=0;
+		for (i = start_pos; i < MMAP_BITS; ++i) {
+			if (bissetn(mmap[start_index], i)) {
+				if (!count)
+					result = (paddr_t)(idx_to_addr(start_index) + pos_to_offs(i));
 
-static paddr_t find_free_range(size_t msize)
-{
-	int i=0;
-	int found = 0;
-	paddr_t start = NO_PAGE;
-
-	for (; i < MMAP_SIZE; ++i) {
-		if ((mmap[i] & BMASK_DWORD) == 0) { // nothing free here
-			found = 0;
-			continue;
-		}
-		int j=0;
-		for (; j < (sizeof(dword) * 8); ++j) {
-			if (bissetn(mmap[i], j)) {
-				if (!found)
-					start = (paddr_t)(idx_to_addr(i) + pos_to_offs(j));
-				if (++found >= msize)
-					return start;
+				if (++count > size)
+					return result;
 			}
 			else {
-				found = 0;
+				count = 0;
+			}
+		}
+	}
+
+	for (i=start_index; i < end_index; ++i) {
+		if (mmap[i] == 0) { // no free pages here
+			count = 0;
+			continue;
+		}
+
+		int p=0;
+		for (; p < MMAP_BITS; ++p) {
+			if (bissetn(mmap[i], p)) {
+				if (!count)
+					result = (paddr_t)(idx_to_addr(i) + pos_to_offs(p));
+
+				if (++count > size)
+					return result;
+			}
+			else {
+				count = 0;
+			}
+		}
+	}
+
+	if (end_pos) {
+		end_index++;
+
+		for (i=0; i < end_pos; ++i) {
+			if (bissetn(mmap[end_index], i)) {
+				if (!count)
+					result = (paddr_t)(idx_to_addr(end_index) + pos_to_offs(i));
+
+				if (++count > size)
+					return result;
+			}
+			else {
+				count = 0;
 			}
 		}
 	}
@@ -99,9 +154,10 @@ static paddr_t find_free_range(size_t msize)
 	return NO_PAGE;
 }
 
-paddr_t mm_alloc_page()
+paddr_t mm_alloc_page(void)
 {
-	paddr_t page = find_free_page();
+	//paddr_t page = find_free_page();
+	paddr_t page = find(1, 0x00, last_addr);
 	if (page == NO_PAGE) {
 		seterr(E_NO_MEM);
 		return NO_PAGE;
@@ -127,7 +183,8 @@ paddr_t mm_alloc_range(size_t num)
 		return NO_PAGE;
 	}
 
-	paddr_t start = find_free_range(num);
+	//paddr_t start = find_free_range(num);
+	paddr_t start = find(num, 0x00, last_addr);
 	if (start == NO_PAGE) {
 		seterr(E_NO_MEM);
 		return NO_PAGE;
@@ -150,17 +207,53 @@ void mm_free_range(paddr_t start, size_t num)
 		mark_range_free(start, num);
 }
 
-size_t mm_total_mem()
+bool mm_alloc_phys_range(paddr_t start, size_t num)
+{
+	if (!IS_PAGE_ALIGNED(start)) {
+		seterr(E_ALIGN);
+		return false;
+	}
+	if (!num) {
+		seterr(E_INVALID);
+		return false;
+	}
+
+	int i=0;
+	for (; i < num; ++i) {
+		if (!is_free(start + i * PAGE_SIZE)) {
+			seterr(E_NO_MEM);
+			return false;
+		}
+	}
+	mark_range_used(start, num);
+	return true;
+}
+
+void mm_free_phys_range(paddr_t start, size_t num)
+{
+	if (!IS_PAGE_ALIGNED(start)) {
+		seterr(E_ALIGN);
+		return;
+	}
+	if (!num) {
+		seterr(E_INVALID);
+		return;
+	}
+
+	mark_range_free(start, num);
+}
+
+size_t mm_total_mem(void)
 {
 	return total_mem;
 }
 
-size_t mm_num_pages()
+size_t mm_num_pages(void)
 {
 	return total_mem / PAGE_SIZE;
 }
 
-size_t mm_num_free_pages()
+size_t mm_num_free_pages(void)
 {
 	size_t num = 0;
 	int i=0;
@@ -227,6 +320,7 @@ void init_mm(void)
 			start = aligned;
 		}
 		total_mem += len;
+		last_addr = (paddr_t)((uint8_t*)start + len);
 		mark_range_free(start, NUM_PAGES(len));
 	}
 
