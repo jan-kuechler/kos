@@ -16,6 +16,8 @@ struct addrspace *vm_create_addrspace()
 {
 	struct addrspace *as = kmalloc(sizeof(*as));
 	as->phys = mm_alloc_page();
+	if (as->phys == NO_PAGE)
+		return NULL;
 	as->pdir = km_alloc_addr(as->phys, VM_COMMON_FLAGS, PAGE_SIZE);
 
 	memset(as->pdir, 0, PAGE_SIZE);
@@ -47,6 +49,8 @@ static bool clone_entry(pdir_t newpd, vaddr_t vaddr, ptab_entry_t pte)
 struct addrspace *vm_clone_addrspace(struct proc *proc, struct addrspace *as)
 {
 	struct addrspace *newas = vm_create_addrspace();
+	if (!newas)
+		return NULL;
 
 	vaddr_t addr = (vaddr_t)(KERN_SPACE_END + 1);
 

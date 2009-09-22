@@ -104,14 +104,19 @@ static int elf32_has_entry(Elf32_Phdr *phdr, Elf32_Ehdr *hdr)
 	       hdr->e_entry <  phdr->p_vaddr + phdr->p_memsz;
 }
 
-static void elf32_alloc_mem(pdir_t pdir, vaddr_t base, int pages)
+static bool elf32_alloc_mem(pdir_t pdir, vaddr_t base, int pages)
 {
 	int i=0;
 	for (; i < pages; ++i) {
 		paddr_t page = mm_alloc_page();
+		if (page == NO_PAGE) {
+			/* TODO: Cleanup all previously allocated pages */
+			return false;
+		}
 		dbg_vprintf(DBG_MM, "Loader: New page at phys:%p\n", page);
 		vm_map_page(pdir, page, (vaddr_t)(base + i * PAGE_SIZE), VM_USER_FLAGS);
 	}
+	return true;
 }
 
 static void elf32_free_mem(pdir_t pdir, vaddr_t base, int pages)
@@ -180,7 +185,10 @@ static bool elf32_map_segment(pdir_t pdir, Elf32_Phdr *phdr, void *mem, list_t *
 	}
 
 	int memsz_pages = NUM_PAGES(phdr->p_memsz);
-	elf32_alloc_mem(pdir, base, memsz_pages);
+	if (!elf32_alloc_mem(pdir, base, memsz_pages)) {
+		dbg_printf(DBG_LOADER, "Error loading segment: Not enough memory.");
+		return false;
+	}
 
 	/* save the number of allocated pages for elf32_cleanup */
 	struct elf32_ldata *ldata = kmalloc(sizeof(*ldata));

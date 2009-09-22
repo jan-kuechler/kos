@@ -117,6 +117,9 @@ static void init_proc(struct proc *proc, void (*entry)(), const char *cmdline,
 	proc->as = vm_create_addrspace();
 
 	paddr_t ustackp = mm_alloc_page();
+	if (ustackp == NO_PAGE) {
+		panic("Not enough memory to create user stack for process");
+	}
 	proc->ustack_addr = ustackp;
 	vm_map_page(proc->as->pdir, ustackp, (vaddr_t)(USER_STACK_ADDR - PAGE_SIZE),
 	            PE_PRESENT | PE_READWRITE | PE_USERMODE);
@@ -514,6 +517,9 @@ int32_t sys_getcmdline()
 
 	if (!syscall_proc->cmdline_mapped) {
 		page = mm_alloc_page();
+		if (page == NO_PAGE) {
+			return 0;
+		}
 		vm_map_page(syscall_proc->as->pdir,	page, (vaddr_t)INFO_SPACE_START,
 		            PE_PRESENT | PE_READWRITE | PE_USERMODE);
 

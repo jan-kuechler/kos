@@ -48,7 +48,8 @@ void init_paging(void)
 
 	/* alloc the kernel's page directory */
 	kernel_pdir = mm_alloc_page();
-	kassert(kernel_pdir != NO_PAGE);
+	if (kernel_pdir == NO_PAGE)
+		panic("Not enough memory to allocate kernel page directory...");
 	memset(kernel_pdir, 0, PAGE_SIZE);
 
 	kernel_addrspace.phys = kernel_pdir;
@@ -56,7 +57,8 @@ void init_paging(void)
 
 	/* this is the page table where the working table is mapped into */
 	working_table_map = mm_alloc_page();
-	kassert(working_table_map != NO_PAGE);
+	if (working_table_map == NO_PAGE)
+		panic("Not enough memory to allocate working table map...");
 	memset(working_table_map, 0, PAGE_SIZE);
 
 	dbg_vprintf(DBG_VM, "wtm is at %p\n", working_table_map);
@@ -112,6 +114,8 @@ static void do_map(pdir_t pdir, _aligned_ paddr_t paddr, _aligned_ vaddr_t vaddr
 	if (bnotset(pde, PE_PRESENT)) {
 		/* there is no page table for this addr, create one */
 		ptab = (ptab_t)mm_alloc_page();
+		if (ptab == NO_PAGE)
+			panic("Not enough memory to create new page table.");
 
 		pdir[pdir_index(vaddr)] = (dword)ptab | flags;
 
@@ -393,16 +397,21 @@ int vm_is_mapped(pdir_t pdir, _unaligned_ vaddr_t vaddr, dword size, dword flags
 	return 1;
 }
 
-static void increase_heap(struct proc *proc, int pages)
+static bool increase_heap(struct proc *proc, int pages)
 {
 	CHECK_ALIGN(proc->brk_page);
 
 	int i=0;
 	for (; i < pages; ++i) {
 		paddr_t page = mm_alloc_page();
+		if (page == NO_PAGE) {
+			/* TODO: Cleanup */
+			return false;
+		}
 		vm_map_page(proc->as->pdir, page, proc->brk_page, PE_PRESENT | PE_READWRITE | PE_USERMODE);
 		proc->brk_page += PAGE_SIZE;
 	}
+	return true;
 }
 
 int32_t sys_sbrk(int32_t incr)
@@ -423,7 +432,9 @@ int32_t sys_sbrk(int32_t incr)
 
 	if (rest < incr) {
 		dbg_vprintf(DBG_SC, " Increase heap by %d pages\n", NUM_PAGES(incr));
-		increase_heap(syscall_proc, NUM_PAGES(incr));
+		if (!increase_heap(syscall_proc, NUM_PAGES(incr))) {
+			return -1;
+		}
 	}
 	else {
 		dbg_vprintf(DBG_SC, " Rest (%d) is big enough...\n", rest);
