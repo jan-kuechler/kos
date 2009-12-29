@@ -35,7 +35,7 @@ LDFLAGS = -Llib -static -Tlink.ld
 
 LIBS = -lutil -lc -lutil -lkos -lgcc
 
-QFLAGS = -m 32 -serial file:kos.log -L ../tools/qemu -no-kqemu
+QFLAGS = -m 32 -serial file:kos.log -L ../tools/qemu
 
 .PHONY: all clean version verupdate initrd floppy iso run run-iso
 
@@ -60,9 +60,9 @@ stats:
 
 kernel: bin/kos.bin
 
-tf: kernel floppy run
+tf: kernel floppy run-floppy
 
-ti: kernel iso run-iso
+ti: kernel iso run
 
 floppy: 
 	@./cpyfiles.sh floppy
@@ -75,11 +75,11 @@ iso:
 	@mkisofs -R -b grldr -no-emul-boot -boot-load-size 4 -boot-info-table -o img/kos.iso tmp
 	@rm -rf tmp
 	
-run:
+run-floppy:
 	@rm -f kos*.log
 	@qemu $(QFLAGS) -fda img/kos.img 
 	
-run-iso:
+run:
 	@rm -f kos*.log
 	@qemu $(QFLAGS) -cdrom img/kos.iso
 
