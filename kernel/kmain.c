@@ -142,7 +142,7 @@ static void init_cdi_driver()
 	dbg_printf(DBG_LOAD, "* Loading CDI drivers...\n");
 
 	const char *ata_args[] = {
-		"ata", "nodam"
+		"ata", "nodma"
 	};
 	init_ata(2, ata_args);
 }
@@ -337,14 +337,18 @@ __attribute__((noreturn)) void shutdown()
 	for (;;) asm("hlt");
 }
 
+static volatile bool in_panic = false;
+
 __attribute__((noreturn)) void panic(const char *fmt, ...)
 {
-	if (cx_get() == CX_PANIC) {
+	if (in_panic || cx_get() == CX_PANIC) {
+		dbg_error("Double panic, bye bye!");
 		/* recusive panic, just kill the machine */
 		for (;;) asm("hlt");
 	}
 
 	disable_intr();
+	in_panic = true;
 	cx_set(CX_PANIC);
 
 	va_list args;
@@ -352,15 +356,15 @@ __attribute__((noreturn)) void panic(const char *fmt, ...)
 
 	kout_select();
 
-	kout_set_status(0x04); /* white on red */
+	kout_set_status(0x04);
 	dbg_error("Kernel Panic!\n");
 	dbg_aerror(fmt, args);
 	dbg_error("\n");
 
+	dbg_print_last_syscall();
+
 	if (dump_stack)
 		dbg_stack_backtrace();
-
-	dbg_print_last_syscall();
 
 	for (;;) asm ("hlt");
 }
