@@ -327,6 +327,7 @@ static int scsi_open(struct cdi_storage_device *dev)
 		dev->block_size  = sector_size;
 		dev->block_count = sector_count;
 	}
+	return 0;
 }
 
 static int scsi_close(struct cdi_storage_device *dev)

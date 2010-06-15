@@ -67,11 +67,18 @@ void cdi_storage_device_init(struct cdi_storage_device* device)
 
 static int dev_open(struct inode *ino, struct file *file, dword flags)
 {
+	dbg_printf(DBG_CDI, "dev_open(%p, %p, %b)\n", ino, file, flags);
+
 	file->pos = 0;
 	file->fops = &fops;
 
-	struct cdi_storage_device *dev = (struct cdi_storage_device*)file->inode->impl;
+	dbg_printf(DBG_CDI, "file->inode: %p\n", file->inode);
+
+	struct cdi_storage_device *dev = (struct cdi_storage_device*)ino->impl;
+	dbg_printf(DBG_CDI, "dev: %p\n", dev);
+
 	struct cdi_storage_driver *drv = (struct cdi_storage_driver*)dev->dev.driver;
+	dbg_printf(DBG_CDI, "drv: %p\n", drv);
 
 	if (drv->open) {
 		return drv->open(dev);
