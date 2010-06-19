@@ -88,6 +88,8 @@ static int dev_open(struct inode *ino, struct file *file, dword flags)
 
 static int dev_read(struct file *file, void *buffer, dword size, dword offset)
 {
+	dbg_printf(DBG_CDI, "dev_read('%s', %p, 0x%x, 0x%x)\n", file->inode->name, buffer, size, offset);
+
 	/* a buffer for unaligned requests.                 */
 	/* it may live through many reads,                 */
 	/* so theres no nead to alloc a new one every time */

@@ -7,9 +7,7 @@
 
 void list(const char *dir)
 {
-	fprintf(stderr, "opedir");
 	DIR *d = opendir(dir);
-	fprintf(stderr, "\tdone!\n");
 
 	if (!d) {
 		fprintf(stderr, "Could not open %s.\n", dir);

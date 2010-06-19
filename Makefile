@@ -2,7 +2,7 @@
 # kOS Makefile #
 ################
 
-BUILDNAME = Yggdrasil
+BUILDNAME = "A new hope"
 
 ARCH = i386
 COMPILER = gcc

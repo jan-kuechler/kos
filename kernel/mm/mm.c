@@ -14,13 +14,6 @@
 
 #include "intern.h"
 
-enum block_type
-{
-	USABLE_BLOCK,
-	UNUSABLE_BLOCK,
-	END_OF_BLOCKS,
-};
-
 #define NUM_DMA 8
 
 #define DMA_BEGIN 0x10000
@@ -294,6 +287,12 @@ size_t mm_num_free_pages(void)
 	return num;
 }
 
+enum block_type
+{
+	USABLE_BLOCK,
+	UNUSABLE_BLOCK,
+	END_OF_BLOCKS,
+};
 static enum block_type get_avail_block(paddr_t *start, size_t *len, size_t i)
 {
 	struct multiboot_mmap *mb_mmap =
@@ -373,5 +372,5 @@ void init_mm(void)
 		mark_range_used((paddr_t)shdr[i].sh_addr, NUM_PAGES(shdr[i].sh_size));
 	}
 
-	mark_used((paddr_t)0x00);
+	mark_used((paddr_t)0x00); // Reserve the NULL page
 }

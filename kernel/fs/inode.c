@@ -108,8 +108,11 @@ int vfs_read(struct file *file, void *buffer, dword count, dword offset)
 	if (!file)
 		return -EINVAL;
 
-	if (file_has_op(file, read))
-		return file->fops->read(file, buffer, count, offset);
+	if (file_has_op(file, read)) {
+		int n = file->fops->read(file, buffer, count, offset);
+		file->pos += n;
+		return n;
+	}
 	return -ENOSYS;
 }
 
@@ -118,8 +121,11 @@ int vfs_write(struct file *file, void *buffer, dword count, dword offset)
 	if (!file)
 		return -EINVAL;
 
-	if (file_has_op(file, write))
-		return file->fops->write(file, buffer, count, offset);
+	if (file_has_op(file, write)) {
+		int n = file->fops->write(file, buffer, count, offset);
+		file->pos += n;
+		return n;
+	}
 	return -ENOSYS;
 }
 

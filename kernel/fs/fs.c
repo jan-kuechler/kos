@@ -252,7 +252,7 @@ int32_t sys_getcwd(void *bufaddr, uint32_t count)
 {
 	char *buffer = vm_user_to_kernel(syscall_proc->as->pdir, bufaddr, count);
 
-	strncpy(buffer, proc_cwd(syscall_proc)->name, count);
+	strncpy(buffer, syscall_proc->fs_data->cwd->name, count); //proc_cwd(syscall_proc)->name, count);
 	buffer[count-1] = '\0';
 
 	km_free_addr(buffer, count);

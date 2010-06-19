@@ -97,6 +97,7 @@ void syscall_execute(struct syscall_info *info)
 		panic("Too many arguments for syscall %d!\n", info->regs->eax);
 	};
 
+	dbg_printf(DBG_SC, "Syscall done, result is 0x%x\n", result);
 	info->regs->eax = result;
 }
 
